@@ -5,8 +5,8 @@ import bcrypt
 # Buscando as credenciais de forma segura nos Secrets do Streamlit
 # Você vai configurar isso no painel do Streamlit Cloud depois
 try:
-    url: str = st.secrets["SUPABASE_URL"]
-    key: str = st.secrets["SUPABASE_KEY"]
+    url: str = st.secrets["https://ucedzvefdrrazurthkow.supabase.co"]
+    key: str = st.secrets["sb_publishable_0xO6tOXm8ZPD4GiyKjVGig_MBPuqy2t"]
     supabase: Client = create_client(url, key)
 except Exception as e:
     st.error("Erro ao carregar credenciais do Supabase. Verifique os Secrets.")
