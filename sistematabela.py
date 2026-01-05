@@ -21,7 +21,6 @@ def show_tabelas():
         </style>
     """, unsafe_allow_html=True)
 
-    st.title("📚 Central de Tabelas Químicas")
 
     # Cores baseadas no seu código PyQt
     cores = {
@@ -271,4 +270,5 @@ def show_tabelas():
             st.json({"HCl": "Forte", "H2SO4": "Forte", "CH3COOH": "Fraco (4.76)"})
         with aba2:
             st.write("**Principais Bases**")
+
             st.write("NaOH (Soda Cáustica), KOH, Mg(OH)2 (Leite de Magnésia)")
