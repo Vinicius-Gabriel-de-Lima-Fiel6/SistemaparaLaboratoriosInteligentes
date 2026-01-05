@@ -1,11 +1,10 @@
-pandas 
+pandas
 streamlit
-sqlite3
 unidecode
-ultralyics
+ultralytics
 requests
 open-cv
-statistics
-scikit-sklearn
+sklearn
 matplotlib
 scipy
+
