@@ -55,7 +55,7 @@ if selection == "Dashboard":
     col1.metric("Status", "Online", "OK")
     col2.metric("Módulos", "9 Ativos") # Atualizado para 9
     col3.metric("Banco de Dados", "Conectado")
-    col4.metric("Versão", "2.3")
+    col4.metric("Versão", "1.0")
 
     st.divider()
     st.info("💡 Dica: Na aba 'Tabelas Químicas', você pode consultar Kps e reatividade instantaneamente.")
@@ -85,7 +85,7 @@ elif selection == "Gráficos":
 elif selection == "IA":
     if "ia_engine" not in st.session_state:
         with st.spinner("Iniciando IA..."):
-            st.session_state.ia_engine = LabSmartAI()
+            st.session_state.ia_engine = ia.LabSmartAI()
     ia.show_chatbot()
 
 elif selection == "Relatórios":
@@ -96,4 +96,5 @@ st.sidebar.markdown("---")
 st.sidebar.caption("LabSmartAI Project - v1.0")
 
 st.sidebar.caption("© 2026")
+
 
