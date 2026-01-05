@@ -7,3 +7,5 @@ opencv-python
 scikit-learn
 matplotlib
 scipy
+supabase
+bcrypt
