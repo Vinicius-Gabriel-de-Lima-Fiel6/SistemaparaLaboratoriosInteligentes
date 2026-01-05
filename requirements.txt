@@ -3,8 +3,7 @@ streamlit
 unidecode
 ultralytics
 requests
-open-cv
-sklearn
+opencv-python
+scikit-learn
 matplotlib
 scipy
-
