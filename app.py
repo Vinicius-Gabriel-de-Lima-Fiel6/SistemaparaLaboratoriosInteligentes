@@ -93,5 +93,6 @@ elif selection == "Relatórios":
 
 # --- Rodapé ---
 st.sidebar.markdown("---")
-st.sidebar.caption("LabSmartAI Project - v2.3")
+st.sidebar.caption("LabSmartAI Project - v1.0")
+
 st.sidebar.caption("© 2026")
