@@ -1,21 +1,10 @@
 import streamlit as st
 import os
 import sys
+import auth_db as db 
 
 # 1. Configuração de Caminho e Importações
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
-try:
-    from substancias import show_substances
-    from ControleEstoque import show_estoque
-    from equipamentos import show_equipamentos
-    from calculadora import show_calculadora
-    from sistematabela import show_tabelas  # NOVA IMPORTAÇÃO
-    from graficos import show_graficos
-    import ia
-    import relatorios
-except ImportError as e:
-    st.error(f"Erro de importação: Verifique se os arquivos .py estão na mesma pasta. Detalhe: {e}")
 
 # --- Configuração da Página ---
 st.set_page_config(
@@ -25,76 +14,117 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- Menu Lateral ---
-st.sidebar.title("🧪 LabSmartAI")
-st.sidebar.markdown("---")
+# Gerenciamento de Estado de Login
+if 'logado' not in st.session_state:
+    st.session_state.logado = False
+if 'usuario_atual' not in st.session_state:
+    st.session_state.usuario_atual = None
 
-# Lista de navegação completa
-selection = st.sidebar.radio(
-    "Navegação", 
-    [
-        "Dashboard", 
-        "Cadastro de Substâncias", 
-        "Estoque", 
-        "Equipamentos",
-        "Tabelas Químicas",    # ADICIONADO
-        "Calculadora Química", 
-        "Gráficos", 
-        "IA", 
-        "Relatórios"
-    ]
-)
+# --- TELA DE ACESSO (Login/Cadastro conectado ao Supabase) ---
+def tela_acesso():
+    st.title("🧪 LabSmartAI - Acesso ao Sistema")
+    aba_login, aba_cadastro, aba_recuperar = st.tabs(["Entrar", "Criar Conta", "Recuperar Senha"])
 
-# --- Lógica de Navegação ---
+    with aba_login:
+        user_input = st.text_input("Usuário", key="l_user")
+        senha_input = st.text_input("Senha", type="password", key="l_pass")
+        
+        if st.button("Fazer Login"):
+            dados_usuario = db.buscar_usuario(user_input)
+            
+            if dados_usuario and db.verificar_senha(senha_input, dados_usuario['password']):
+                st.session_state.logado = True
+                st.session_state.usuario_atual = user_input
+                st.success("Login realizado com sucesso!")
+                st.rerun()
+            else:
+                st.error("Usuário ou senha incorretos.")
 
-if selection == "Dashboard":
-    st.title("🚀 Painel de Controle Laboratorial")
-    st.write("Bem-vindo ao LabSmartAI. Seu ecossistema completo de gestão e consulta científica.")
-    
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Status", "Online", "OK")
-    col2.metric("Módulos", "9 Ativos") # Atualizado para 9
-    col3.metric("Banco de Dados", "Conectado")
-    col4.metric("Versão", "1.0")
+    with aba_cadastro:
+        new_user = st.text_input("Novo Usuário")
+        new_email = st.text_input("E-mail")
+        new_pass = st.text_input("Senha", type="password")
+        
+        if st.button("Cadastrar"):
+            if new_user and new_pass and new_email:
+                sucesso, mensagem = db.cadastrar_usuario(new_user, new_email, new_pass)
+                if sucesso:
+                    st.success(mensagem)
+                    st.info("Agora você pode fazer login na aba 'Entrar'.")
+                else:
+                    st.error(mensagem)
+            else:
+                st.warning("Preencha todos os campos.")
 
-    st.divider()
-    st.info("💡 Dica: Na aba 'Tabelas Químicas', você pode consultar Kps e reatividade instantaneamente.")
+    with aba_recuperar:
+        st.subheader("Recuperação de Acesso")
+        email_rec = st.text_input("Digite o e-mail cadastrado")
+        if st.button("Recuperar"):
+            st.info("Se este e-mail existir na base, você receberá instruções em breve.")
 
-elif selection == "Cadastro de Substâncias":
-    show_substances()
+# --- LÓGICA DE EXIBIÇÃO ---
 
-elif selection == "Estoque":
-    show_estoque()
-
-elif selection == "Equipamentos":
-    show_equipamentos()
-
-elif selection == "Tabelas Químicas":
-    # Chamada para o módulo de Tabela Periódica e Dados Químicos
+if not st.session_state.logado:
+    tela_acesso()
+else:
+    # SE ESTIVER LOGADO, CARREGA O RESTANTE DO SISTEMA
     try:
+        from substancias import show_substances
+        from ControleEstoque import show_estoque
+        from equipamentos import show_equipamentos
+        from calculadora import show_calculadora
+        from sistematabela import show_tabelas
+        from graficos import show_graficos
+        import ia
+        import relatorios
+    except ImportError as e:
+        st.error(f"Erro de importação de módulos: {e}")
+
+    # --- Menu Lateral ---
+    st.sidebar.title("🧪 LabSmartAI")
+    st.sidebar.write(f"Conectado como: **{st.session_state.usuario_atual}**")
+    
+    if st.sidebar.button("Sair/Logout"):
+        st.session_state.logado = False
+        st.session_state.usuario_atual = None
+        st.rerun()
+        
+    st.sidebar.markdown("---")
+
+    selection = st.sidebar.radio(
+        "Navegação", 
+        ["Dashboard", "Cadastro de Substâncias", "Estoque", "Equipamentos", "Tabelas Químicas", "Calculadora Química", "Gráficos", "IA", "Relatórios"]
+    )
+
+    # --- Conteúdo Principal ---
+    if selection == "Dashboard":
+        st.title("🚀 Painel de Controle Laboratorial")
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("Status", "Nuvem (Supabase)")
+        col2.metric("Módulos", "9 Ativos")
+        col3.metric("Usuário", st.session_state.usuario_atual)
+        col4.metric("Versão", "3.0 PRO")
+        st.divider()
+        st.info(f"Olá {st.session_state.usuario_atual}, seus dados estão protegidos no banco de dados em nuvem.")
+
+    elif selection == "Cadastro de Substâncias":
+        show_substances()
+    elif selection == "Estoque":
+        show_estoque()
+    elif selection == "Equipamentos":
+        show_equipamentos()
+    elif selection == "Tabelas Químicas":
         show_tabelas()
-    except Exception as e:
-        st.error(f"Erro ao carregar Tabelas: {e}")
-
-elif selection == "Calculadora Química":
-    show_calculadora()
-
-elif selection == "Gráficos":
-    show_graficos()
-
-elif selection == "IA":
-    if "ia_engine" not in st.session_state:
-        with st.spinner("Iniciando IA..."):
+    elif selection == "Calculadora Química":
+        show_calculadora()
+    elif selection == "Gráficos":
+        show_graficos()
+    elif selection == "IA":
+        if "ia_engine" not in st.session_state:
             st.session_state.ia_engine = ia.LabSmartAI()
-    ia.show_chatbot()
+        ia.show_chatbot()
+    elif selection == "Relatórios":
+        relatorios.show_reports()
 
-elif selection == "Relatórios":
-    relatorios.show_reports()
-
-# --- Rodapé ---
-st.sidebar.markdown("---")
-st.sidebar.caption("LabSmartAI Project - v1.0")
-
-st.sidebar.caption("© 2026")
-
-
+    st.sidebar.markdown("---")
+    st.sidebar.caption("LabSmartAI Project - v3.0 © 2026")
