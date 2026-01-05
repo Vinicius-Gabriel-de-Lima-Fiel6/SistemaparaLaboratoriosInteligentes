@@ -85,7 +85,7 @@ elif selection == "Gráficos":
 elif selection == "IA":
     if "ia_engine" not in st.session_state:
         with st.spinner("Iniciando IA..."):
-            st.session_state.ia_engine = ia.LabSmartAI()
+            st.session_state.ia_engine = LabSmartAI()
     ia.show_chatbot()
 
 elif selection == "Relatórios":
@@ -96,3 +96,4 @@ st.sidebar.markdown("---")
 st.sidebar.caption("LabSmartAI Project - v1.0")
 
 st.sidebar.caption("© 2026")
+
