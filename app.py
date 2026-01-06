@@ -32,7 +32,7 @@ def tela_acesso():
         if st.button("Fazer Login"):
             dados_usuario = db.buscar_usuario(user_input)
             
-            if dados_usuario and db.verificar_senha(senha_input, dados_usuario['password']):
+            if dados_usuario and db.verificar_senha(senha_input, dados_usuario['password_hash']):
                 st.session_state.logado = True
                 st.session_state.usuario_atual = user_input
                 st.success("Login realizado com sucesso!")
@@ -128,3 +128,4 @@ else:
 
     st.sidebar.markdown("---")
     st.sidebar.caption("LabSmartAI Project - v3.0 © 2026")
+
