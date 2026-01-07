@@ -12,5 +12,3 @@ bcrypt
 google-generativeai
 opencv-python-headless
 numpy
-
-
