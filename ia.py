@@ -3,26 +3,47 @@ import google.generativeai as genai
 import cv2
 from ultralytics import YOLO
 
-# --- CONFIGURAÇÃO DA IA ---
-try:
-    # Busca a chave nos Secrets (Imagem 1)
-    genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
-    # Usamos 'gemini-1.5-flash' para evitar o erro 404 (Imagens 2 e 3)
-    model_gemini = genai.GenerativeModel('gemini-1.5-flash')
-except Exception as e:
-    st.error(f"Erro na configuração da IA: {e}")
+# --- FUNÇÃO DE CONEXÃO ROBUSTA ---
+def configurar_ia():
+    try:
+        api_key = st.secrets["GOOGLE_API_KEY"]
+        genai.configure(api_key=api_key)
+        
+        # Lista de modelos para testar (do mais novo para o mais compatível)
+        modelos_para_testar = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro']
+        
+        for nome_modelo in modelos_para_testar:
+            try:
+                model = genai.GenerativeModel(nome_modelo)
+                # Teste de fumaça: tenta gerar algo vazio só para ver se o modelo existe
+                model.generate_content("teste", generation_config={"max_output_tokens": 1})
+                return model
+            except:
+                continue # Tenta o próximo da lista se der 404
+        return None
+    except Exception as e:
+        st.error(f"Erro crítico de configuração: {e}")
+        return None
+
+# Inicializa o modelo
+model_gemini = configurar_ia()
 
 class LabSmartAI:
     def __init__(self):
         self.yolo_model = None
 
     def get_ai_answer(self, user_text: str):
+        if model_gemini is None:
+            return "Erro: Não foi possível encontrar um modelo Gemini disponível. Verifique sua chave de API e o projeto no Google Cloud."
+        
         try:
             # Responde em português como assistente de laboratório
-            response = model_gemini.generate_content(f"Aja como assistente de laboratório. Responda em português: {user_text}")
+            response = model_gemini.generate_content(
+                f"Aja como assistente de laboratório técnico. Responda de forma curta e em português: {user_text}"
+            )
             return response.text
         except Exception as e:
-            return f"Erro ao processar: {e}"
+            return f"Erro na comunicação com o Google: {e}"
 
     def run_object_detection(self):
         """Detector YOLO"""
@@ -42,9 +63,13 @@ class LabSmartAI:
         cap.release()
         cv2.destroyAllWindows()
 
-# --- FUNÇÃO CHAMADA PELO APP.PY (Resolve o AttributeError da Imagem 8) ---
+# --- FUNÇÃO PRINCIPAL DA INTERFACE ---
 def show_chatbot():
     st.header("🤖 Assistente Científico com IA")
+    
+    # Verifica se a IA carregou
+    if model_gemini is None:
+        st.error("⚠️ O Google não reconheceu o modelo solicitado (Erro 404). Verifique se o seu arquivo 'requirements.txt' tem a linha: google-generativeai>=0.8.3")
 
     if "ia_class" not in st.session_state:
         st.session_state.ia_class = LabSmartAI()
@@ -61,7 +86,7 @@ def show_chatbot():
 
     st.divider()
 
-    # Chat
+    # Histórico do Chat
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = []
 
@@ -69,12 +94,14 @@ def show_chatbot():
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    if prompt := st.chat_input("Pergunte qualquer coisa ao Gemini..."):
+    # Entrada do Usuário
+    if prompt := st.chat_input("Digite 'Oi' para testar..."):
         st.session_state.chat_history.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
 
         with st.chat_message("assistant"):
-            resposta = bot.get_ai_answer(prompt)
-            st.markdown(resposta)
-            st.session_state.chat_history.append({"role": "assistant", "content": resposta})
+            with st.spinner("Pensando..."):
+                resposta = bot.get_ai_answer(prompt)
+                st.markdown(resposta)
+                st.session_state.chat_history.append({"role": "assistant", "content": resposta})
