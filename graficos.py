@@ -11,17 +11,13 @@ def show_graficos():
     # --- 1. LINKS EXTERNOS ---
     col_links = st.columns(4)
     with col_links[0]:
-        if st.button("🌐 GeoGebra", use_container_width=True):
-            st.link_button("https://www.geogebra.org/graphing")
+        st.link_button("🌐 GeoGebra","https://www.geogebra.org/graphing",use_container_width=True)
     with col_links[1]:
-        if st.button("🧠 WolframAlpha", use_container_width=True):
-            st.link_button("https://www.wolframalpha.com/")
+        st.link_button("🧠 WolframAlpha","https://www.wolframalpha.com/",use_container_width=True)
     with col_links[2]:
-        if st.button("📈 Weibull", use_container_width=True):
-           st.link_button("https://www-acsu-buffalo-edu.translate.goog/~adamcunn/probability/weibull.html")
+        st.link_button("📈 Weibull","https://www-acsu-buffalo-edu.translate.goog/~adamcunn/probability/weibull.html",use_container_width=True)
     with col_links[3]:
-        if st.button("💻 Matlab Web", use_container_width=True):
-            st.link_button("https://matlab.mathworks.com/")
+        st.link_button("💻 Matlab Web","https://matlab.mathworks.com/",use_container_width=True)
 
     st.divider()
 
@@ -120,4 +116,5 @@ def show_graficos():
     except Exception as e:
 
         st.error(f"⚠️ Erro ao processar gráfico: {e}")
+
 
