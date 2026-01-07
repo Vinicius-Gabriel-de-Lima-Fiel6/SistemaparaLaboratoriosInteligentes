@@ -5,32 +5,36 @@ import cv2
 import numpy as np
 from ultralytics import YOLO
 
-# --- 1. MOTOR DE CONEXÃO ESTÁVEL (CORREÇÃO DO ERRO 404) ---
-def inicializar_ia_estavel():
+# --- 1. MOTOR DE CONEXÃO ULTRA-ESTÁVEL ---
+def inicializar_ia_definitivo():
     try:
         if "GOOGLE_API_KEY" not in st.secrets:
-            return None, "ERRO: Chave ausente nos Secrets."
+            return None, "Chave GOOGLE_API_KEY não encontrada nos Secrets."
             
-        # Configuração forçando o protocolo estável para evitar o erro v1beta
-        genai.configure(api_key=st.secrets["GOOGLE_API_KEY"], transport='rest')
+        api_key = st.secrets["GOOGLE_API_KEY"]
         
-        # Lista de modelos para força bruta
-        # Usamos nomes diretos para garantir compatibilidade
-        for nome in ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro']:
+        # FORÇA A CONFIGURAÇÃO ESTÁVEL
+        # O parâmetro transport='rest' evita o erro de versão v1beta das suas fotos
+        genai.configure(api_key=api_key, transport='rest')
+        
+        # Testamos os modelos um por um na versão estável
+        modelos = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro']
+        
+        for nome in modelos:
             try:
-                model = genai.GenerativeModel(nome)
-                # Teste de conexão
-                model.generate_content("oi", generation_config={"max_output_tokens": 1})
+                model = genai.GenerativeModel(model_name=nome)
+                # Teste de fogo: se responder 'ok', o 404 foi vencido
+                model.generate_content("ok", generation_config={"max_output_tokens": 1})
                 return model, nome
             except Exception:
                 continue
                 
-        return None, "O Google ainda não reconheceu os modelos. Verifique se sua chave de API é do tipo 'Pay-as-you-go' ou 'Free tier' no AI Studio."
+        return None, "O Google recusou todos os modelos. Verifique se sua chave de API no AI Studio está ativa."
     except Exception as e:
         return None, f"Erro de sistema: {str(e)}"
 
 # Inicialização global
-motor_ia, modelo_vencedor = inicializar_ia_estavel()
+motor_ia, modelo_vencedor = inicializar_ia_definitivo()
 
 class LabSmartAI:
     def __init__(self):
@@ -40,20 +44,21 @@ class LabSmartAI:
 
     def get_ai_answer(self, user_text: str):
         if self.model is None:
-            return f"IA fora de linha: {self.nome_modelo}"
+            return f"IA Indisponível: {self.nome_modelo}"
         try:
+            # Sua instrução científica original
             contexto = "Você é um Assistente de Laboratório Inteligente especializado em Química e Física. Responda em português: "
             response = self.model.generate_content(contexto + user_text)
             return response.text
         except Exception as e:
-            return f"Erro ao processar: {e}"
+            return f"Erro ao processar consulta: {e}"
 
     def run_object_detection(self):
-        """Seu sistema YOLO original"""
+        """Seu detector YOLO original"""
         if self.yolo_model is None:
             self.yolo_model = YOLO("yolov8n.pt")
         cap = cv2.VideoCapture(0)
-        st.toast("Câmera ativada!")
+        st.toast("Câmera ativada! Pressione 'Q' para sair.")
         while True:
             success, img = cap.read()
             if not success: break
@@ -65,7 +70,7 @@ class LabSmartAI:
         cap.release()
         cv2.destroyAllWindows()
 
-# --- 2. FUNÇÃO QUE CONECTA AO SEU APP.PY ---
+# --- 2. FUNÇÃO QUE O APP.PY CHAMA ---
 def show_chatbot():
     st.header("🤖 Assistente Científico com IA")
 
@@ -74,24 +79,24 @@ def show_chatbot():
     
     bot = st.session_state.ia_class
 
-    # Banner de status
+    # Diagnóstico para você ver se funcionou
     if bot.model:
-        st.success(f"✅ Conectado com Sucesso! Motor: **{bot.nome_modelo}**")
+        st.success(f"✅ Motor de IA Conectado: **{bot.nome_modelo}**")
     else:
-        st.error(f"❌ {bot.nome_modelo}")
-        st.info("Dica: Se você criou a chave hoje, o Google pode levar alguns minutos para ativá-la nos modelos 1.5.")
+        st.error(f"❌ Falha: {bot.nome_modelo}")
+        st.info("Dica: Verifique se sua chave no Google AI Studio não tem restrições de IP.")
 
     # Links Científicos
     st.subheader("📚 Bases de Pesquisa")
-    cols = st.columns(4)
-    with cols[0]: st.link_button("🧪 PubMed", "https://pubmed.ncbi.nlm.nih.gov/", use_container_width=True)
-    with cols[1]: st.link_button("🔬 Scielo", "https://scielo.org/", use_container_width=True)
-    with cols[2]: st.link_button("🎓 Scholar", "https://scholar.google.com/", use_container_width=True)
-    with cols[3]: st.link_button("🧠 Perplexity", "https://www.perplexity.ai/", use_container_width=True)
+    col1, col2, col3, col4 = st.columns(4)
+    with col1: st.link_button("🧪 PubMed", "https://pubmed.ncbi.nlm.nih.gov/", use_container_width=True)
+    with col2: st.link_button("🔬 Scielo", "https://scielo.org/", use_container_width=True)
+    with col3: st.link_button("🎓 Scholar", "https://scholar.google.com/", use_container_width=True)
+    with col4: st.link_button("🧠 Perplexity", "https://www.perplexity.ai/", use_container_width=True)
 
     st.divider()
 
-    # Chat interface
+    # Interface de Chat
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = []
 
@@ -99,13 +104,10 @@ def show_chatbot():
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    if prompt := st.chat_input("Pergunte ao LabSmart..."):
+    if prompt := st.chat_input("Pergunte ao Gemini..."):
         st.session_state.chat_history.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
-
+        with st.chat_message("user"): st.markdown(prompt)
         with st.chat_message("assistant"):
-            with st.spinner("Analisando dados científicos..."):
-                resposta = bot.get_ai_answer(prompt)
-                st.markdown(resposta)
-                st.session_state.chat_history.append({"role": "assistant", "content": resposta})
+            resposta = bot.get_ai_answer(prompt)
+            st.markdown(resposta)
+            st.session_state.chat_history.append({"role": "assistant", "content": resposta})
