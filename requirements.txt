@@ -9,3 +9,8 @@ matplotlib
 scipy
 supabase
 bcrypt
+google-generativeai
+opencv-python-headless
+numpy
+
+
