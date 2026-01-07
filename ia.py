@@ -1,71 +1,45 @@
 import streamlit as st
 import pandas as pd
-import requests
-from io import StringIO
-from unidecode import unidecode
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
-import re
+import google.generativeai as genai
 import cv2
 import numpy as np
-from collections import defaultdict
 from ultralytics import YOLO
+
+# --- CONFIGURAÇÃO DA IA (GOOGLE GEMINI) ---
+# Certifique-se de adicionar GOOGLE_API_KEY nos Secrets do Streamlit Cloud
+try:
+    genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
+    model_gemini = genai.GenerativeModel('gemini-1.5-flash')
+except Exception as e:
+    st.error("Erro ao carregar a chave da API do Google. Verifique os Secrets.")
 
 class LabSmartAI:
     def __init__(self):
-        # Configurações iniciais
-        self.csv_url = "https://raw.githubusercontent.com/Vinicius-Gabriel-de-Lima-Fiel6/Projeto-QAT-LAB/refs/heads/main/LIVROS/REPONSES.csv"
-        self._PT_STOPWORDS = {'a', 'o', 'de', 'do', 'da', 'e', 'é', 'em', 'para', 'com', 'que'}
-        self._token_re = re.compile(r"[A-Za-zÀ-ÖØ-öø-ÿ0-9]+")
-        
-        # Carregamento automático ao instanciar
-        self.df, self.vectorizer, self.tfidf_matrix = self._load_dataset_and_model()
+        # O modelo YOLO será carregado apenas quando solicitado para economizar memória
+        self.yolo_model = None
 
-    def _preprocess(self, text: str) -> str:
-        if not isinstance(text, str):
-            return ""
-        text = unidecode(text.lower())
-        tokens = self._token_re.findall(text)
-        tokens = [t for t in tokens if t not in self._PT_STOPWORDS and len(t) > 1]
-        return " ".join(tokens)
-
-    def _load_dataset_and_model(self):
+    def get_ai_answer(self, user_text: str):
+        """Conecta diretamente ao Gemini para respostas inteligentes"""
         try:
-            response = requests.get(self.csv_url)
-            if response.status_code == 200:
-                df = pd.read_csv(StringIO(response.text))
-                df["Pergunta_Preprocessado"] = df["Pergunta"].map(self._preprocess)
-                
-                vectorizer = TfidfVectorizer()
-                tfidf_matrix = vectorizer.fit_transform(df["Pergunta_Preprocessado"])
-                return df, vectorizer, tfidf_matrix
-            return None, None, None
-        except Exception:
-            return None, None, None
-
-    def get_answer(self, user_text: str) -> str:
-        if self.df is None or self.vectorizer is None:
-            return "Erro ao carregar a base de dados do laboratório."
-        
-        q = self._preprocess(user_text)
-        if not q:
-            return "Pode reformular sua pergunta? 🙂"
-            
-        q_vec = self.vectorizer.transform([q])
-        sims = cosine_similarity(q_vec, self.tfidf_matrix)[0]
-        idx = int(sims.argmax())
-        return str(self.df["Resposta"].iloc[idx])
+            # Instrução de sistema para manter o foco científico
+            contexto = "Você é um Assistente de Laboratório Inteligente especializado em Química e Física. "
+            response = model_gemini.generate_content(contexto + user_text)
+            return response.text
+        except Exception as e:
+            return f"Erro ao conectar com o Gemini: {e}"
 
     def run_object_detection(self):
-        """Método para rodar o YOLO (abre janela local)"""
+        """Roda o Detector YOLO (Nota: OpenCV local só abre janela se rodar no seu PC)"""
+        if self.yolo_model is None:
+            self.yolo_model = YOLO("yolov8n.pt")
+        
         cap = cv2.VideoCapture(0)
-        model = YOLO("yolov8n.pt")
         st.toast("Câmera ativada! Pressione 'Q' na janela da imagem para fechar.")
         
         while True:
             success, img = cap.read()
             if not success: break
-            results = model.track(img, persist=True)
+            results = self.yolo_model.track(img, persist=True)
             for result in results:
                 img = result.plot()
             
@@ -75,42 +49,55 @@ class LabSmartAI:
         cap.release()
         cv2.destroyAllWindows()
 
-# --- FUNÇÃO DE INTERFACE (A que o app.py chama) ---
 def show_chatbot():
-    st.header("🤖 Assistente de Inteligência Artificial")
+    st.header("🤖 Assistente Científico com IA")
 
-    # Inicializa a classe no estado da sessão para não recarregar toda hora
+    # Inicializa a classe
     if "ia_class" not in st.session_state:
         st.session_state.ia_class = LabSmartAI()
-
+    
     bot = st.session_state.ia_class
 
-    # Sidebar com ferramentas
-    with st.sidebar:
-        st.subheader("Visão Computacional")
-        if st.button("🚀 Abrir Detector (YOLO)", use_container_width=True):
-            bot.run_object_detection()
+    # --- 1. BOTÕES DE PESQUISA CIENTÍFICA (LINKS EXTERNOS) ---
+    st.subheader("📚 Bases de Pesquisa & IA Especializada")
+    col_links = st.columns(4)
+    with col_links[0]:
+        st.link_button("🧪 PubMed", "https://pubmed.ncbi.nlm.nih.gov/", use_container_width=True)
+    with col_links[1]:
+        st.link_button("🔬 Scielo", "https://scielo.org/", use_container_width=True)
+    with col_links[2]:
+        st.link_button("🎓 Scholar", "https://scholar.google.com/", use_container_width=True)
+    with col_links[3]:
+        st.link_button("🧠 Perplexity", "https://www.perplexity.ai/", use_container_width=True)
 
-    # Histórico de Chat
+    st.divider()
+
+    # --- 2. SIDEBAR E VISÃO ---
+    with st.sidebar:
+        st.subheader("Ferramentas de Visão")
+        if st.button("🚀 Ativar Detector YOLO", use_container_width=True):
+            bot.run_object_detection()
+        st.info("Nota: O detector abre uma janela local no computador onde o servidor está rodando.")
+
+    # --- 3. INTERFACE DE CHAT ---
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = []
 
-    # Renderiza balões de conversa
+    # Renderiza histórico
     for message in st.session_state.chat_history:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    # Entrada do Usuário
-    if prompt := st.chat_input("Perqunte sobre reagentes ou procedimentos..."):
+    # Entrada do usuário
+    if prompt := st.chat_input("Pergunte qualquer coisa ao Gemini..."):
         # Adiciona pergunta do usuário
         st.session_state.chat_history.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
 
-        # Resposta da Classe
-        resposta = bot.get_answer(prompt)
-        
-        # Adiciona resposta do bot
+        # Resposta da IA do Google
         with st.chat_message("assistant"):
-            st.markdown(resposta)
-            st.session_state.chat_history.append({"role": "assistant", "content": resposta})
+            with st.spinner("Pensando..."):
+                resposta = bot.get_ai_answer(prompt)
+                st.markdown(resposta)
+                st.session_state.chat_history.append({"role": "assistant", "content": resposta})
