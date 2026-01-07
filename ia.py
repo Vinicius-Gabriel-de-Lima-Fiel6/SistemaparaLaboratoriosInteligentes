@@ -9,7 +9,7 @@ from ultralytics import YOLO
 # Certifique-se de adicionar GOOGLE_API_KEY nos Secrets do Streamlit Cloud
 try:
     genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
-    model_gemini = genai.GenerativeModel('gemini-1.5-flash-latest')
+    model_gemini = genai.GenerativeModel('gemini-1.5-flash')
 except Exception as e:
     st.error("Erro ao carregar a chave da API do Google. Verifique os Secrets.")
 
@@ -101,5 +101,6 @@ def show_chatbot():
                 resposta = bot.get_ai_answer(prompt)
                 st.markdown(resposta)
                 st.session_state.chat_history.append({"role": "assistant", "content": resposta})
+
 
 
