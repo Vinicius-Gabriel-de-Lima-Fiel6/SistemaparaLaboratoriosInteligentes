@@ -118,4 +118,5 @@ def show_graficos():
     except ValueError:
         st.error("❌ Erro de Formato: Certifique-se de usar apenas números e vírgulas.")
     except Exception as e:
+
         st.error(f"⚠️ Erro ao processar gráfico: {e}")
