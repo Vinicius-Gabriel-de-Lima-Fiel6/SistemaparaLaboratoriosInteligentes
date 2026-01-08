@@ -20,7 +20,7 @@ if 'logado' not in st.session_state:
 if 'usuario_atual' not in st.session_state:
     st.session_state.usuario_atual = None
 
-# --- TELA DE ACESSO (Login/Cadastro conectado ao Supabase) ---
+# --- TELA DE ACESSO ---
 def tela_acesso():
     st.title("🧪 LabSmartAI - Acesso ao Sistema")
     aba_login, aba_cadastro, aba_recuperar = st.tabs(["Entrar", "Criar Conta", "Recuperar Senha"])
@@ -77,7 +77,7 @@ else:
         from graficos import show_graficos
         import ia
         import relatorios
-        import PainelControle
+        import PainelControle  # Importando seu novo módulo
     except ImportError as e:
         st.error(f"Erro de importação de módulos: {e}")
 
@@ -126,12 +126,9 @@ else:
         ia.show_chatbot()
     elif selection == "Relatórios":
         relatorios.show_reports()
-    elif selection=="Painel de Controle":
-        PainelControle.conectar_arduino()
-    
+    elif selection == "Painel de Controle":
+        # CHAMA A FUNÇÃO QUE CRIA A INTERFACE DO ARDUINO
+        PainelControle.renderizar_painel()
 
     st.sidebar.markdown("---")
     st.sidebar.caption("LabSmartAI Project - v3.0 © 2026")
-
-
-
