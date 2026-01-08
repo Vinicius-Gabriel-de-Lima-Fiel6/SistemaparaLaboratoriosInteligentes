@@ -99,7 +99,7 @@ else:
 
     elif selection == "Painel de Controle":
         # LINK DO TINKERCAD
-        url_tinkercad = "https://www.tinkercad.com/dashboard" 
+        url_tinkercad = "https://www.tinkercad.com/things/1dHXe2Yoo33-sistemafisicolabia/editel?returnTo=https%3A%2F%2Fwww.tinkercad.com%2Fdashboard%2Fdesigns%2Fall" 
         
         st.title("📟 Redirecionando...")
         st.write("Se o Tinkercad não abrir automaticamente, clique no botão abaixo.")
@@ -134,3 +134,4 @@ else:
 
     st.sidebar.markdown("---")
     st.sidebar.caption("LabSmartAI Project - v3.0")
+
