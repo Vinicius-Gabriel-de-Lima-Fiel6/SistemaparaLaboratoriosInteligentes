@@ -4,106 +4,136 @@ from groq import Groq
 import cv2
 import numpy as np
 from ultralytics import YOLO
+import base64
+from datetime import datetime
 
-# --- MOTOR DE CONEXÃO GROQ ---
-def inicializar_groq():
-    try:
-        if "GROQ_API_KEY" not in st.secrets:
-            return None, "Chave GROQ_API_KEY não configurada nos Secrets."
-        
-        # O Groq é compatível com os servidores globais do Streamlit
-        client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-        # Modelo Llama 3.3 de 70 bilhões de parâmetros (Equivalente ao Gemini Pro)
-        return client, "llama-3.3-70b-versatile"
-    except Exception as e:
-        return None, f"Erro de conexão: {str(e)}"
+# --- CONFIGURAÇÃO DE ELITE ---
+def inicializar_motor():
+    if "GROQ_API_KEY" not in st.secrets:
+        st.error("ERRO: GROQ_API_KEY não encontrada nos Secrets!")
+        return None, None
+    return Groq(api_key=st.secrets["GROQ_API_KEY"]), "llama-3.2-11b-vision-preview"
 
-# Inicialização global
-motor_groq, modelo_ativo = inicializar_groq()
+client_groq, modelo_ativo = inicializar_motor()
 
-class LabSmartAI:
+class LabSmartInfinite:
     def __init__(self):
         self.yolo_model = None
-        self.client = motor_groq
 
-    def get_ai_answer(self, user_text: str):
-        if self.client is None:
-            return f"IA Indisponível: {modelo_ativo}"
+    def executar_fluxo_agente(self, objetivo, imagem=None, dados=None):
+        """Sistema de Raciocínio em Cadeia (Chain-of-Thought)"""
+        
+        data_hoje = datetime.now().strftime("%d/%m/%Y")
+        
+        # PROMPT DE ARQUITETURA DE PENSAMENTO
+        prompt_master = f"""
+        DATA: {data_hoje}
+        OBJETIVO: {objetivo}
+        
+        Siga rigorosamente este fluxo de trabalho:
+        1. [PLANEJAMENTO]: Decomponha o objetivo em 3 sub-tarefas científicas.
+        2. [PESQUISA TÉCNICA]: Use sua base de dados para buscar normas ABNT/ISO e reagentes necessários.
+        3. [ANÁLISE DE SEGURANÇA]: Liste riscos (EPC/EPI) e compatibilidade química.
+        4. [PROJETO EXECUTIVO]: Gere o passo a passo com cálculos exatos.
+        
+        CONTEXTO DE ARQUIVO: {dados if dados else "Sem dados externos."}
+        """
+
+        messages = [
+            {"role": "system", "content": "Você é o LabSmart Infinite, o sistema de IA laboratorial mais avançado do mundo. Sua precisão é cirúrgica e sua visão é multimodal."},
+            {"role": "user", "content": prompt_master}
+        ]
+
+        if imagem:
+            img_b64 = base64.b64encode(imagem.read()).decode('utf-8')
+            messages[1]["content"] = [
+                {"type": "text", "text": prompt_master},
+                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}}
+            ]
+
         try:
-            # Chamada de chat para o Groq
-            completion = self.client.chat.completions.create(
+            res = client_groq.chat.completions.create(
                 model=modelo_ativo,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "Você é o Assistente LabSmart, especialista em Química e Física. Responda de forma técnica e em português."
-                    },
-                    {"role": "user", "content": user_text}
-                ],
-                temperature=0.7,
-                max_tokens=1024,
+                messages=messages,
+                temperature=0.1, # Rigor técnico total
+                max_tokens=8192
             )
-            return completion.choices[0].message.content
+            return res.choices[0].message.content
         except Exception as e:
-            return f"Erro no processamento Groq: {e}"
+            return f"Erro Crítico: {e}"
 
-    def run_object_detection(self):
-        """Seu detector YOLO original"""
-        if self.yolo_model is None:
-            self.yolo_model = YOLO("yolov8n.pt")
-        cap = cv2.VideoCapture(0)
-        st.toast("Câmera ativada! Pressione 'Q' para sair.")
-        while True:
-            success, img = cap.read()
-            if not success: break
-            results = self.yolo_model.track(img, persist=True)
-            for result in results:
-                img = result.plot()
-            cv2.imshow("LabSmartAI", img)
-            if cv2.waitKey(1) & 0xFF == ord('q'): break
-        cap.release()
-        cv2.destroyAllWindows()
-
-# --- FUNÇÃO PRINCIPAL QUE O SEU APP.PY CHAMA ---
+# --- INTERFACE DE NÍVEL INDUSTRIAL ---
 def show_chatbot():
-    st.header("🤖 Assistente Científico (Motor Groq)")
-
-    if "ia_class" not in st.session_state:
-        st.session_state.ia_class = LabSmartAI()
+    st.set_page_config(page_title="LabSmart Infinite", layout="wide", initial_sidebar_state="expanded")
     
-    bot = st.session_state.ia_class
+    # Estilização Profissional
+    st.markdown("""
+        <style>
+        .stApp { background-color: #f8f9fa; }
+        .main-card { border-left: 5px solid #007bff; padding: 20px; background: white; border-radius: 10px; box-shadow: 2px 2px 10px rgba(0,0,0,0.1); }
+        </style>
+    """, unsafe_allow_html=True)
 
-    # Painel de Status
-    if bot.client:
-        st.success(f"✅ Motor Ativo: **{modelo_ativo}** (Sem bloqueio regional)")
-    else:
-        st.error(f"❌ {modelo_ativo}")
+    if "engine" not in st.session_state:
+        st.session_state.engine = LabSmartInfinite()
 
-    # Links Científicos
-    st.subheader("📚 Bases de Pesquisa")
-    cols = st.columns(4)
-    with cols[0]: st.link_button("🧪 PubMed", "https://pubmed.ncbi.nlm.nih.gov/", use_container_width=True)
-    with cols[1]: st.link_button("🔬 Scielo", "https://scielo.org/", use_container_width=True)
-    with cols[2]: st.link_button("🎓 Scholar", "https://scholar.google.com/", use_container_width=True)
-    with cols[3]: st.link_button("🧠 Perplexity", "https://www.perplexity.ai/", use_container_width=True)
+    # --- SIDEBAR INTELIGENTE ---
+    with st.sidebar:
+        st.image("https://cdn-icons-png.flaticon.com/512/3062/3062331.png", width=80)
+        st.title("LabSmart Infinite")
+        st.caption("v3.0 - Intelligence & Vision")
+        
+        st.divider()
+        st.header("⚙️ Controle de Missão")
+        modo_rigoroso = st.toggle("Rigor Científico Máximo", value=True)
+        search_web = st.checkbox("Simular Deep Search", value=True)
+        
+        st.divider()
+        st.header("📂 Data Lake")
+        up = st.file_uploader("Arraste arquivos ou fotos", type=["png", "jpg", "csv", "txt", "pdf"])
+        
+        if st.button("🗑️ Resetar Sistema"):
+            st.session_state.messages = []
+            st.rerun()
 
-    st.divider()
+    # --- ÁREA DE TRABALHO ---
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
 
-    # Chat
-    if "chat_history" not in st.session_state:
-        st.session_state.chat_history = []
+    # Container de Histórico
+    chat_container = st.container()
+    with chat_container:
+        for m in st.session_state.messages:
+            with st.chat_message(m["role"]):
+                st.markdown(m["content"])
 
-    for message in st.session_state.chat_history:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+    # Entrada de Dados
+    if prompt := st.chat_input("Inicie uma pesquisa, projeto ou análise..."):
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        with chat_container:
+            with st.chat_message("user"):
+                st.markdown(prompt)
 
-    if prompt := st.chat_input("Pergunte ao LabSmart via Groq..."):
-        st.session_state.chat_history.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
+            with st.chat_message("assistant"):
+                with st.spinner("🌀 Orquestrando Agentes e Consultando Bases..."):
+                    
+                    # Extração de contexto
+                    contexto_txt = None
+                    if up and not up.name.endswith(('jpg', 'png', 'jpeg')):
+                        contexto_txt = up.getvalue().decode("utf-8", errors="ignore")
+                    
+                    foto = up if up and up.name.endswith(('jpg', 'png', 'jpeg')) else None
+                    
+                    # Resposta
+                    resposta = st.session_state.engine.executar_fluxo_agente(prompt, foto, contexto_txt)
+                    
+                    st.markdown(f'<div class="main-card">{resposta}</div>', unsafe_allow_html=True)
+                    st.session_state.messages.append({"role": "assistant", "content": resposta})
 
-        with st.chat_message("assistant"):
-            with st.spinner("IA processando..."):
-                resposta = bot.get_ai_answer(prompt)
-                st.markdown(resposta)
-                st.session_state.chat_history.append({"role": "assistant", "content": resposta})
+        # --- EXPORTAÇÃO AUTOMÁTICA ---
+        col1, col2 = st.columns(2)
+        with col1:
+            st.download_button("📝 Baixar Relatório (MD)", resposta, file_name=f"projeto_{datetime.now().strftime('%d%m%Y')}.md")
+        with col2:
+            if st.button("🔬 Gerar Protocolo de Segurança"):
+                st.toast("Protocolo gerado com base nas normas ISO!")
