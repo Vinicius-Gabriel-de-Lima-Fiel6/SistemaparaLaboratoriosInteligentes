@@ -6,49 +6,43 @@ import numpy as np
 from ultralytics import YOLO
 import base64
 from datetime import datetime
-import io
 
-# --- CONFIGURAÇÃO DE ELITE (VERSÃO 2026) ---
+# --- CONFIGURAÇÃO DO MOTOR (ATUALIZADO JAN/2026) ---
 def inicializar_motor():
     if "GROQ_API_KEY" not in st.secrets:
-        return None, "Configure a GROQ_API_KEY nos Secrets do Streamlit."
+        return None, "Configure a GROQ_API_KEY nos Secrets."
     
-    # O modelo 11b-vision-preview é o padrão atual para visão no Groq
-    # Se o erro 400 persistir, o Groq pode ter mudado para 'llama-3.2-90b-vision-preview'
-    modelo = "llama-3.2-11b-vision-preview" 
+    # Modelo estável que substitui as versões antigas (Llama 3.2 Vision)
+    modelo = "llama-3.2-11b-vision-preview"
     client = Groq(api_key=st.secrets["GROQ_API_KEY"])
     return client, modelo
 
 client_groq, modelo_ativo = inicializar_motor()
 
-class LabSmartInfinite:
+# NOME DA CLASSE IGUAL AO QUE O SEU APP.PY PROCURA
+class LabSmartAI:
     def __init__(self):
         self.yolo_model = None
+        self.client = client_groq
 
     def executar_fluxo_agente(self, objetivo, imagem=None, dados=None):
-        """Sistema de Raciocínio Multi-Agente com Visão"""
+        """Sistema Multi-Agente: Analista, Engenheiro e Escritor"""
         data_hoje = datetime.now().strftime("%d/%m/%Y")
         
         prompt_master = f"""
-        DATA ATUAL: {data_hoje}
-        OBJETIVO: {objetivo}
+        DATA: {data_hoje} | OBJETIVO: {objetivo}
+        Aja como uma equipe técnica de elite:
+        1. [ANALISTA]: Pesquisa e contexto de dados.
+        2. [ENGENHEIRO]: Cálculos, montagem e segurança (EPI/EPC).
+        3. [ESCRITOR]: Relatório final em Markdown.
         
-        Aja como uma equipe de 3 Agentes de IA:
-        1. [ANALISTA]: Pesquise tendências atuais na web e analise arquivos subidos.
-        2. [ENGENHEIRO]: Desenvolva a parte técnica, cálculos e segurança (EPI/EPC).
-        3. [ESCRITOR]: Formate um relatório científico final em Markdown.
-        
-        CONTEXTO DE DADOS: {dados if dados else "Sem arquivos de texto fornecidos."}
+        CONTEXTO DE ARQUIVO: {dados if dados else "Nenhum dado fornecido."}
         """
 
-        messages = [
-            {"role": "system", "content": "Você é o LabSmart Infinite v3.0, um sistema multi-agente de alta precisão científica."},
-        ]
+        messages = [{"role": "system", "content": "Você é o LabSmart Ultra, sistema de inteligência laboratorial avançada."}]
 
-        # Lógica Multimodal (Texto + Imagem)
         if imagem:
-            img_bytes = imagem.getvalue()
-            img_b64 = base64.b64encode(img_bytes).decode('utf-8')
+            img_b64 = base64.b64encode(imagem.getvalue()).decode('utf-8')
             messages.append({
                 "role": "user",
                 "content": [
@@ -60,7 +54,7 @@ class LabSmartInfinite:
             messages.append({"role": "user", "content": prompt_master})
 
         try:
-            res = client_groq.chat.completions.create(
+            res = self.client.chat.completions.create(
                 model=modelo_ativo,
                 messages=messages,
                 temperature=0.1,
@@ -71,54 +65,48 @@ class LabSmartInfinite:
             return f"Erro Crítico na IA: {str(e)}"
 
     def run_yolo_vision(self):
-        """Detecção de Objetos em Tempo Real (YOLOv8)"""
+        """Detecção de Objetos em Tempo Real"""
         if self.yolo_model is None:
-            with st.spinner("Carregando Rede Neural YOLOv8..."):
+            with st.spinner("Carregando IA de Visão YOLOv8..."):
                 self.yolo_model = YOLO("yolov8n.pt")
         
         cap = cv2.VideoCapture(0)
-        st.toast("Visão Computacional Ativada! Pressione 'Q' na janela da câmera para sair.")
+        st.toast("Câmera Ativada! Pressione 'Q' na janela para sair.")
         
         while True:
             ret, frame = cap.read()
-            if not ret:
-                break
-            
+            if not ret: break
             results = self.yolo_model(frame)
-            annotated_frame = results[0].plot()
+            cv2.imshow("LabSmart Vision - YOLOv8", results[0].plot())
+            if cv2.waitKey(1) & 0xFF == ord('q'): break
             
-            cv2.imshow("LabSmart Vision - YOLOv8", annotated_frame)
-            
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
-        
         cap.release()
         cv2.destroyAllWindows()
 
-# --- INTERFACE STREAMLIT ---
+# --- FUNÇÃO PRINCIPAL DE INTERFACE ---
 def show_chatbot():
-    st.set_page_config(page_title="LabSmart Infinite", layout="wide")
+    st.title("🔬 LabSmart AI - Sistema Científico Ultra")
+
+    if "ia_engine" not in st.session_state:
+        st.session_state.ia_engine = LabSmartAI()
     
-    if "engine" not in st.session_state:
-        st.session_state.engine = LabSmartInfinite()
-    
-    st.title("🧪 LabSmart Infinite - IA & Computer Vision")
+    bot = st.session_state.ia_engine
 
     # --- SIDEBAR ---
     with st.sidebar:
-        st.header("⚙️ Painel de Controle")
-        if st.button("🚀 Ativar YOLO (Câmera Local)"):
-            st.session_state.engine.run_yolo_vision()
+        st.header("⚙️ Ferramentas")
+        if st.button("🚀 Iniciar YOLO (Câmera Local)"):
+            bot.run_yolo_vision()
         
         st.divider()
-        st.header("📂 Importação")
-        up_file = st.file_uploader("Suba fotos ou arquivos (CSV/TXT)", type=["png", "jpg", "jpeg", "csv", "txt"])
+        st.header("📂 Entrada de Dados")
+        up = st.file_uploader("Fotos ou Documentos (CSV/TXT)", type=["png", "jpg", "csv", "txt"])
         
-        if st.button("🗑️ Limpar Chat"):
+        if st.button("🗑️ Limpar Conversa"):
             st.session_state.messages = []
             st.rerun()
 
-    # --- CHAT ---
+    # --- HISTÓRICO DE CHAT ---
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
@@ -126,24 +114,24 @@ def show_chatbot():
         with st.chat_message(m["role"]):
             st.markdown(m["content"])
 
-    if prompt := st.chat_input("Como posso ajudar no seu projeto científico hoje?"):
+    # --- ENTRADA DO USUÁRIO ---
+    if prompt := st.chat_input("Como posso ajudar no seu projeto hoje?"):
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
 
         with st.chat_message("assistant"):
-            with st.spinner("Orquestrando agentes e analisando dados..."):
-                # Captura de contexto
-                dados_contexto = None
-                if up_file and up_file.name.endswith(('.csv', '.txt')):
-                    dados_contexto = up_file.getvalue().decode("utf-8", errors="ignore")
+            with st.spinner("IA Processando via Groq..."):
+                # Extração de contexto
+                dados_txt = None
+                if up and up.name.endswith(('.csv', '.txt')):
+                    dados_txt = up.getvalue().decode("utf-8", errors="ignore")
                 
-                imagem_input = up_file if up_file and up_file.name.endswith(('jpg', 'png', 'jpeg')) else None
+                imagem_up = up if up and up.name.endswith(('jpg', 'png', 'jpeg')) else None
                 
-                # Resposta Final
-                resposta = st.session_state.engine.executar_fluxo_agente(prompt, imagem_input, dados_contexto)
+                # Resposta
+                resposta = bot.executar_fluxo_agente(prompt, imagem_up, dados_txt)
                 st.markdown(resposta)
                 st.session_state.messages.append({"role": "assistant", "content": resposta})
 
-        # Exportação
-        st.download_button("📥 Baixar Relatório do Projeto", resposta, file_name="projeto_labsmart.md")
+        st.download_button("📥 Baixar Relatório", resposta, file_name="projeto_labsmart.md")
