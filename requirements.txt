@@ -12,6 +12,8 @@ bcrypt
 groq
 opencv-python-headless
 numpy
+streamlit-webrtc
+
 
 
 
