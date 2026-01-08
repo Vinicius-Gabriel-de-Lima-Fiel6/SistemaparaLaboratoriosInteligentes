@@ -6,12 +6,9 @@ import numpy as np
 from ultralytics import YOLO
 from datetime import datetime
 
-# --- CONFIGURAÇÃO DO MOTOR ESTÁVEL ---
 def inicializar_motor():
     if "GROQ_API_KEY" not in st.secrets:
         return None, "Configure a GROQ_API_KEY nos Secrets."
-    
-    # Modelo Llama 3.3 70B: O mais estável e potente para texto e lógica
     modelo = "llama-3.3-70b-versatile"
     client = Groq(api_key=st.secrets["GROQ_API_KEY"])
     return client, modelo
@@ -24,21 +21,26 @@ class LabSmartAI:
         self.client = client_groq
 
     def executar_fluxo_agente(self, objetivo, dados=None):
-        """Sistema de Agentes focado em Lógica e Texto"""
+        """Hub de IAs Especializadas em Ciências Naturais"""
         data_hoje = datetime.now().strftime("%d/%m/%Y")
         
+        # PROMPT DE ORQUESTRAÇÃO CIENTÍFICA
         prompt_master = f"""
         DATA: {data_hoje} | OBJETIVO: {objetivo}
-        Aja como uma equipe de 3 especialistas:
-        1. [ANALISTA]: Interpreta dados e contexto científico.
-        2. [ENGENHEIRO]: Cálculos, normas técnicas e segurança.
-        3. [ESCRITOR]: Relatório final estruturado em Markdown.
         
-        CONTEXTO DE DADOS: {dados if dados else "Nenhum arquivo fornecido."}
+        Você deve orquestrar a resposta utilizando os seguintes especialistas virtuais:
+        
+        1. 🧪 [MODO CHEM-IA]: Especialista em Estequiometria, Reações Orgânicas e Segurança Química (MSDS).
+        2. 🧬 [MODO BIO-GEN]: Especialista em Biologia Molecular, Genética e Botânica.
+        3. ⚛️ [MODO PHYS-TECH]: Especialista em Física Experimental, Termodinâmica e Arduino.
+        4. 📊 [MODO MATH-STAT]: Executa cálculos precisos e análise de dados CSV.
+
+        Se o usuário fornecer dados ({dados if dados else "Nenhum"}), use o MODO MATH-STAT para analisá-los prioritariamente.
+        Responda com rigor acadêmico, tabelas e fórmulas em LaTeX.
         """
 
         messages = [
-            {"role": "system", "content": "Você é o LabSmart AI, assistente técnico de laboratório."},
+            {"role": "system", "content": "Você é o LabSmart Hub, uma rede de agentes especializados em ciências naturais e exatas."},
             {"role": "user", "content": prompt_master}
         ]
 
@@ -46,56 +48,48 @@ class LabSmartAI:
             res = self.client.chat.completions.create(
                 model=modelo_ativo,
                 messages=messages,
-                temperature=0.3,
-                max_tokens=4096
+                temperature=0.2, # Baixa temperatura para evitar erros em fórmulas
+                max_tokens=6000 # Aumentado para suportar projetos longos
             )
             return res.choices[0].message.content
         except Exception as e:
-            return f"Erro na IA: {str(e)}"
+            return f"Erro na conexão com o Hub: {str(e)}"
 
     def run_yolo_vision(self):
-        """Visão Computacional Local"""
         if self.yolo_model is None:
-            with st.spinner("Carregando YOLOv8..."):
-                self.yolo_model = YOLO("yolov8n.pt")
-        
+            self.yolo_model = YOLO("yolov8n.pt")
         cap = cv2.VideoCapture(0)
-        st.toast("Câmera aberta no servidor local. 'Q' para sair.")
-        
         while True:
             ret, frame = cap.read()
             if not ret: break
             results = self.yolo_model(frame)
             cv2.imshow("LabSmart Vision", results[0].plot())
             if cv2.waitKey(1) & 0xFF == ord('q'): break
-            
         cap.release()
         cv2.destroyAllWindows()
 
-# --- INTERFACE ---
+# --- INTERFACE APRIMORADA ---
 def show_chatbot():
-    st.title("🔬 LabSmart AI PRO")
+    st.title("🧪 LabSmart AI - Hub de Especialistas")
 
-    # Inicializa a classe se não existir
     if "ia_engine" not in st.session_state:
         st.session_state.ia_engine = LabSmartAI()
     
     bot = st.session_state.ia_engine
 
-    # Sidebar
     with st.sidebar:
-        st.header("⚙️ Opções")
-        if st.button("🚀 Abrir Câmera (YOLO)"):
+        st.header("🔬 Ferramentas Ativas")
+        st.info("Agentes: Chem-IA, Bio-Gen, Phys-Tech")
+        if st.button("🚀 Iniciar Visão YOLO"):
             bot.run_yolo_vision()
         
         st.divider()
-        up = st.file_uploader("Suba arquivos de dados (CSV/TXT)", type=["csv", "txt"])
+        up = st.file_uploader("Suba seus dados científicos", type=["csv", "txt"])
         
-        if st.button("🗑️ Limpar Conversa"):
+        if st.button("🗑️ Resetar Sessão"):
             st.session_state.messages = []
             st.rerun()
 
-    # Histórico
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
@@ -103,20 +97,16 @@ def show_chatbot():
         with st.chat_message(m["role"]):
             st.markdown(m["content"])
 
-    # Input
-    if prompt := st.chat_input("Diga o que precisa fazer no lab..."):
+    if prompt := st.chat_input("Diga: 'Calcule a molaridade...' ou 'Crie um projeto de genética...'"):
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
 
         with st.chat_message("assistant"):
-            with st.spinner("Pensando..."):
-                dados_txt = None
-                if up:
-                    dados_txt = up.getvalue().decode("utf-8", errors="ignore")
-                
+            with st.spinner("Consultando Especialistas..."):
+                dados_txt = up.getvalue().decode("utf-8", errors="ignore") if up else None
                 resposta = bot.executar_fluxo_agente(prompt, dados_txt)
                 st.markdown(resposta)
                 st.session_state.messages.append({"role": "assistant", "content": resposta})
 
-        st.download_button("📥 Baixar Relatório", resposta, file_name="labsmart_relatorio.md")
+        st.download_button("📥 Exportar Relatório Científico", resposta, file_name="relatorio_especialista.md")
