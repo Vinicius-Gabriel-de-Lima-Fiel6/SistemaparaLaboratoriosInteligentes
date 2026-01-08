@@ -1,16 +1,29 @@
 import streamlit as st
-import auth_db as db
+import os
+import sys
+import auth_db as db 
 
-# ... (Configurações de página iniciais iguais) ...
+# 1. Configuração de Caminho e Importações
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
+# --- Configuração da Página ---
+st.set_page_config(
+    page_title="LabSmartAI PRO", 
+    page_icon="🧪", 
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# --- Gerenciamento de Estado de Login ---
 if 'logado' not in st.session_state:
     st.session_state.logado = False
 if 'user_data' not in st.session_state:
     st.session_state.user_data = None
 
+# --- TELA DE ACESSO ---
 def tela_acesso():
     st.title("🧪 LabSmartAI - Gestão Empresarial")
-    aba_login, aba_cadastro = st.tabs(["Entrar", "Criar Conta Empresa"])
+    aba_login, aba_cadastro, aba_recuperar = st.tabs(["Entrar", "Criar Conta Empresa", "Recuperar Senha"])
 
     with aba_login:
         email_input = st.text_input("E-mail Cadastrado", key="l_email")
@@ -20,7 +33,8 @@ def tela_acesso():
             user = db.buscar_usuario_por_email(email_input)
             if user and db.verificar_senha(senha_input, user['password_hash']):
                 st.session_state.logado = True
-                st.session_state.user_data = user # Guarda todos os dados (role, org, etc)
+                st.session_state.user_data = user
+                st.success("Login realizado com sucesso!")
                 st.rerun()
             else:
                 st.error("E-mail ou senha incorretos.")
@@ -41,41 +55,102 @@ def tela_acesso():
                 if sucesso: st.success(msg)
                 else: st.error(msg)
 
+    with aba_recuperar:
+        st.subheader("Recuperação de Senha")
+        email_rec = st.text_input("E-mail cadastrado", key="rec_email")
+        nova_senha = st.text_input("Nova Senha", type="password", key="rec_pass")
+        confirmar_senha = st.text_input("Confirme a Nova Senha", type="password", key="rec_pass_conf")
+        
+        if st.button("Redefinir Senha"):
+            if nova_senha != confirmar_senha:
+                st.error("As senhas não coincidem.")
+            else:
+                sucesso, msg = db.redefinir_senha(email_rec, nova_senha)
+                if sucesso: st.success(msg)
+                else: st.error(msg)
+
+# --- LÓGICA DE EXIBIÇÃO ---
+
 if not st.session_state.logado:
     tela_acesso()
 else:
+    # Importação dos módulos (Coloquei dentro do IF para evitar erros antes do login)
+    try:
+        from substancias import show_substances
+        from ControleEstoque import show_estoque
+        from equipamentos import show_equipamentos
+        from calculadora import show_calculadora
+        from sistematabela import show_tabelas
+        from graficos import show_graficos
+        import ia
+        import relatorios
+    except ImportError as e:
+        st.error(f"Erro ao carregar módulos: {e}")
+
     user = st.session_state.user_data
     role = user['role']
     
-    # --- Definição de Permissões (Suas Regras) ---
-    abas = ["Dashboard", "Tabelas Químicas", "Calculadora Química", "Gráficos"]
+    # 1. Definir as abas que aparecerão no Menu Lateral
+    # IMPORTANTE: Os nomes aqui devem ser IDÊNTICOS aos dos blocos IF abaixo
+    abas = ["Dashboard", "IA & Visão", "Tabelas Químicas", "Calculadora Química", "Gráficos"]
     
-    # Regra do Tecnico e ADM (Acesso a bancos de dados)
     if role in ["Tecnico", "ADM"]:
-        abas.extend(["Estoque", "Cadastro de Substâncias"])
+        abas.append("Cadastro de Substâncias")
+        abas.append("Estoque")
     
-    # Regra do ADM (Acesso total + Painel de Controle + Equipamentos)
     if role == "ADM":
-        abas.extend(["Equipamentos", "Painel de Controle", "Relatórios"])
-    
-    # Nota: O Visualizador só fica com a lista base (Cálculos, Tabelas, Gráficos)
+        abas.append("Equipamentos")
+        abas.append("Painel de Controle")
+        abas.append("Relatórios")
 
+    # 2. Criar o Menu Lateral
+    st.sidebar.title(f"🧪 {user['org_name']}")
+    st.sidebar.write(f"Usuário: **{user['username']}**")
+    st.sidebar.write(f"Cargo: **{role}**")
+    
     selection = st.sidebar.radio("Navegação", abas)
     
-    # --- Lógica de Exibição das Abas ---
+    if st.sidebar.button("Sair/Logout"):
+        st.session_state.logado = False
+        st.session_state.user_data = None
+        st.rerun()
+
+    # 3. Lógica de Redirecionamento (Onde o conteúdo aparece)
     if selection == "Dashboard":
-        st.title(f"🚀 {user['org_name']}")
-        st.subheader(f"Bem-vindo, {user['username']}")
-        st.info(f"Nível de Acesso: **{role}**")
+        st.title(f"🚀 Dashboard - {user['org_name']}")
+        st.info(f"Bem-vindo, {user['username']}! Use o menu lateral para navegar.")
+
+    elif selection == "IA & Visão":
+        if "ia_engine" not in st.session_state:
+            st.session_state.ia_engine = ia.LabSmartAI()
+        ia.show_chatbot()
+
+    elif selection == "Tabelas Químicas":
+        show_tabelas()
+
+    elif selection == "Calculadora Química":
+        show_calculadora()
+
+    elif selection == "Gráficos":
+        show_graficos()
+
+    elif selection == "Cadastro de Substâncias":
+        show_substances()
+
+    elif selection == "Estoque":
+        show_estoque()
+
+    elif selection == "Equipamentos":
+        show_equipamentos()
 
     elif selection == "Painel de Controle":
-        # Apenas ADM chega aqui pelo menu
-        url_tinkercad = "SEU_LINK_AQUI"
+        url_tinkercad = "https://www.tinkercad.com/things/1dHXe2Yoo33-sistemafisicolabia/editel"
+        st.title("📟 Redirecionando...")
         st.components.v1.html(f"<script>window.open('{url_tinkercad}', '_blank');</script>", height=0)
-        st.link_button("Abrir Tinkercad", url_tinkercad)
+        st.link_button("Abrir Tinkercad Manualmente", url_tinkercad, type="primary")
 
-    # ... (Restante dos elifs chamando os módulos show_substances(), show_estoque(), etc) ...
+    elif selection == "Relatórios":
+        relatorios.show_reports()
 
-    if st.sidebar.button("Sair"):
-        st.session_state.logado = False
-        st.rerun()
+    st.sidebar.markdown("---")
+    st.sidebar.caption("LabSmartAI Project - v3.0")
