@@ -118,8 +118,6 @@ else:
         show_tabelas()
     elif selection == "Calculadora Química":
         show_calculadora()
-    elif selection=="Painel de Controle":
-        conectar_arduino()
     elif selection == "Gráficos":
         show_graficos()
     elif selection == "IA":
@@ -128,9 +126,12 @@ else:
         ia.show_chatbot()
     elif selection == "Relatórios":
         relatorios.show_reports()
+    elif selection=="Painel de Controle":
+        PainelControle.conectar_arduino()
     
 
     st.sidebar.markdown("---")
     st.sidebar.caption("LabSmartAI Project - v3.0 © 2026")
+
 
 
