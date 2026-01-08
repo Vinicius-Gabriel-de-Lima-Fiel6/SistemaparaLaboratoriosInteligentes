@@ -77,6 +77,7 @@ else:
         from graficos import show_graficos
         import ia
         import relatorios
+        import PainelControle
     except ImportError as e:
         st.error(f"Erro de importação de módulos: {e}")
 
@@ -93,7 +94,7 @@ else:
 
     selection = st.sidebar.radio(
         "Navegação", 
-        ["Dashboard", "Cadastro de Substâncias", "Estoque", "Equipamentos", "Tabelas Químicas", "Calculadora Química", "Gráficos", "IA", "Relatórios"]
+        ["Dashboard", "Cadastro de Substâncias", "Estoque", "Equipamentos", "Tabelas Químicas", "Calculadora Química", "Gráficos", "IA", "Relatórios","Painel de Controle"]
     )
 
     # --- Conteúdo Principal ---
@@ -101,9 +102,9 @@ else:
         st.title("🚀 Painel de Controle Laboratorial")
         col1, col2, col3, col4 = st.columns(4)
         col1.metric("Status", "Nuvem (Supabase)")
-        col2.metric("Módulos", "9 Ativos")
+        col2.metric("Módulos", "10 Ativos")
         col3.metric("Usuário", st.session_state.usuario_atual)
-        col4.metric("Versão", "3.0 PRO")
+        col4.metric("Versão", "1.0")
         st.divider()
         st.info(f"Olá {st.session_state.usuario_atual}, seus dados estão protegidos no banco de dados em nuvem.")
 
@@ -117,6 +118,8 @@ else:
         show_tabelas()
     elif selection == "Calculadora Química":
         show_calculadora()
+    elif selection=="Painel de Controle":
+        conectar_arduino()
     elif selection == "Gráficos":
         show_graficos()
     elif selection == "IA":
@@ -125,7 +128,9 @@ else:
         ia.show_chatbot()
     elif selection == "Relatórios":
         relatorios.show_reports()
+    
 
     st.sidebar.markdown("---")
     st.sidebar.caption("LabSmartAI Project - v3.0 © 2026")
+
 
