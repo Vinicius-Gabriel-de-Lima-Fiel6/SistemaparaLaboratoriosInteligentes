@@ -8,7 +8,7 @@ from datetime import datetime
 
 def inicializar_motor():
     if "GROQ_API_KEY" not in st.secrets:
-        return None, "Configure a GROQ_API_KEY nos Secrets."
+        return None, "Chave não configurada."
     modelo = "llama-3.3-70b-versatile"
     client = Groq(api_key=st.secrets["GROQ_API_KEY"])
     return client, modelo
@@ -21,39 +21,39 @@ class LabSmartAI:
         self.client = client_groq
 
     def executar_fluxo_agente(self, objetivo, dados=None):
-        """Hub de IAs Especializadas em Ciências Naturais"""
+        """Resposta fluida e integrada (Estilo ChatGPT/Gemini)"""
         data_hoje = datetime.now().strftime("%d/%m/%Y")
         
-        # PROMPT DE ORQUESTRAÇÃO CIENTÍFICA
-        prompt_master = f"""
-        DATA: {data_hoje} | OBJETIVO: {objetivo}
+        # PROMPT DE SÍNTESE UNITÁRIA
+        prompt_integrado = f"""
+        Data: {data_hoje}
+        Pergunta/Objetivo: {objetivo}
         
-        Você deve orquestrar a resposta utilizando os seguintes especialistas virtuais:
+        Aja como um assistente científico de alto nível. Integre conhecimentos de Química, Biologia, Física, Engenharia e Matemática em uma única resposta coesa e direta. 
         
-        1. 🧪 [MODO CHEM-IA]: Especialista em Estequiometria, Reações Orgânicas e Segurança Química (MSDS).
-        2. 🧬 [MODO BIO-GEN]: Especialista em Biologia Molecular, Genética e Botânica.
-        3. ⚛️ [MODO PHYS-TECH]: Especialista em Física Experimental, Termodinâmica e Arduino.
-        4. 📊 [MODO MATH-STAT]: Executa cálculos precisos e análise de dados CSV.
-
-        Se o usuário fornecer dados ({dados if dados else "Nenhum"}), use o MODO MATH-STAT para analisá-los prioritariamente.
-        Responda com rigor acadêmico, tabelas e fórmulas em LaTeX.
+        Regras de Estilo:
+        - Não se identifique como múltiplos agentes.
+        - Não use divisões como '[MODO QUÍMICA]' ou '[MODO FÍSICA]'.
+        - Forneça uma resposta fluida, técnica e detalhada.
+        - Use tabelas ou listas apenas se ajudar na clareza.
+        - Se houver dados fornecidos ({dados if dados else "Nenhum"}), incorpore a análise naturalmente no texto.
         """
 
         messages = [
-            {"role": "system", "content": "Você é o LabSmart Hub, uma rede de agentes especializados em ciências naturais e exatas."},
-            {"role": "user", "content": prompt_master}
+            {"role": "system", "content": "Você é o LabSmart AI, um assistente especializado em ciência e tecnologia. Responda de forma integrada, clara e profissional."},
+            {"role": "user", "content": prompt_integrado}
         ]
 
         try:
             res = self.client.chat.completions.create(
                 model=modelo_ativo,
                 messages=messages,
-                temperature=0.2, # Baixa temperatura para evitar erros em fórmulas
-                max_tokens=6000 # Aumentado para suportar projetos longos
+                temperature=0.3,
+                max_tokens=6000
             )
             return res.choices[0].message.content
         except Exception as e:
-            return f"Erro na conexão com o Hub: {str(e)}"
+            return f"Erro: {str(e)}"
 
     def run_yolo_vision(self):
         if self.yolo_model is None:
@@ -68,9 +68,8 @@ class LabSmartAI:
         cap.release()
         cv2.destroyAllWindows()
 
-# --- INTERFACE APRIMORADA ---
 def show_chatbot():
-    st.title("🧪 LabSmart AI - Hub de Especialistas")
+    st.title("🔬 LabSmart AI")
 
     if "ia_engine" not in st.session_state:
         st.session_state.ia_engine = LabSmartAI()
@@ -78,15 +77,12 @@ def show_chatbot():
     bot = st.session_state.ia_engine
 
     with st.sidebar:
-        st.header("🔬 Ferramentas Ativas")
-        st.info("Agentes: Chem-IA, Bio-Gen, Phys-Tech")
-        if st.button("🚀 Iniciar Visão YOLO"):
+        st.header("Opções")
+        if st.button("🚀 Ativar Câmera (YOLO)"):
             bot.run_yolo_vision()
-        
         st.divider()
-        up = st.file_uploader("Suba seus dados científicos", type=["csv", "txt"])
-        
-        if st.button("🗑️ Resetar Sessão"):
+        up = st.file_uploader("Arquivos de Dados", type=["csv", "txt"])
+        if st.button("🗑️ Limpar Conversa"):
             st.session_state.messages = []
             st.rerun()
 
@@ -97,16 +93,14 @@ def show_chatbot():
         with st.chat_message(m["role"]):
             st.markdown(m["content"])
 
-    if prompt := st.chat_input("Diga: 'Calcule a molaridade...' ou 'Crie um projeto de genética...'"):
+    if prompt := st.chat_input("Como posso ajudar?"):
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
 
         with st.chat_message("assistant"):
-            with st.spinner("Consultando Especialistas..."):
+            with st.spinner("Processando..."):
                 dados_txt = up.getvalue().decode("utf-8", errors="ignore") if up else None
                 resposta = bot.executar_fluxo_agente(prompt, dados_txt)
                 st.markdown(resposta)
                 st.session_state.messages.append({"role": "assistant", "content": resposta})
-
-        st.download_button("📥 Exportar Relatório Científico", resposta, file_name="relatorio_especialista.md")
