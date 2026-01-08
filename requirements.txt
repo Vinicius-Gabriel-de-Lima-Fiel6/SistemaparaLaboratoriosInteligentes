@@ -9,9 +9,10 @@ matplotlib
 scipy
 supabase
 bcrypt
-google-generativeai>=0.8.3
+groq
 opencv-python-headless
 numpy
+
 
 
 
