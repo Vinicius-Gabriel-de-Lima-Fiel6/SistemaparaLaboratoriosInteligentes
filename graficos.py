@@ -13,13 +13,13 @@ def show_graficos():
     if 'series_graficas' not in st.session_state:
         st.session_state.series_graficas = []
 
-    # --- 1. CABEÇALHO TÉCNICO (TODOS OS LINKS MANTIDOS) ---
+    # --- 1. CABEÇALHO TÉCNICO ---
     with st.expander("🌐 Ecossistema de Recursos Científicos", expanded=False):
         c1, c2, c3, c4 = st.columns(4)
         c1.link_button("🌐 GeoGebra", "https://www.geogebra.org/graphing", use_container_width=True)
         c2.link_button("🧠 WolframAlpha", "https://www.wolframalpha.com/", use_container_width=True)
         c3.link_button("📈 Weibull", "https://www-acsu-buffalo-edu.translate.goog/~adamcunn/probability/weibull.html", use_container_width=True)
-        c4.link_button("💻 Matlab Web", "https://matlab.mathworks.com/", use_container_width=True)
+        col4 = c4.link_button("💻 Matlab Web", "https://matlab.mathworks.com/", use_container_width=True)
         
         c5, c6, c7 = st.columns(3)
         c5.link_button("🧪 NIST WebBook", "https://webbook.nist.gov/chemistry/", use_container_width=True)
@@ -36,12 +36,9 @@ def show_graficos():
             tipo_grafico = st.selectbox(
                 "Tipo de Gráfico / Análise:",
                 [
-                    # Básicos e Originais
                     "Linhas e Pontos", "Barras", "Dispersão (Scatter)", "Histograma",
-                    # Físico-Químicos
                     "Solubilidade", "Titulação", "Calibração", "UV-Vis", "Cromatograma",
                     "Diagrama de Fases", "TGA (Degradação)", "RMN / Mass Spectrum",
-                    # Modelos Matemáticos
                     "Regressão Linear (R²)", "Regressão Polinomial", "Suavização Savitzky-Golay", 
                     "Spline Cubic (Suave)", "Cinética Química", "Arrhenius", 
                     "Michaelis-Menten", "Isoterma de Adsorção", "Capacidade Térmica"
@@ -50,7 +47,7 @@ def show_graficos():
             nome = st.text_input("ID da Amostra", f"Amostra_{len(st.session_state.series_graficas)+1}")
             in_x = st.text_input("Eixo X (Valores)", "10, 20, 30, 40")
             in_y = st.text_input("Eixo Y (Valores)", "1.5, 2.8, 4.2, 5.9")
-            cor = st.color_picker("Cor da Série", "#00F2FF")
+            cor = st.color_picker("Cor da Série", "#1f77b4") # Azul padrão científico
             nota = st.text_input("Nota no Ponto Máximo", "")
 
         col_add, col_reset = st.columns(2)
@@ -72,7 +69,7 @@ def show_graficos():
             st.session_state.series_graficas = []
             st.rerun()
 
-    # --- 3. RENDERIZAÇÃO INTERATIVA ---
+    # --- 3. RENDERIZAÇÃO INTERATIVA (TEMA BRANCO) ---
     if not st.session_state.series_graficas:
         st.info("💡 Selecione o modelo químico/matemático e adicione os dados para começar.")
     else:
@@ -81,7 +78,6 @@ def show_graficos():
         for s in st.session_state.series_graficas:
             x, y = s['x'], s['y']
             
-            # --- LÓGICA DE PLOTAGEM POR TIPO ---
             if s['tipo'] == "Regressão Linear (R²)":
                 coef = np.polyfit(x, y, 1)
                 p = np.poly1d(coef)
@@ -92,7 +88,7 @@ def show_graficos():
             elif s['tipo'] in ["Spline Cubic (Suave)", "Solubilidade", "Cinética Química"]:
                 x_new = np.linspace(x.min(), x.max(), 300)
                 spl = make_interp_spline(x, y, k=3)
-                fig.add_trace(go.Scatter(x=x_new, y=spl(x_new), mode='lines', name=s['nome'], line=dict(color=s['cor'], width=2)))
+                fig.add_trace(go.Scatter(x=x_new, y=spl(x_new), mode='lines', name=s['nome'], line=dict(color=s['cor'], width=2.5)))
                 fig.add_trace(go.Scatter(x=x, y=y, mode='markers', name=f"{s['nome']} (Pontos)", marker=dict(color=s['cor'])))
 
             elif s['tipo'] == "Suavização Savitzky-Golay":
@@ -104,24 +100,40 @@ def show_graficos():
                 fig.add_trace(go.Bar(x=x, y=y, name=s['nome'], marker_color=s['cor']))
 
             elif s['tipo'] == "Histograma":
-                fig.add_trace(go.Histogram(x=x, name=s['nome'], marker_color=s['cor'], opacity=0.7))
+                fig.add_trace(go.Histogram(x=x, name=s['nome'], marker_color=s['cor'], opacity=0.6))
 
             elif s['tipo'] in ["UV-Vis", "Cromatograma", "RMN / Mass Spectrum"]:
                 fig.add_trace(go.Scatter(x=x, y=y, mode='lines', name=s['nome'], line=dict(color=s['cor'], width=1.5), fill='tozeroy'))
 
-            else: # Padrão para os demais
+            else:
                 fig.add_trace(go.Scatter(x=x, y=y, mode='lines+markers', name=s['nome'], line=dict(color=s['cor'])))
 
-            # Anotação de Ponto Máximo se houver nota
             if s['nota']:
                 ymax = np.max(y)
                 xmax = x[np.argmax(y)]
                 fig.add_annotation(x=xmax, y=ymax, text=s['nota'], showarrow=True, arrowhead=1, bgcolor=s['cor'], font=dict(color="white"))
 
+        # CONFIGURAÇÃO DO TEMA BRANCO
         fig.update_layout(
-            template="plotly_dark", paper_bgcolor="#0E1117", plot_bgcolor="#161B22",
-            xaxis=dict(gridcolor="#333", title="Eixo X"), yaxis=dict(gridcolor="#333", title="Eixo Y"),
-            hovermode="x unified", dragmode="pan",
+            template="plotly_white", # Fundo branco padrão
+            paper_bgcolor="white",
+            plot_bgcolor="white",
+            font=dict(color="#333333"),
+            title=dict(text="Análise Multivariada", font=dict(size=20, color="black")),
+            xaxis=dict(
+                gridcolor="#eeeeee", 
+                linecolor="#333", 
+                title="Eixo X", 
+                zerolinecolor="#ccc"
+            ),
+            yaxis=dict(
+                gridcolor="#eeeeee", 
+                linecolor="#333", 
+                title="Eixo Y", 
+                zerolinecolor="#ccc"
+            ),
+            hovermode="x unified",
+            dragmode="pan",
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
         )
         
