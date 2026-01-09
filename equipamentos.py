@@ -1,77 +1,56 @@
 import streamlit as st
-import sqlite3
 import pandas as pd
-import os
 import matplotlib.pyplot as plt
 from datetime import datetime
+from supabase import create_client
 
-DB_PATH = "data/lab_data.db"
-
-def init_db():
-    """Inicializa as tabelas de equipamentos e manutenção"""
-    os.makedirs("data", exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    # Tabela de Equipamentos
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS equipamentos (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nome TEXT, tipo TEXT, status TEXT, 
-            ultima_manutencao TEXT, localizacao TEXT, 
-            responsavel TEXT, categoria TEXT
-        )
-    """)
-    # Tabela de Manutenções
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS manutencao (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            equipamento_id INTEGER,
-            data_manutencao TEXT,
-            descricao TEXT,
-            FOREIGN KEY (equipamento_id) REFERENCES equipamentos(id)
-        )
-    """)
-    conn.commit()
-    conn.close()
+# Conexão Supabase
+url = st.secrets["SUPABASE_URL"]
+key = st.secrets["SUPABASE_KEY"]
+supabase = create_client(url, key)
 
 def show_equipamentos():
-    init_db()
     st.title("🔧 Controle de Equipamentos e Manutenção")
+    
+    # Dados do usuário para filtragem
+    user_data = st.session_state.get('user_data', {})
+    org_usuario = user_data.get('org_name', 'Default')
+    role_usuario = user_data.get('role', 'Visualizador')
 
     # --- 1. CADASTRO DE EQUIPAMENTOS ---
     with st.expander("➕ Adicionar Novo Equipamento", expanded=False):
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            nome = st.text_input("Nome do Equipamento")
-            tipo = st.text_input("Tipo")
-        with col2:
-            status = st.selectbox("Status", ["Operacional", "Manutenção", "Fora de Uso", "Calibração"])
-            u_manut = st.date_input("Última Manutenção").strftime("%d/%m/%Y")
-        with col3:
-            local = st.text_input("Localização")
-            resp = st.text_input("Responsável")
-        
-        cat = st.text_input("Categoria")
+        if role_usuario == "Visualizador":
+            st.warning("Apenas administradores e técnicos podem cadastrar.")
+        else:
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                nome = st.text_input("Nome do Equipamento")
+                tipo = st.text_input("Tipo")
+            with col2:
+                status = st.selectbox("Status", ["Operacional", "Manutenção", "Fora de Uso", "Calibração"])
+                u_manut = st.date_input("Última Manutenção").strftime("%d/%m/%Y")
+            with col3:
+                local = st.text_input("Localização")
+                resp = st.text_input("Responsável")
+            cat = st.text_input("Categoria")
 
-        if st.button("Salvar Equipamento"):
-            if nome:
-                conn = sqlite3.connect(DB_PATH)
-                cursor = conn.cursor()
-                cursor.execute("""
-                    INSERT INTO equipamentos (nome, tipo, status, ultima_manutencao, localizacao, responsavel, categoria)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                """, (nome, tipo, status, u_manut, local, resp, cat))
-                conn.commit()
-                conn.close()
-                st.success(f"Equipamento {nome} cadastrado!")
-                st.rerun()
+            if st.button("Salvar Equipamento"):
+                if nome:
+                    data_insert = {
+                        "nome": nome, "tipo": tipo, "status": status,
+                        "ultima_manutencao": u_manut, "localizacao": local,
+                        "responsavel": resp, "categoria": cat, "org_name": org_usuario
+                    }
+                    supabase.table("equipamentos").insert(data_insert).execute()
+                    st.success(f"Equipamento {nome} cadastrado!")
+                    st.rerun()
 
     # --- 2. REGISTRO DE MANUTENÇÃO ---
     st.divider()
     with st.expander("🛠️ Registrar Nova Manutenção"):
-        conn = sqlite3.connect(DB_PATH)
-        df_eq = pd.read_sql_query("SELECT id, nome FROM equipamentos", conn)
-        conn.close()
+        # Busca equipamentos apenas da empresa logada
+        resp_eq = supabase.table("equipamentos").select("id, nome").eq("org_name", org_usuario).execute()
+        df_eq = pd.DataFrame(resp_eq.data)
 
         if not df_eq.empty:
             col_m1, col_m2 = st.columns(2)
@@ -84,16 +63,21 @@ def show_equipamentos():
             desc_m = st.text_area("Descrição do Serviço")
 
             if st.button("Confirmar Manutenção"):
-                conn = sqlite3.connect(DB_PATH)
-                cursor = conn.cursor()
-                cursor.execute("INSERT INTO manutencao (equipamento_id, data_manutencao, descricao) VALUES (?, ?, ?)",
-                             (int(eq_id), data_m, desc_m))
-                # Atualiza a data de última manutenção no cadastro do equipamento
-                cursor.execute("UPDATE equipamentos SET ultima_manutencao = ? WHERE id = ?", (data_m, int(eq_id)))
-                conn.commit()
-                conn.close()
-                st.success("Manutenção registrada!")
-                st.rerun()
+                if role_usuario != "Visualizador":
+                    # Salva na tabela de manutenção
+                    manut_data = {
+                        "equipamento_id": int(eq_id),
+                        "data_manutencao": data_m,
+                        "descricao": desc_m,
+                        "org_name": org_usuario
+                    }
+                    supabase.table("manutencao").insert(manut_data).execute()
+                    # Atualiza a data no equipamento
+                    supabase.table("equipamentos").update({"ultima_manutencao": data_m}).eq("id", int(eq_id)).execute()
+                    st.success("Manutenção registrada!")
+                    st.rerun()
+                else:
+                    st.error("Permissão negada.")
         else:
             st.info("Cadastre um equipamento primeiro.")
 
@@ -101,53 +85,60 @@ def show_equipamentos():
     st.divider()
     tab1, tab2, tab3 = st.tabs(["📋 Inventário", "📜 Histórico", "📊 Gráficos"])
 
-    conn = sqlite3.connect(DB_PATH)
+    # Busca dados globais da empresa para as abas
+    resp_full = supabase.table("equipamentos").select("*").eq("org_name", org_usuario).execute()
+    df_view = pd.DataFrame(resp_full.data)
     
     with tab1:
-        df_view = pd.read_sql_query("SELECT * FROM equipamentos", conn)
         if not df_view.empty:
-            # Busca rápida integrada
             busca = st.text_input("🔍 Pesquisar por nome ou responsável:")
             if busca:
                 df_view = df_view[df_view['nome'].str.contains(busca, case=False) | df_view['responsavel'].str.contains(busca, case=False)]
             
-            edited_df = st.data_editor(df_view, use_container_width=True, hide_index=True)
+            is_disabled = (role_usuario == "Visualizador")
+            edited_df = st.data_editor(df_view, use_container_width=True, hide_index=True, disabled=is_disabled)
             
-            if st.button("💾 Salvar Alterações na Tabela"):
-                edited_df.to_sql('equipamentos', conn, if_exists='replace', index=False)
-                st.success("Dados atualizados!")
+            if not is_disabled and st.button("💾 Salvar Alterações na Tabela"):
+                for _, row in edited_df.iterrows():
+                    supabase.table("equipamentos").update({
+                        "nome": row['nome'], "tipo": row['tipo'], "status": row['status'],
+                        "localizacao": row['localizacao'], "responsavel": row['responsavel'],
+                        "categoria": row['categoria']
+                    }).eq("id", row['id']).execute()
+                st.success("Dados atualizados na nuvem!")
         else:
             st.write("Nenhum equipamento cadastrado.")
 
     with tab2:
-        df_hist = pd.read_sql_query("""
-            SELECT m.id, e.nome as Equipamento, m.data_manutencao as Data, m.descricao as Descricao 
-            FROM manutencao m 
-            JOIN equipamentos e ON m.equipamento_id = e.id
-        """, conn)
-        st.dataframe(df_hist, use_container_width=True, hide_index=True)
+        resp_hist = supabase.table("manutencao").select("id, data_manutencao, descricao, equipamentos(nome)").eq("org_name", org_usuario).execute()
+        if resp_hist.data:
+            # Tratamento para achatar o JSON das relações do Supabase
+            hist_data = []
+            for m in resp_hist.data:
+                hist_data.append({
+                    "Equipamento": m['equipamentos']['nome'] if m['equipamentos'] else "N/A",
+                    "Data": m['data_manutencao'],
+                    "Descrição": m['descricao']
+                })
+            st.dataframe(pd.DataFrame(hist_data), use_container_width=True, hide_index=True)
 
     with tab3:
         if not df_view.empty:
             col_g1, col_g2 = st.columns(2)
-            
             with col_g1:
                 st.write("**Equipamentos por Status**")
                 status_count = df_view['status'].value_counts()
-                fig1, ax1 = plt.subplots()
+                fig1, ax1 = plt.subplots(figsize=(4,4))
                 ax1.pie(status_count, labels=status_count.index, autopct='%1.1f%%', startangle=90)
                 st.pyplot(fig1)
-
             with col_g2:
                 st.write("**Equipamentos por Tipo**")
                 tipo_count = df_view['tipo'].value_counts()
                 st.bar_chart(tipo_count)
-    
-    conn.close()
 
     # --- 4. EXPORTAÇÃO ---
     st.sidebar.divider()
     if st.sidebar.button("📄 Gerar Relatório CSV"):
-        df_full = pd.read_sql_query("SELECT * FROM equipamentos", sqlite3.connect(DB_PATH))
-        csv = df_full.to_csv(index=False).encode('utf-8-sig')
-        st.sidebar.download_button("Clique para Baixar CSV", csv, "equipamentos.csv", "text/csv")
+        if not df_view.empty:
+            csv = df_view.to_csv(index=False).encode('utf-8-sig')
+            st.sidebar.download_button("Clique para Baixar CSV", csv, "equipamentos.csv", "text/csv")
