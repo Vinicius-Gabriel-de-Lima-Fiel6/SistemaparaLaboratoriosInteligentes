@@ -1,120 +1,138 @@
 import streamlit as st
-import matplotlib.pyplot as plt
+import pandas as pd
 import numpy as np
-import statistics
+import plotly.graph_objects as go
 from scipy.interpolate import make_interp_spline
-import webbrowser
+from scipy.signal import savgol_filter
+from sklearn.metrics import r2_score
+import io
 
 def show_graficos():
-    st.title("📊 Laboratório Gráfico Inteligente")
+    st.title("📊 Estação Gráfica Dinâmica e Interativa")
 
-    # --- 1. LINKS EXTERNOS ---
-    col_links = st.columns(4)
-    with col_links[0]:
-        st.link_button("🌐 GeoGebra","https://www.geogebra.org/graphing",use_container_width=True)
-    with col_links[1]:
-        st.link_button("🧠 WolframAlpha","https://www.wolframalpha.com/",use_container_width=True)
-    with col_links[2]:
-        st.link_button("📈 Weibull","https://www-acsu-buffalo-edu.translate.goog/~adamcunn/probability/weibull.html",use_container_width=True)
-    with col_links[3]:
-        st.link_button("💻 Matlab Web","https://matlab.mathworks.com/",use_container_width=True)
+    # Inicialização do container de memória
+    if 'series_graficas' not in st.session_state:
+        st.session_state.series_graficas = []
+
+    # --- 1. CABEÇALHO TÉCNICO ---
+    with st.expander("🔬 Recursos de Apoio", expanded=False):
+        c1, c2, c3 = st.columns(3)
+        c1.link_button("🧪 NIST WebBook", "https://webbook.nist.gov/chemistry/", use_container_width=True)
+        c2.link_button("🧬 PubChem", "https://pubchem.ncbi.nlm.nih.gov/", use_container_width=True)
+        c3.link_button("📚 IUPAC Gold", "https://goldbook.iupac.org/", use_container_width=True)
 
     st.divider()
 
-    # --- 2. SELEÇÃO DO TIPO DE GRÁFICO ---
-    tipo_grafico = st.selectbox(
-        "Selecione a análise físico-química:",
-        [
-            "Solubilidade", "Titulação", "Calibração", "Dispersão", "Histograma",
-            "UV-Vis", "Diagrama de Fases", "Cromatograma", "Barras", "Regressão Linear", 
-            "Barras com Erro", "Cinética Química", "Arrhenius", "Michaelis-Menten", 
-            "Lineweaver-Burk", "pKa Curve", "Isoterma Adsorção", "Capacidade Térmica", 
-            "RMN Spectrum", "Mass Spectrum", "TGA", "Adsorção Cinética", "Polarização"
-        ]
-    )
-
-    # --- 3. INPUTS DINÂMICOS (Na Barra Lateral) ---
-    inputs = {}
-    with st.sidebar.expander("📝 Configurar Dados", expanded=True):
-        if tipo_grafico == "Solubilidade":
-            inputs['name'] = st.text_input("Composto", "NaCl")
-            inputs['x'] = st.text_input("Temperaturas (K)", "273, 298, 323, 348")
-            inputs['y'] = st.text_input("Solubilidade (g/100g H2O)", "35.7, 36.0, 36.3, 37.0")
+    # --- 2. CONTROLE LATERAL (Input e Gestão) ---
+    with st.sidebar:
+        st.header("📥 Entrada de Dados")
         
-        elif tipo_grafico == "Barras" or tipo_grafico == "Barras com Erro":
-            inputs['x_label'] = st.text_input("Categorias (Nomes)", "A, B, C")
-            inputs['y'] = st.text_input("Valores numéricos", "10, 20, 15")
+        with st.container(border=True):
+            tipo_ajuste = st.selectbox(
+                "Modelo Matemático:",
+                ["Padrão (Linhas e Pontos)", "Regressão Linear", "Suavização (Savitzky-Golay)", "Spline Cubic"]
+            )
+            nome = st.text_input("ID da Amostra", f"Amostra_{len(st.session_state.series_graficas)+1}")
+            in_x = st.text_input("Eixo X (Valores)", "0, 5, 10, 15, 20, 25")
+            in_y = st.text_input("Eixo Y (Valores)", "1.5, 3.2, 7.8, 12.1, 19.5, 28.3")
+            cor = st.color_picker("Cor da Série", "#00F2FF")
+            nota = st.text_input("Anotação de Ponto", "")
+
+        col_add, col_reset = st.columns(2)
+        if col_add.button("➕ Adicionar", use_container_width=True):
+            try:
+                x = np.array([float(i.strip()) for i in in_x.split(',') if i.strip()])
+                y = np.array([float(i.strip()) for i in in_y.split(',') if i.strip()])
+                if len(x) == len(y):
+                    st.session_state.series_graficas.append({
+                        "nome": nome, "x": x, "y": y, "cor": cor, "tipo": tipo_ajuste, "nota": nota
+                    })
+                    st.toast(f"Série {nome} integrada!")
+                else:
+                    st.error("X e Y incompatíveis.")
+            except:
+                st.error("Use apenas números e vírgulas.")
+
+        if col_reset.button("🗑️ Limpar Tudo", use_container_width=True):
+            st.session_state.series_graficas = []
+            st.rerun()
+
+        # Gestão de Séries Individuais
+        if st.session_state.series_graficas:
+            st.markdown("---")
+            st.subheader("📋 Séries Ativas")
+            for i, s in enumerate(st.session_state.series_graficas):
+                if st.button(f"Remover {s['nome']}", key=f"del_{i}", use_container_width=True):
+                    st.session_state.series_graficas.pop(i)
+                    st.rerun()
+
+    # --- 3. RENDERIZAÇÃO INTERATIVA (PLOTLY) ---
+    if not st.session_state.series_graficas:
+        st.info("💡 Arraste e explore seus dados: Adicione uma série no menu lateral para começar.")
+    else:
+        # Criamos a figura do Plotly
+        fig = go.Figure()
+
+        for s in st.session_state.series_graficas:
+            x, y = s['x'], s['y']
+            
+            # --- Lógica de Modelagem ---
+            if s['tipo'] == "Regressão Linear":
+                coef = np.polyfit(x, y, 1)
+                p = np.poly1d(coef)
+                r2 = r2_score(y, p(x))
+                # Linha de tendência
+                fig.add_trace(go.Scatter(x=x, y=p(x), mode='lines', name=f"{s['nome']} (R²:{r2:.3f})", 
+                                         line=dict(color=s['cor'], dash='dash')))
+                # Pontos originais
+                fig.add_trace(go.Scatter(x=x, y=y, mode='markers', name=f"{s['nome']} (Dados)", 
+                                         marker=dict(color=s['cor'], size=10), text=s['nota']))
+
+            elif s['tipo'] == "Suavização (Savitzky-Golay)":
+                window = 5 if len(y) > 5 else 3
+                y_smooth = savgol_filter(y, window, 2)
+                fig.add_trace(go.Scatter(x=x, y=y_smooth, mode='lines+markers', name=s['nome'], 
+                                         line=dict(color=s['cor'], width=3), text=s['nota']))
+
+            elif s['tipo'] == "Spline Cubic" and len(x) > 3:
+                x_new = np.linspace(x.min(), x.max(), 200)
+                spl = make_interp_spline(x, y, k=3)
+                fig.add_trace(go.Scatter(x=x_new, y=spl(x_new), mode='lines', name=s['nome'], 
+                                         line=dict(color=s['cor'], width=2), text=s['nota']))
+                fig.add_trace(go.Scatter(x=x, y=y, mode='markers', name=f"{s['nome']} (Pontos)", 
+                                         marker=dict(color=s['cor'])))
+
+            else: # Padrão
+                fig.add_trace(go.Scatter(x=x, y=y, mode='lines+markers', name=s['nome'], 
+                                         line=dict(color=s['cor']), marker=dict(size=8), text=s['nota']))
+
+        # Configuração de Layout para Interatividade Máxima
+        fig.update_layout(
+            title="Análise Multivariada Interativa",
+            template="plotly_dark",
+            paper_bgcolor="#0E1117",
+            plot_bgcolor="#161B22",
+            xaxis=dict(title="Eixo X", gridcolor="#333", zerolinecolor="#444"),
+            yaxis=dict(title="Eixo Y", gridcolor="#333", zerolinecolor="#444"),
+            hovermode="x unified", # Mostra todos os valores de Y para um mesmo X ao passar o mouse
+            dragmode="pan", # Permite o arraste por padrão
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
         
-        else:
-            # Padrão para os demais gráficos (X e Y numéricos)
-            inputs['x'] = st.text_input("Eixo X (Valores separados por vírgula)", "")
-            inputs['y'] = st.text_input("Eixo Y (Valores separados por vírgula)", "")
+        # Exibe o gráfico interativo
+        st.plotly_chart(fig, use_container_width=True, config={'scrollZoom': True, 'displaylogo': False})
 
-    # --- 4. LÓGICA DE PLOTAGEM COM AJUSTE DE ERRO ---
-    try:
-        # Trava 1: Verifica se os campos estão vazios
-        if (tipo_grafico != "Histograma" and (not inputs.get('x') or not inputs.get('y'))) or \
-           (tipo_grafico == "Histograma" and not inputs.get('x')):
-            st.info("💡 Por favor, insira os dados na barra lateral para gerar o gráfico.")
-            return # Sai da função sem tentar plotar
-
-        # Trava 2: Conversão de strings para listas numéricas
-        def parse_data(txt):
-            return np.array([float(i.strip()) for i in txt.split(',') if i.strip()])
-
-        # Processamento dos dados
-        fig, ax = plt.subplots(figsize=(10, 6))
+        # --- 4. EXPORTAÇÃO E ESTATÍSTICA ---
+        st.markdown("---")
+        c_exp, c_tab = st.columns([1, 2])
         
-        if "x" in inputs:
-            x_data = parse_data(inputs['x'])
-        if "y" in inputs:
-            y_data = parse_data(inputs['y'])
+        with c_exp:
+            st.subheader("📂 Saída")
+            csv = pd.DataFrame([{"Série": s['nome'], "X": xi, "Y": yi} for s in st.session_state.series_graficas for xi, yi in zip(s['x'], s['y'])])
+            st.download_button("📊 Exportar Dados (CSV)", csv.to_csv(index=False).encode('utf-8'), "lab_data.csv", use_container_width=True)
+            st.info("Para salvar a imagem: Use o ícone de câmera no canto superior direito do gráfico.")
 
-        # Validação de dimensão
-        if tipo_grafico not in ["Histograma", "Barras", "Barras com Erro"] and len(x_data) != len(y_data):
-            st.warning("⚠️ Atenção: A quantidade de valores em X deve ser igual à de Y.")
-            return
-
-        # --- Execução dos Gráficos (Lógica Original Adaptada) ---
-        if tipo_grafico == "Solubilidade":
-            if len(x_data) >= 3:
-                xs = np.linspace(x_data.min(), x_data.max(), 300)
-                ys = make_interp_spline(x_data, y_data, k=2)(xs)
-                ax.plot(xs, ys, label=inputs.get('name', 'Composto'), color='cyan', linewidth=2)
-                ax.scatter(x_data, y_data, color='red')
-            else:
-                ax.plot(x_data, y_data, '-o')
-            ax.set_ylabel("Solubilidade (g/100g H₂O)")
-
-        elif tipo_grafico == "Regressão Linear":
-            coef = np.polyfit(x_data, y_data, 1)
-            f = np.poly1d(coef)
-            ax.scatter(x_data, y_data, color='magenta', label='Dados')
-            ax.plot(x_data, f(x_data), '--', color='red', label=f'y={coef[0]:.2f}x + {coef[1]:.2f}')
-
-        elif tipo_grafico == "Histograma":
-            ax.hist(x_data, bins='auto', color='orange', edgecolor='black')
-
-        elif tipo_grafico == "Barras":
-            cats = inputs['x_label'].split(',')
-            ax.bar(cats, y_data, color='skyblue')
-
-        # Fallback para todos os outros (X, Y lineares)
-        else:
-            ax.plot(x_data, y_data, '-o', label=tipo_grafico, markersize=8)
-
-        # Estilização Geral (Padrão LabSmart)
-        ax.set_title(f"Gráfico: {tipo_grafico}", fontsize=16, fontweight='bold')
-        ax.grid(True, linestyle='--', alpha=0.5)
-        ax.legend()
-        
-        # Exibe no Streamlit
-        st.pyplot(fig)
-
-    except ValueError:
-        st.error("❌ Erro de Formato: Certifique-se de usar apenas números e vírgulas.")
-    except Exception as e:
-
-        st.error(f"⚠️ Erro ao processar gráfico: {e}")
-
-
+        with c_tab:
+            st.subheader("📉 Sumário Estatístico")
+            stats = [{"Amostra": s['nome'], "Média": f"{np.mean(s['y']):.2f}", "Máximo": np.max(s['y']), "D. Padrão": f"{np.std(s['y']):.2f}"} for s in st.session_state.series_graficas]
+            st.dataframe(pd.DataFrame(stats), use_container_width=True)
