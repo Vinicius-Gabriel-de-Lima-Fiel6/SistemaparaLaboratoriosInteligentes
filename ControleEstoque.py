@@ -1,62 +1,92 @@
 import streamlit as st
-import sqlite3
 import pandas as pd
-import urllib.parse # Para converter nomes em links de internet
+import urllib.parse
+from supabase import create_client
 
-DB_PATH = "data/lab_data.db"
+# Configurações do Supabase (buscando as chaves do seu st.secrets)
+url = st.secrets["SUPABASE_URL"]
+key = st.secrets["SUPABASE_KEY"]
+supabase = create_client(url, key)
 
 def show_estoque():
     st.title("📦 Controle de Estoque e Compras")
+    
+    # Recupera os dados do usuário logado no app.py
+    user_data = st.session_state.get('user_data', {})
+    org_usuario = user_data.get('org_name', 'Default')
+    role_usuario = user_data.get('role', 'Visualizador')
 
     try:
-        conn = sqlite3.connect(DB_PATH)
-        df = pd.read_sql_query("SELECT * FROM substancias", conn)
+        # --- BUSCA DADOS NO SUPABASE FILTRANDO PELA EMPRESA ---
+        response = supabase.table("substancias").select("*").eq("org_name", org_usuario).execute()
+        df = pd.DataFrame(response.data)
         
         if not df.empty:
             # --- SEÇÃO DE ALERTAS E MÉTRICAS ---
             col1, col2 = st.columns(2)
+            # Verifica se existe a coluna 'quantidade', senão usa 0
+            df['quantidade'] = pd.to_numeric(df['quantidade'], errors='coerce').fillna(0)
+            
             itens_baixos = df[df['quantidade'] < 10]
             col1.metric("Total no Inventário", len(df))
             col2.metric("Itens para Reposição", len(itens_baixos), delta_color="inverse")
 
-            # --- NOVIDADE: SEÇÃO DE COMPRAS DIRETAS ---
+            # --- SEÇÃO DE COMPRAS DIRETAS ---
             if len(itens_baixos) > 0:
                 with st.expander("🛒 COMPRA RÁPIDA (Itens com estoque baixo)", expanded=True):
                     st.write("Selecione um item para buscar fornecedores online:")
-                    
-                    # Lista apenas os nomes dos itens que precisam de compra
                     item_para_comprar = st.selectbox("Substância para repor:", itens_baixos['nome'].unique())
                     
                     if item_para_comprar:
-                        # Criamos a URL de busca (Google Shopping e Sigma-Aldrich)
                         query = urllib.parse.quote(item_para_comprar)
-                        
                         c1, c2, c3 = st.columns(3)
-                        # Links diretos que abrem em nova aba
-                        c1.link_button("🔍 Buscar no Google Shopping", f"https://www.google.com/search?q={query}&tbm=shop")
-                        c2.link_button("🧪 Buscar na Sigma-Aldrich", f"https://www.sigmaaldrich.com/BR/pt/search/{query}")
-                        c3.link_button("📦 Buscar na Amazon", f"https://www.amazon.com.br/s?k={query}")
+                        c1.link_button("🔍 Google Shopping", f"https://www.google.com/search?q={query}&tbm=shop", use_container_width=True)
+                        c2.link_button("🧪 Sigma-Aldrich", f"https://www.sigmaaldrich.com/BR/pt/search/{query}", use_container_width=True)
+                        c3.link_button("📦 Amazon", f"https://www.amazon.com.br/s?k={query}", use_container_width=True)
 
             st.divider()
 
             # --- TABELA DE EDIÇÃO ---
-            st.subheader("📝 Edição do Inventário")
-            edited_df = st.data_editor(df, use_container_width=True, hide_index=True)
+            st.subheader(f"📝 Inventário: {org_usuario}")
+            
+            # Bloqueia edição para 'Visualizador'
+            is_disabled = (role_usuario == "Visualizador")
+            
+            edited_df = st.data_editor(
+                df, 
+                use_container_width=True, 
+                hide_index=True, 
+                disabled=is_disabled,
+                # Impede o usuário de mudar o org_name manualmente
+                column_config={"org_name": st.column_config.TextColumn("Empresa", disabled=True)}
+            )
 
-            if st.button("💾 Salvar Alterações"):
-                edited_df.to_sql('substancias', conn, if_exists='replace', index=False)
-                st.success("Estoque atualizado!")
-                st.rerun()
+            # Botão de salvar (Lógica de permissão mantida)
+            if role_usuario in ["ADM", "Tecnico"]:
+                if st.button("💾 Salvar Alterações no Banco"):
+                    with st.spinner("Sincronizando com a nuvem..."):
+                        for _, row in edited_df.iterrows():
+                            # Faz o update linha por linha no Supabase usando o ID
+                            supabase.table("substancias").update({
+                                "nome": row['nome'],
+                                "quantidade": row['quantidade'],
+                                "unidade": row['unidade'] if 'unidade' in row else "un"
+                            }).eq("id", row['id']).execute()
+                        
+                        st.success("Estoque salvo permanentemente na nuvem!")
+                        st.rerun()
 
         else:
-            st.warning("O banco de dados está vazio.")
+            st.warning(f"O inventário da empresa {org_usuario} está vazio.")
+            if role_usuario != "Visualizador":
+                if st.button("➕ Criar Primeiro Item"):
+                    supabase.table("substancias").insert({"nome": "Novo Item", "quantidade": 0, "org_name": org_usuario}).execute()
+                    st.rerun()
 
     except Exception as e:
-        st.error(f"Erro: {e}")
-    finally:
-        if conn: conn.close()
+        st.error(f"Erro de Conexão: {e}")
 
-    # --- BUSCA GERAL NA INTERNET ---
+    # --- BUSCA GERAL ---
     st.divider()
     st.subheader("🌐 Pesquisa Externa")
     busca_livre = st.text_input("Procurar qualquer reagente para compra:")
