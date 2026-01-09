@@ -1,87 +1,84 @@
 import streamlit as st
-import sqlite3
-import os
 import pandas as pd
+from supabase import create_client
 
-# Mantemos o caminho exato do seu banco original
-DB_PATH = "data/lab_data.db"
-
-def init_db():
-    """Cria o banco de dados e a tabela se não existirem (Lógica original)"""
-    os.makedirs("data", exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS substancias (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nome TEXT,
-            finalidade TEXT,
-            concentracao TEXT,
-            quantidade REAL,
-            validade TEXT
-        )
-    """)
-    conn.commit()
-    conn.close()
+# Conexão com o Banco de Dados na Nuvem
+url = st.secrets["SUPABASE_URL"]
+key = st.secrets["SUPABASE_KEY"]
+supabase = create_client(url, key)
 
 def show_substances():
-    """Esta é a função que o app.py vai chamar para exibir esta aba"""
-    init_db()
-    
     st.header("🔬 Cadastro e Gerenciamento de Substâncias")
+    
+    # Recupera os dados da empresa logada
+    user_data = st.session_state.get('user_data', {})
+    org_usuario = user_data.get('org_name', 'Default')
+    role_usuario = user_data.get('role', 'Visualizador')
 
-    # --- CAMPOS DE ENTRADA (Substitui QLineEdit) ---
+    # --- 1. CADASTRO DE SUBSTÂNCIAS ---
     with st.container(border=True):
         st.subheader("Cadastrar Novo Item")
-        col1, col2, col3 = st.columns(3)
         
-        with col1:
-            nome = st.text_input("Nome da Substância")
-            finalidade = st.text_input("Finalidade")
-        with col2:
-            concentracao = st.text_input("Concentração")
-            quantidade = st.number_input("Quantidade", min_value=0.0)
-        with col3:
-            validade = st.text_input("Validade (MM/AAAA)")
-            
-        if st.button("➕ Adicionar Substância", use_container_width=True):
-            if nome and quantidade:
-                conn = sqlite3.connect(DB_PATH)
-                cursor = conn.cursor()
-                cursor.execute("""
-                    INSERT INTO substancias (nome, finalidade, concentracao, quantidade, validade)
-                    VALUES (?, ?, ?, ?, ?)
-                """, (nome, finalidade, concentracao, quantidade, validade))
-                conn.commit()
-                conn.close()
-                st.success(f"'{nome}' cadastrado!")
-                st.rerun()
-            else:
-                st.error("Preencha ao menos Nome e Quantidade.")
+        # Bloqueia cadastro para quem é apenas Visualizador
+        if role_usuario == "Visualizador":
+            st.warning("Seu perfil é apenas para visualização. Contate o ADM para alterações.")
+        else:
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                nome = st.text_input("Nome da Substância")
+                finalidade = st.text_input("Finalidade")
+            with col2:
+                concentracao = st.text_input("Concentração")
+                quantidade = st.number_input("Quantidade", min_value=0.0)
+            with col3:
+                validade = st.text_input("Validade (MM/AAAA)")
+                
+            if st.button("➕ Adicionar Substância", use_container_width=True):
+                if nome and quantidade:
+                    with st.spinner("Enviando para o banco de dados..."):
+                        data_insert = {
+                            "nome": nome,
+                            "finalidade": finalidade,
+                            "concentracao": concentracao,
+                            "quantidade": quantidade,
+                            "validade": validade,
+                            "org_name": org_usuario  # Identificador da empresa
+                        }
+                        supabase.table("substancias").insert(data_insert).execute()
+                        st.success(f"'{nome}' cadastrado com sucesso!")
+                        st.rerun()
+                else:
+                    st.error("Preencha ao menos Nome e Quantidade.")
 
     st.divider()
 
-    # --- TABELA DE DADOS (Substitui QTableWidget) ---
-    st.subheader("📋 Inventário Atual")
+    # --- 2. EXIBIÇÃO DO INVENTÁRIO (Sincronizado com o Estoque) ---
+    st.subheader(f"📋 Inventário: {org_usuario}")
     
-    conn = sqlite3.connect(DB_PATH)
-    df = pd.read_sql_query("SELECT * FROM substancias", conn)
-    conn.close()
+    try:
+        # Busca apenas as substâncias da empresa logada
+        response = supabase.table("substancias").select("*").eq("org_name", org_usuario).execute()
+        df = pd.DataFrame(response.data)
 
-    if not df.empty:
-        # Exibição reativa
-        st.dataframe(df, use_container_width=True, hide_index=True)
-        
-        # Ações de remoção
-        with st.expander("🗑️ Excluir Itens"):
-            id_del = st.number_input("Digite o ID para remover", min_value=int(df['id'].min()), step=1)
-            if st.button("Confirmar Exclusão", type="primary"):
-                conn = sqlite3.connect(DB_PATH)
-                cursor = conn.cursor()
-                cursor.execute("DELETE FROM substancias WHERE id = ?", (id_del,))
-                conn.commit()
-                conn.close()
-                st.warning(f"Item {id_del} removido.")
-                st.rerun()
-    else:
-        st.info("Nenhuma substância encontrada no banco de dados.")
+        if not df.empty:
+            # Reorganizando as colunas para ficar visualmente melhor
+            cols_ordem = ['id', 'nome', 'quantidade', 'concentracao', 'validade', 'finalidade']
+            df = df[cols_ordem]
+            
+            st.dataframe(df, use_container_width=True, hide_index=True)
+            
+            # --- 3. EXCLUSÃO DE ITENS ---
+            if role_usuario in ["ADM", "Tecnico"]:
+                with st.expander("🗑️ Remover Substância"):
+                    st.write("Selecione o item para exclusão permanente:")
+                    id_del = st.selectbox("ID para remover", options=df['id'].tolist())
+                    
+                    if st.button("Confirmar Exclusão", type="primary"):
+                        supabase.table("substancias").delete().eq("id", id_del).execute()
+                        st.warning(f"Item ID {id_del} foi removido do banco de dados.")
+                        st.rerun()
+        else:
+            st.info(f"Nenhuma substância cadastrada para a empresa {org_usuario}.")
+            
+    except Exception as e:
+        st.error(f"Erro ao carregar dados: {e}")
