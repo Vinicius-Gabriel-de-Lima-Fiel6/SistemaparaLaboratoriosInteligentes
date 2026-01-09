@@ -14,3 +14,4 @@ opencv-python-headless
 numpy
 streamlit-webrtc
 serial
+plotly
