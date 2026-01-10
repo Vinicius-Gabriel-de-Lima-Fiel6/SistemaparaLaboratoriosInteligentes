@@ -1,45 +1,63 @@
 import streamlit as st
 from supabase import create_client
+import auth_db as db
 
 # Inicializa conexão
 supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 
 def show_config_empresa():
-    st.title("⚙️ Configurações e Gestão de Equipe")
+    st.title("⚙️ Painel Administrativo")
     
-    # Pegamos os dados da sessão (definidos no login)
-    org_id = st.session_state.user_data.get('org_id')
+    # Recupera dados da empresa do usuário logado
+    user_data = st.session_state.user_data
+    org_id = user_data.get('org_id')
+    org_name = user_data.get('org_name')
     
-    aba_equipe, aba_perfil = st.tabs(["👥 Membros e Permissões", "🏢 Dados da Empresa"])
+    aba_equipe, aba_laboratorio = st.tabs(["👥 Gestão de Equipe", "🏢 Dados da Empresa"])
 
     with aba_equipe:
-        st.subheader("Gerenciar Colaboradores")
+        st.subheader(f"Membros do {org_name}")
         
-        # Form para o ADM convidar/cadastrar funcionário
-        with st.expander("➕ Adicionar Novo Membro"):
-            with st.form("form_add_user", clear_on_submit=True):
-                c1, c2 = st.columns(2)
-                novo_nome = c1.text_input("Nome Completo")
-                novo_email = c2.text_input("E-mail de Acesso")
-                novo_cargo = st.selectbox("Nível de Permissão", ["Visualizador", "Tecnico", "ADM"])
-                nova_senha = st.text_input("Senha Provisória", type="password")
+        # Área para o ADM cadastrar novos funcionários
+        with st.expander("➕ Adicionar Novo Funcionário"):
+            with st.form("cadastrar_interno", clear_on_submit=True):
+                col1, col2 = st.columns(2)
+                nome_func = col1.text_input("Nome Completo")
+                email_func = col2.text_input("E-mail de Login")
                 
-                if st.form_submit_button("Confirmar Cadastro"):
-                    # Aqui usamos a função de cadastro do auth_db, mas passando o org_id automático
-                    from auth_db import cadastrar_usuario
-                    sucesso, msg = cadastrar_usuario(novo_nome, novo_email, nova_senha, st.session_state.user_data['org_name'], novo_cargo)
-                    if sucesso: st.success("Funcionário cadastrado com sucesso!")
-                    else: st.error(msg)
+                senha_func = col1.text_input("Senha Provisória", type="password")
+                cargo_func = col2.selectbox("Nível de Acesso", ["Visualizador", "Tecnico", "ADM"])
+                
+                if st.form_submit_button("Liberar Acesso"):
+                    if nome_func and email_func and senha_func:
+                        # Chamamos o cadastro do auth_db passando o org_id da empresa atual
+                        sucesso, msg = db.cadastrar_usuario(
+                            nome_func, 
+                            email_func, 
+                            senha_func, 
+                            org_name, 
+                            cargo_func
+                        )
+                        if sucesso:
+                            st.success(f"Acesso liberado para {nome_func}!")
+                        else:
+                            st.error(msg)
+                    else:
+                        st.warning("Preencha todos os campos para o cadastro.")
 
         st.divider()
         
-        # Listagem automática de quem trabalha na empresa
-        st.write("### Equipe Atual")
-        res = supabase.table("users").select("username, email, role").eq("org_id", org_id).execute()
-        if res.data:
-            st.table(res.data)
+        # Lista quem trabalha na empresa (Automático)
+        st.write("### Equipe Ativa")
+        try:
+            usuarios = supabase.table("users").select("username, email, role").eq("org_name", org_name).execute()
+            if usuarios.data:
+                st.table(usuarios.data)
+        except Exception as e:
+            st.error("Erro ao carregar lista de membros.")
 
-    with aba_perfil:
-        st.subheader("Dados do Laboratório")
-        # Aqui você pode adicionar campos para editar nome da empresa, logo, etc.
-        st.info("Funcionalidade de edição de perfil corporativo em desenvolvimento.")
+    with aba_laboratorio:
+        st.subheader("Configurações do Laboratório")
+        st.write(f"**ID da Organização:** `{org_id}`")
+        st.write(f"**Nome Registrado:** {org_name}")
+        st.info("Aqui você poderá, no futuro, alterar o logo e o plano de assinatura.")
