@@ -10,16 +10,21 @@ supabase = create_client(url, key)
 def show_substances():
     st.header("🔬 Cadastro e Gerenciamento de Substâncias")
     
-    # Recupera os dados da empresa logada
+    # Recupera os dados críticos da sessão
     user_data = st.session_state.get('user_data', {})
-    org_usuario = user_data.get('org_name', 'Default')
+    org_id = user_data.get('org_id')      # O "ID Único" para o banco de dados
+    org_name = user_data.get('org_name')  # O "Nome" para a interface
     role_usuario = user_data.get('role', 'Visualizador')
+
+    # Segurança extra: Se não houver org_id, interrompe o carregamento
+    if not org_id:
+        st.error("Erro de autenticação: Organização não identificada. Faça login novamente.")
+        return
 
     # --- 1. CADASTRO DE SUBSTÂNCIAS ---
     with st.container(border=True):
         st.subheader("Cadastrar Novo Item")
         
-        # Bloqueia cadastro para quem é apenas Visualizador
         if role_usuario == "Visualizador":
             st.warning("Seu perfil é apenas para visualização. Contate o ADM para alterações.")
         else:
@@ -42,7 +47,8 @@ def show_substances():
                             "concentracao": concentracao,
                             "quantidade": quantidade,
                             "validade": validade,
-                            "org_name": org_usuario  # Identificador da empresa
+                            "org_id": org_id,      # CARIMBO: Vínculo real no banco
+                            "org_name": org_name   # Opcional: mantém o nome para referência rápida
                         }
                         supabase.table("substancias").insert(data_insert).execute()
                         st.success(f"'{nome}' cadastrado com sucesso!")
@@ -52,33 +58,35 @@ def show_substances():
 
     st.divider()
 
-    # --- 2. EXIBIÇÃO DO INVENTÁRIO (Sincronizado com o Estoque) ---
-    st.subheader(f"📋 Inventário: {org_usuario}")
+    # --- 2. EXIBIÇÃO DO INVENTÁRIO (Filtrado por org_id) ---
+    st.subheader(f"📋 Inventário: {org_name}")
     
     try:
-        # Busca apenas as substâncias da empresa logada
-        response = supabase.table("substancias").select("*").eq("org_name", org_usuario).execute()
+        # BUSCA SEGURA: Filtramos apenas o que pertence ao org_id da empresa logada
+        response = supabase.table("substancias").select("*").eq("org_id", org_id).execute()
         df = pd.DataFrame(response.data)
 
         if not df.empty:
-            # Reorganizando as colunas para ficar visualmente melhor
-            cols_ordem = ['id', 'nome', 'quantidade', 'concentracao', 'validade', 'finalidade']
-            df = df[cols_ordem]
+            # Reorganizando colunas (certificando-se de que existem no DF)
+            cols_disponiveis = [c for c in ['id', 'nome', 'quantidade', 'concentracao', 'validade', 'finalidade'] if c in df.columns]
+            df_display = df[cols_disponiveis]
             
-            st.dataframe(df, use_container_width=True, hide_index=True)
+            st.dataframe(df_display, use_container_width=True, hide_index=True)
             
             # --- 3. EXCLUSÃO DE ITENS ---
             if role_usuario in ["ADM", "Tecnico"]:
                 with st.expander("🗑️ Remover Substância"):
                     st.write("Selecione o item para exclusão permanente:")
+                    # Aqui usamos o ID do DataFrame filtrado
                     id_del = st.selectbox("ID para remover", options=df['id'].tolist())
                     
                     if st.button("Confirmar Exclusão", type="primary"):
-                        supabase.table("substancias").delete().eq("id", id_del).execute()
-                        st.warning(f"Item ID {id_del} foi removido do banco de dados.")
+                        # Além de filtrar pelo ID, filtramos pelo org_id por segurança extra (Double Check)
+                        supabase.table("substancias").delete().eq("id", id_del).eq("org_id", org_id).execute()
+                        st.warning(f"Item ID {id_del} foi removido.")
                         st.rerun()
         else:
-            st.info(f"Nenhuma substância cadastrada para a empresa {org_usuario}.")
+            st.info(f"Nenhum item encontrado no inventário de {org_name}.")
             
     except Exception as e:
         st.error(f"Erro ao carregar dados: {e}")
