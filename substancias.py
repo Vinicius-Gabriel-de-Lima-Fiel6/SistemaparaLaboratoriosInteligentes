@@ -1,13 +1,14 @@
 import streamlit as st
 import pandas as pd
 from supabase import create_client
+from datetime import datetime
 
 # Conexão com o Banco de Dados na Nuvem
 url = st.secrets["SUPABASE_URL"]
 key = st.secrets["SUPABASE_KEY"]
 supabase = create_client(url, key)
 
-# --- FUNÇÃO AUXILIAR PARA O DIAMANTE (ACRÉSCIMO) ---
+# --- FUNÇÃO AUXILIAR: RENDERIZAR DIAMANTE DE HOMMEL (NFPA 704) ---
 def render_hommel(saude, fogo, reat, esp):
     st.markdown(f"""
     <div style="display: flex; justify-content: center; align-items: center; background: #1e1e1e; padding: 15px; border-radius: 10px; border: 1px solid #333;">
@@ -27,12 +28,12 @@ def show_substances():
     user_data = st.session_state.get('user_data', {})
     org_usuario = user_data.get('org_name', 'Default')
     role_usuario = user_data.get('role', 'Visualizador')
+    username_atual = user_data.get('username', 'Usuário')
 
     # --- 1. CADASTRO DE SUBSTÂNCIAS ---
     with st.container(border=True):
         st.subheader("Cadastrar Novo Item")
         
-        # Bloqueia cadastro para quem é apenas Visualizador
         if role_usuario == "Visualizador":
             st.warning("Seu perfil é apenas para visualização. Contate o ADM para alterações.")
         else:
@@ -42,12 +43,13 @@ def show_substances():
                 finalidade = st.text_input("Finalidade")
             with col2:
                 concentracao = st.text_input("Concentração")
-                quantidade = st.number_input("Quantidade", min_value=0.0)
+                quantidade = st.number_input("Quantidade Atual", min_value=0.0)
             with col3:
+                estoque_minimo = st.number_input("Estoque Mínimo (Alerta)", min_value=0.0)
                 validade = st.text_input("Validade (MM/AAAA)")
-                cas = st.text_input("Número CAS (Opcional)") # ACRESCENTADO
+                cas = st.text_input("Número CAS (Opcional)")
 
-            # --- SEÇÃO FISPQ (ACRESCENTADO) ---
+            # --- SEÇÃO FISPQ / MSDS ---
             with st.expander("🛡️ Informações de Segurança (FISPQ/MSDS)"):
                 c_s1, c_s2, c_s3, c_s4 = st.columns(4)
                 s_saude = c_s1.slider("Saúde", 0, 4, 0)
@@ -64,14 +66,15 @@ def show_substances():
                             "finalidade": finalidade,
                             "concentracao": concentracao,
                             "quantidade": quantidade,
+                            "estoque_minimo": estoque_minimo,
                             "validade": validade,
                             "org_name": org_usuario,
-                            "cas": cas,              # ACRESCENTADO
-                            "saude": s_saude,        # ACRESCENTADO
-                            "fogo": s_fogo,          # ACRESCENTADO
-                            "reatividade": s_reat,   # ACRESCENTADO
-                            "especial": s_esp,       # ACRESCENTADO
-                            "instrucoes": instrucoes # ACRESCENTADO
+                            "cas": cas,
+                            "saude": s_saude,
+                            "fogo": s_fogo,
+                            "reatividade": s_reat,
+                            "especial": s_esp,
+                            "instrucoes": instrucoes
                         }
                         supabase.table("substancias").insert(data_insert).execute()
                         st.success(f"'{nome}' cadastrado com sucesso!")
@@ -81,22 +84,46 @@ def show_substances():
 
     st.divider()
 
-    # --- 2. EXIBIÇÃO DO INVENTÁRIO (Sincronizado com o Estoque) ---
+    # --- 2. EXIBIÇÃO DO INVENTÁRIO ---
     st.subheader(f"📋 Inventário: {org_usuario}")
     
     try:
-        # Busca apenas as substâncias da empresa logada
         response = supabase.table("substancias").select("*").eq("org_name", org_usuario).execute()
         df = pd.DataFrame(response.data)
 
         if not df.empty:
-            # Reorganizando as colunas (ACRESCENTADO 'cas' na visualização)
-            cols_ordem = ['id', 'nome', 'cas', 'quantidade', 'concentracao', 'validade', 'finalidade']
-            df_display = df[cols_ordem]
-            
-            st.dataframe(df_display, use_container_width=True, hide_index=True)
+            # Tabela de visualização rápida
+            cols_ordem = ['id', 'nome', 'cas', 'quantidade', 'estoque_minimo', 'validade']
+            st.dataframe(df[cols_ordem], use_container_width=True, hide_index=True)
 
-            # --- NOVO: CONSULTA DE SEGURANÇA RÁPIDA (ACRESCENTADO) ---
+            # --- ATUALIZAÇÃO RÁPIDA DE QUANTIDADE COM LOG ---
+            if role_usuario in ["ADM", "Tecnico"]:
+                with st.expander("🔄 Atualizar Quantidade em Estoque"):
+                    col_sel, col_val, col_btn = st.columns([2, 1, 1])
+                    sub_para_editar = col_sel.selectbox("Escolha a substância", options=df['nome'].tolist(), key="edit_qty")
+                    nova_qtd = col_val.number_input("Nova Quantidade", min_value=0.0)
+                    
+                    if col_btn.button("Atualizar Estoque", use_container_width=True):
+                        # Pega a quantidade antiga para o histórico
+                        qtd_antiga = df[df['nome'] == sub_para_editar]['quantidade'].values[0]
+                        
+                        # Atualiza tabela principal
+                        supabase.table("substancias").update({"quantidade": nova_qtd}).eq("nome", sub_para_editar).execute()
+                        
+                        # Registra no Log
+                        log_data = {
+                            "usuario": username_atual,
+                            "substancia": sub_para_editar,
+                            "quantidade_antiga": float(qtd_antiga),
+                            "quantidade_nova": float(nova_qtd),
+                            "org_name": org_usuario
+                        }
+                        supabase.table("logs_estoque").insert(log_data).execute()
+                        
+                        st.success(f"Estoque de {sub_para_editar} atualizado!")
+                        st.rerun()
+
+            # --- CONSULTA DE SEGURANÇA RÁPIDA (FISPQ Digital) ---
             st.subheader("🛡️ Consulta de Segurança (FISPQ Digital)")
             substancia_alvo = st.selectbox("Selecione um item para ver a ficha de segurança:", options=df['nome'].tolist())
             
@@ -109,6 +136,16 @@ def show_substances():
                 st.warning(f"**Instruções de Emergência:**\n\n{detalhes.get('instrucoes', 'Não informadas.')}")
                 st.caption(f"CAS: {detalhes.get('cas', 'N/A')}")
             
+            # --- HISTÓRICO DE MOVIMENTAÇÕES ---
+            with st.expander("📜 Histórico Recente de Alterações"):
+                logs_res = supabase.table("logs_estoque").select("*").eq("org_name", org_usuario).order("created_at", desc=True).limit(5).execute()
+                if logs_res.data:
+                    log_df = pd.DataFrame(logs_res.data)
+                    log_df['created_at'] = pd.to_datetime(log_df['created_at']).dt.strftime('%d/%m %H:%M')
+                    st.table(log_df[['created_at', 'usuario', 'substancia', 'quantidade_antiga', 'quantidade_nova']])
+                else:
+                    st.info("Nenhum histórico disponível.")
+
             # --- 3. EXCLUSÃO DE ITENS ---
             if role_usuario in ["ADM", "Tecnico"]:
                 with st.expander("🗑️ Remover Substância"):
@@ -117,7 +154,7 @@ def show_substances():
                     
                     if st.button("Confirmar Exclusão", type="primary"):
                         supabase.table("substancias").delete().eq("id", id_del).execute()
-                        st.warning(f"Item ID {id_del} foi removido do banco de dados.")
+                        st.warning(f"Item ID {id_del} removido.")
                         st.rerun()
         else:
             st.info(f"Nenhuma substância cadastrada para a empresa {org_usuario}.")
