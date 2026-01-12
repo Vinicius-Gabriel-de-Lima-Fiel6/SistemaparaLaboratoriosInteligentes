@@ -2,7 +2,7 @@ import streamlit as st
 from supabase import create_client, Client
 import bcrypt
 
-# Conexão
+# --- Conexão Original ---
 url: str = st.secrets["SUPABASE_URL"]
 key: str = st.secrets["SUPABASE_KEY"]
 supabase: Client = create_client(url, key)
@@ -20,7 +20,6 @@ def buscar_usuario_por_email(email):
 def cadastrar_usuario(username, email, senha_limpa, org_name, role):
     try:
         senha_protegida = hash_senha(senha_limpa)
-        # O org_id é pego automaticamente do session_state como estava antes
         org_id = st.session_state.user_data.get('org_id')
         
         user_payload = {
@@ -35,3 +34,10 @@ def cadastrar_usuario(username, email, senha_limpa, org_name, role):
         return True, "Cadastro realizado com sucesso!"
     except Exception as e:
         return False, f"Erro: {str(e)}"
+
+def excluir_usuario_por_id(id_usuario):
+    try:
+        supabase.table("users").delete().eq("id", id_usuario).execute()
+        return True, "Membro removido com sucesso."
+    except Exception as e:
+        return False, f"Erro ao remover: {str(e)}"
