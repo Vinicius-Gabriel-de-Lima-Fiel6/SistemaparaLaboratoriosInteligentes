@@ -7,7 +7,15 @@ import auth_db as db
 supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 
 def show_config_empresa():
-    st.title("⚙️ Painel Administrativo")
+    # Estilo CSS para melhorar a aparência dos containers
+    st.markdown("""
+        <style>
+        [data-testid="stMetricValue"] { font-size: 1.8rem; color: #1f77b4; }
+        .st-emotion-cache-1cvow48 { border-radius: 10px; border: 1px solid #f0f2f6; padding: 15px; }
+        </style>
+    """, unsafe_allow_html=True)
+
+    st.title("⚙️ Configurações Administrativas")
     
     user_data = st.session_state.user_data
     org_id = user_data.get('org_id')
@@ -16,95 +24,102 @@ def show_config_empresa():
     aba_equipe, aba_laboratorio = st.tabs(["👥 Gestão de Equipe", "🏢 Dados da Empresa"])
 
     with aba_equipe:
-        st.subheader(f"Dashboard de Equipe - {org_name}")
-        
+        # --- CABEÇALHO COM DASHBOARD ---
         try:
-            # Busca todos os funcionários da empresa
             res = supabase.table("users").select("*").eq("org_name", org_name).execute()
             df = pd.DataFrame(res.data)
 
             if not df.empty:
-                # --- MÉTRICAS (Resumo da Equipe) ---
-                total_membros = len(df)
-                tecnicos = len(df[df['role'] == 'Tecnico'])
-                adms = len(df[df['role'] == 'ADM'])
-                visualizadores = len(df[df['role'] == 'Visualizador'])
-
-                col_m1, col_m2, col_m3, col_m4 = st.columns(4)
-                col_m1.metric("Total Membros", total_membros)
-                col_m2.metric("Técnicos", tecnicos)
-                col_m3.metric("Administradores", adms)
-                col_m4.metric("Visualizadores", visualizadores)
-
-                # --- GRÁFICO DE DISTRIBUIÇÃO ---
-                st.write("#### Distribuição de Cargos")
-                chart_data = df['role'].value_counts()
-                st.bar_chart(chart_data)
+                # Dashboard mais limpo
+                c1, c2, c3 = st.columns([1, 1, 2])
+                with c1:
+                    st.metric("Total Membros", len(df), delta="Equipe Ativa", delta_color="normal")
+                with c2:
+                    tecnicos = len(df[df['role'] == 'Tecnico'])
+                    st.metric("Técnicos", tecnicos, help="Membros com acesso operacional")
+                with c3:
+                    # Gráfico menor e mais elegante
+                    st.write("📊 **Distribuição de Acessos**")
+                    st.bar_chart(df['role'].value_counts(), height=150)
 
             st.divider()
 
-            # --- FORMULÁRIO DE CADASTRO ---
-            with st.expander("➕ Adicionar Novo Funcionário"):
+            # --- FORMULÁRIO DE CADASTRO EM UM EXPANDER MODERNO ---
+            with st.expander("✨ **Cadastrar Novo Membro**", expanded=False):
                 with st.form("cadastrar_interno", clear_on_submit=True):
-                    col1, col2 = st.columns(2)
-                    nome_func = col1.text_input("Nome Completo")
-                    email_func = col2.text_input("E-mail de Login")
-                    senha_func = col1.text_input("Senha Provisória", type="password")
-                    cargo_func = col2.selectbox("Nível de Acesso", ["Visualizador", "Tecnico", "ADM"])
+                    c_nome, c_email = st.columns(2)
+                    nome_func = c_nome.text_input("Nome Completo", placeholder="Ex: João Silva")
+                    email_func = c_email.text_input("E-mail Corporativo", placeholder="joao@empresa.com")
                     
-                    if st.form_submit_button("Liberar Acesso"):
+                    c_senha, c_cargo = st.columns(2)
+                    senha_func = c_senha.text_input("Senha Inicial", type="password")
+                    cargo_func = c_cargo.selectbox("Nível de Permissão", ["Visualizador", "Tecnico", "ADM"])
+                    
+                    submit = st.form_submit_button("🚀 Finalizar Cadastro", use_container_width=True)
+                    if submit:
                         if nome_func and email_func and senha_func:
                             sucesso, msg = db.cadastrar_usuario(nome_func, email_func, senha_func, org_name, cargo_func)
                             if sucesso:
-                                st.success(f"Acesso liberado!")
+                                st.success("✅ Funcionário cadastrado com sucesso!")
                                 st.rerun()
                             else:
                                 st.error(msg)
-                        else:
-                            st.warning("Preencha todos os campos.")
 
-            st.divider()
-            
-            # --- LISTA DE MEMBROS COM BOTÃO EXCLUIR ---
-            st.write("### Equipe Ativa")
+            # --- LISTA DE MEMBROS ESTILIZADA ---
+            st.write("### 📋 Listagem de Equipe")
             if not df.empty:
-                for index, func in df.iterrows():
+                for _, func in df.iterrows():
+                    # Lógica de ícones por cargo
+                    icon = "⚡" if func['role'] == "Tecnico" else "🔐" if func['role'] == "ADM" else "👁️"
+                    
                     with st.container(border=True):
-                        c1, c2, c3 = st.columns([3, 2, 1])
-                        c1.write(f"**{func['username']}**")
-                        c1.caption(f"E-mail: {func['email']}")
-                        c2.write(f"Cargo: `{func['role']}`")
+                        col_avatar, col_txt, col_btn = st.columns([0.5, 3, 1])
+                        
+                        col_avatar.markdown(f"<h1 style='text-align: center; margin:0;'>{icon}</h1>", unsafe_allow_html=True)
+                        
+                        with col_txt:
+                            st.markdown(f"**{func['username']}**")
+                            st.caption(f"📧 {func['email']} | Cargo: {func['role']}")
                         
                         if func['email'] != user_data['email']:
-                            if c3.button("Remover", key=f"del_{func['id']}", type="secondary"):
-                                sucesso, msg = db.excluir_usuario_por_id(func['id'])
-                                if sucesso:
-                                    st.toast(msg)
+                            if col_btn.button("Remover", key=f"del_{func['id']}", use_container_width=True, type="secondary"):
+                                if db.excluir_usuario_por_id(func['id'])[0]:
+                                    st.toast(f"Membro {func['username']} removido!")
                                     st.rerun()
                         else:
-                            c3.write("✨ (Você)")
-            else:
-                st.info("Nenhum membro encontrado.")
+                            col_btn.info("Você")
 
         except Exception as e:
             st.error(f"Erro ao carregar dashboard: {e}")
 
     with aba_laboratorio:
-        st.subheader("🏢 Informações do Laboratório")
+        # --- ABA EMPRESA COM VISUAL DE CARTÃO ---
+        st.subheader("🏢 Dados da Organização")
+        
         try:
             org_res = supabase.table("organizations").select("*").eq("id", org_id).single().execute()
-            dados_org = org_res.data
+            dados = org_res.data
             
-            col_inf1, col_inf2 = st.columns(2)
-            with col_inf1:
-                st.write(f"**Nome Registrado:** {org_name}")
-                st.write(f"**ID da Organização:**")
-                st.code(org_id)
+            # Layout em cards informativos
+            c_info, c_status = st.columns(2)
             
-            with col_inf2:
-                st.success(f"**Status da Assinatura:** {dados_org.get('status_assinatura', 'Ativo')} ✅")
-                st.write(f"**Plano:** {dados_org.get('plano_ativo', 'Mensal')}")
-                st.write(f"**Método de Cobrança:** {dados_org.get('metodo_pagto', 'Cartão')}")
-        except:
-            st.write(f"**ID:** `{org_id}`")
-            st.write(f"**Nome:** {org_name}")
+            with c_info:
+                with st.container(border=True):
+                    st.write("📌 **Informações de Registro**")
+                    st.write(f"**Razão Social:** {org_name}")
+                    st.write(f"**ID Unificado:**")
+                    st.code(org_id, language="text")
+            
+            with c_status:
+                with st.container(border=True):
+                    st.write("💳 **Plano e Faturamento**")
+                    plano = dados.get('plano_ativo', 'Trial')
+                    st.markdown(f"**Plano:** `:blue[{plano}]`")
+                    st.markdown(f"**Status:** `:green[Ativo]`")
+                    st.caption(f"Cobrança via: {dados.get('metodo_pagto', 'Padrão')}")
+            
+            st.divider()
+            st.warning("⚠️ **Nota:** Para alterar dados de faturamento, entre em contato com o suporte.")
+
+        except Exception as e:
+            st.info("Informações detalhadas da organização ainda não disponíveis.")
