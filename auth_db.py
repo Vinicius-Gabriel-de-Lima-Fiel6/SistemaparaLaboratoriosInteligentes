@@ -33,17 +33,14 @@ def cadastrar_usuario(username, email, senha_limpa, org_name, role):
 
         # 1. LÓGICA DE ORGANIZAÇÃO
         if role == "ADM":
-            # Se é ADM, ele está criando uma NOVA empresa
             org_payload = {"name": org_name}
             res_org = supabase.table("organizations").insert(org_payload).execute()
             
             if res_org.data:
-                org_id = res_org.data[0]['id'] # Pega o ID gerado automaticamente pelo Supabase
+                org_id = res_org.data[0]['id'] 
             else:
                 return False, "Erro ao criar a organização no banco."
         else:
-            # Se não é ADM, ele está sendo criado POR UM ADM logado.
-            # Pegamos o org_id da sessão de quem está cadastrando.
             if 'user_data' in st.session_state:
                 org_id = st.session_state.user_data.get('org_id')
             
@@ -56,7 +53,7 @@ def cadastrar_usuario(username, email, senha_limpa, org_name, role):
             "email": email,
             "password_hash": senha_protegida,
             "org_name": org_name,
-            "org_id": org_id, # Chave Estrangeira vinculando as duas tabelas
+            "org_id": org_id, 
             "role": role
         }
         
@@ -64,15 +61,11 @@ def cadastrar_usuario(username, email, senha_limpa, org_name, role):
         return True, "Cadastro realizado com sucesso!"
 
     except Exception as e:
-        # Erro comum: E-mail duplicado
         if "duplicate key" in str(e).lower():
             return False, "Este e-mail já está cadastrado no sistema."
         return False, f"Erro ao cadastrar: {str(e)}"
 
 def buscar_usuario_por_email(email):
-    """
-    Busca o usuário e retorna todos os dados, incluindo o org_id.
-    """
     global supabase
     if supabase is None: return None
     try:
@@ -85,9 +78,6 @@ def buscar_usuario_por_email(email):
         return None
 
 def redefinir_senha(email, nova_senha):
-    """
-    Atualiza a senha do usuário com base no e-mail.
-    """
     global supabase
     try:
         senha_protegida = hash_senha(nova_senha)
