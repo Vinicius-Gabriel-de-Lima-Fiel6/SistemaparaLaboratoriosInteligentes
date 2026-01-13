@@ -84,7 +84,7 @@ def show_config_empresa():
                             col_btn.write("✨ (Você)")
             
             st.divider()
-            st.write("### 🤖 Automação de Inteligência")
+            st.write("### 🤖 Automação de Dados")
             
             res_bot = supabase.table("config_automacao").select("*").eq("org_name", org_name).execute()
             config_bot = res_bot.data[0] if res_bot.data else {}
