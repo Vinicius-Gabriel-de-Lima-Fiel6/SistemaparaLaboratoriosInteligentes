@@ -4,7 +4,7 @@ import sys
 import auth_db as db 
 from supabase import create_client
 
-
+# Adiciona o diretório atual ao path para evitar erros de importação
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
@@ -15,7 +15,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-
+# --- ESTILIZAÇÃO CUSTOMIZADA (CSS) ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
@@ -150,49 +150,62 @@ else:
 
     clean_selection = selection.split(" ", 1)[-1]
 
-
+    # --- PÁGINA: DASHBOARD (DINÂMICO) ---
     if clean_selection == "Dashboard":
         st.title(f"🚀 Painel de Controle - {org_atual}")
         
         try:
-            # Busca estoque real
             res_sub = supabase.table("substancias").select("quantidade").eq("org_name", org_atual).execute()
             total_itens = sum([i['quantidade'] for i in res_sub.data]) if res_sub.data else 0
-            
-            # Busca equipamentos
             res_eq = supabase.table("equipamentos").select("id", count="exact").eq("org_name", org_atual).execute()
             total_equip = res_eq.count if res_eq.count else 0
             total_analises = len(res_sub.data)
         except:
             total_itens, total_equip, total_analises = 0, 0, 0
 
-        # Lógica da setinha colorida (Alerta de estoque baixo)
-        limite = 50
-        if total_itens < limite:
-            cor_setinha = "inverse" # Vermelho
-            texto_delta = f"-{limite - total_itens} un. (Crítico)"
+        # --- LÓGICA DE COR PARA ESTOQUE BAIXO ---
+        limite_alerta = 100 
+        if total_itens < limite_alerta:
+            cor_estoque = "inverse" # Vermelho no Streamlit para deltas negativos
+            delta_label = f"-{limite_alerta - total_itens} un. (Crítico)"
         else:
-            cor_setinha = "normal" # Verde/Padrão
-            texto_delta = "Estoque Seguro"
+            cor_estoque = "normal" # Verde/Padrão
+            delta_label = "Estoque Operacional"
 
         m1, m2, m3, m4 = st.columns(4)
-        m1.metric("Itens no Estoque", f"{total_itens:,}".replace(",", "."), delta=texto_delta, delta_color=cor_setinha)
+        m1.metric("Itens no Estoque", f"{total_itens:,}".replace(",", "."), delta=delta_label, delta_color=cor_estoque)
         m2.metric("Equipamentos", total_equip, "Ativos")
-        m3.metric("Registros Ativos", total_analises, "Itens em Banco")
-        m4.metric("Usuário Atual", user['username'], f"Cargo: {role}")
+        m3.metric("Registros Ativos", total_analises, "Banco de Dados")
+        m4.metric("Usuário Atual", user['username'], f"Acesso {role}")
 
         st.markdown("---")
-        st.subheader("Atalhos Rápidos")
+        st.subheader("Atalhos do Sistema")
+        
+        # Linha 1 de Atalhos
         c1, c2, c3 = st.columns(3)
         with c1:
-            if st.button("🤖 IA & Visão"):
+            if st.button("🤖 Central de IA"):
                 st.session_state.selection = "🤖 IA & Visão"; st.rerun()
         with c2:
-            if st.button("🧪 Tabelas Químicas"):
+            if st.button("🧪 Tabelas e Reagentes"):
                 st.session_state.selection = "🧪 Tabelas Químicas"; st.rerun()
         with c3:
-            if st.button("🧮 Calculadora"):
+            if st.button("🧮 Calculadora de Soluções"):
                 st.session_state.selection = "🧮 Calculadora Química"; st.rerun()
+
+        # Linha 2 de Atalhos (Novas Opções)
+        c4, c5, c6 = st.columns(3)
+        with c4:
+            if st.button("📊 Painel de Gráficos"):
+                st.session_state.selection = "📊 Gráficos"; st.rerun()
+        with c5:
+            if role in ["Tecnico", "ADM"]:
+                if st.button("📦 Gestão de Estoque"):
+                    st.session_state.selection = "📦 Estoque"; st.rerun()
+        with c6:
+            if role == "ADM":
+                if st.button("📄 Gerador de Relatórios"):
+                    st.session_state.selection = "📄 Relatórios"; st.rerun()
 
     # --- NAVEGAÇÃO PARA OUTROS MÓDULOS ---
     elif clean_selection == "IA & Visão":
@@ -215,4 +228,4 @@ else:
         relatorios.show_reports()
 
     st.sidebar.markdown("---")
-    st.sidebar.caption("LabSmartAI • v1.0")
+    st.sidebar.caption("LabSmartAI • v1.3")
