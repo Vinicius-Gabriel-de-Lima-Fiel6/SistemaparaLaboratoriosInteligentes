@@ -6,7 +6,7 @@ import auth_db as db
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 st.set_page_config(
-    page_title="LabSmartAI PRO", 
+    page_title="LabSmartAI", 
     page_icon="🧪", 
     layout="wide",
     initial_sidebar_state="expanded"
@@ -113,7 +113,7 @@ def tela_acesso():
         # --- NOVA SEÇÃO DE CADASTRO ---
         st.markdown("---")
         st.markdown("<p style='text-align: center; font-size: 0.9rem; color: #4A5568;'>Não tem login ou empresa cadastrada?</p>", unsafe_allow_html=True)
-        # Substitua a URL abaixo pelo link real do seu site de cadastro
+    
         st.link_button("CRIAR CONTA DA EMPRESA", "https://seusite.com/cadastro", use_container_width=True)
 
 if not st.session_state.logado:
@@ -203,4 +203,5 @@ else:
         relatorios.show_reports()
 
     st.sidebar.markdown("---")
-    st.sidebar.caption("LabSmartAI PRO • v1.0")
+    st.sidebar.caption("LabSmartAI • v1.0")
+
