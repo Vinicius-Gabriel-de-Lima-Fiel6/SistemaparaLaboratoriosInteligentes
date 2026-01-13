@@ -88,7 +88,7 @@ def show_config_empresa():
             org_res = supabase.table("organizations").select("*").eq("id", org_id).single().execute()
             dados = org_res.data
             
-            # --- LAYOUT EM CARDS ---
+    
             col_id, col_plano = st.columns(2)
             
             with col_id:
@@ -116,7 +116,7 @@ def show_config_empresa():
 
             st.divider()
             
-            # --- SEÇÃO DE SEGURANÇA ---
+      
             with st.container(border=True):
                 st.markdown("### 🔒 Segurança e Dados")
                 st.write("Os dados deste laboratório estão criptografados e seguem as normas da LGPD.")
@@ -125,7 +125,7 @@ def show_config_empresa():
                 col_btn2.button("Editar Informações Públicas", use_container_width=True)
 
         except Exception as e:
-            # Caso o banco falhe ou as colunas não existam, mostra o básico elegante
+        
             st.warning("Não foi possível carregar os detalhes da assinatura.")
             with st.container(border=True):
                 st.write(f"**Laboratório:** {org_name}")
