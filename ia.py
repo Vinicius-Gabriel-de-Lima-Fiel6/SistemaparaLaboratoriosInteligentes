@@ -47,90 +47,82 @@ def extrair_texto_arquivo(arquivo):
         return arquivo.read().decode("utf-8")
     except: return None
 
-# --- 3. LÓGICA DE RESPOSTA COM MEMÓRIA ---
 def processar_resposta(prompt, historico_key, dados_arquivo=None, especialista="Geral"):
-    # Filtra o histórico da aba específica
-    messages = [{"role": "system", "content": f"Você é o LabSmart AI ({especialista}). Use o histórico da conversa para manter o contexto."}]
+    messages = [{"role": "system", "content": f"Você é o LabSmart AI ({especialista}). Use o histórico para contexto."}]
     for msg in st.session_state[historico_key][-10:]:
         messages.append(msg)
     
-    conteudo = f"CONTEXTO DO ARQUIVO: {dados_arquivo}\n\nPERGUNTA: {prompt}" if dados_arquivo else prompt
+    conteudo = f"ARQUIVO: {dados_arquivo}\n\nPERGUNTA: {prompt}" if dados_arquivo else prompt
     messages.append({"role": "user", "content": conteudo})
     
     res = client_groq.chat.completions.create(model=modelo_ativo, messages=messages, temperature=0.4)
     return res.choices[0].message.content
 
-# --- 4. INTERFACE PRINCIPAL ---
+# --- 3. INTERFACE PRINCIPAL ---
 def show_chatbot():
-    # Inicializa históricos separados para não misturar as conversas das abas
     if "messages_geral" not in st.session_state: st.session_state.messages_geral = []
     if "messages_agentes" not in st.session_state: st.session_state.messages_agentes = []
 
     st.subheader("🔬 LabSmart AI - Hub de Inteligência")
 
-    aba_chat, aba_agentes = st.tabs(["💬 Chat Científico", "👥 Especialistas & Planejamento"])
-
+    # Definimos a aba ativa para saber qual histórico usar
+    aba_selecionada = st.tabs(["💬 Chat Científico", "👥 Especialistas"])
+    
     # --- ABA 1: CHAT GERAL ---
-    with aba_chat:
-        col_chat, col_tools = st.columns([2, 1])
-        
+    with aba_selecionada[0]:
+        col_chat, col_tools = st.columns([3, 1])
         with col_tools:
             st.write("### 🛠️ Recursos")
-            cam = st.toggle("🎥 Câmera YOLO", key="cam_geral")
+            cam = st.toggle("🎥 Câmera YOLO", key="tgl_geral")
             if cam:
-                webrtc_streamer(key="stream_geral", video_processor_factory=lambda: VideoProcessor(st.session_state.yolo_model))
-            st.divider()
-            up_geral = st.file_uploader("📎 Anexar arquivo", type=["pdf", "csv", "txt"], key="up_geral")
+                webrtc_streamer(key="viz_geral", video_processor_factory=lambda: VideoProcessor(st.session_state.yolo_model))
+            up_geral = st.file_uploader("📎 Anexar", type=["pdf", "csv", "txt"], key="file_geral")
 
         with col_chat:
-            # Exibe as mensagens como no WhatsApp/ChatGPT
+            # Mostra mensagens da Aba Geral
             for m in st.session_state.messages_geral:
                 with st.chat_message(m["role"]):
                     st.markdown(m["content"])
 
-            if p := st.chat_input("Perqunte qualquer coisa...", key="input_geral"):
-                st.session_state.messages_geral.append({"role": "user", "content": p})
-                st.rerun() # Atualiza para mostrar a mensagem do usuário imediatamente
-
-            # Processamento da resposta (se a última mensagem for do usuário)
-            if st.session_state.messages_geral and st.session_state.messages_geral[-1]["role"] == "user":
-                with st.chat_message("assistant"):
-                    with st.spinner("Analisando..."):
-                        txt = extrair_texto_arquivo(up_geral)
-                        resp = processar_resposta(st.session_state.messages_geral[-1]["content"], "messages_geral", txt)
-                        st.markdown(resp)
-                        st.session_state.messages_geral.append({"role": "assistant", "content": resp})
-
     # --- ABA 2: AGENTES ---
-    with aba_agentes:
-        col_ag, col_cfg = st.columns([2, 1])
-        
+    with aba_selecionada[1]:
+        col_ag, col_cfg = st.columns([3, 1])
         with col_cfg:
-            st.write("### 👥 Configuração")
-            especialista = st.selectbox("Selecione o Agente:", ["Bioquímico Sênior", "Escritor Técnico", "Auditor de Qualidade"])
-            st.info(f"O {especialista} analisará o histórico deste chat.")
-            up_ag = st.file_uploader("📎 Dados para o Agente", type=["pdf", "csv", "txt"], key="up_ag")
-            if st.button("🗑️ Limpar Conversa do Agente"):
-                st.session_state.messages_agentes = []
-                st.rerun()
-
+            st.write("### 👥 Agentes")
+            esp = st.selectbox("Especialista:", ["Bioquímico Sênior", "Escritor Técnico", "Auditor"], key="sel_ag")
+            up_ag = st.file_uploader("📎 Dados", type=["pdf", "csv", "txt"], key="file_ag")
+        
         with col_ag:
-            # Interface de Chat para os Agentes
+            # Mostra mensagens da Aba Agentes
             for m in st.session_state.messages_agentes:
                 with st.chat_message(m["role"]):
                     st.markdown(m["content"])
 
-            if p_ag := st.chat_input("Envie sua tarefa para o agente...", key="input_ag"):
-                st.session_state.messages_agentes.append({"role": "user", "content": p_ag})
-                st.rerun()
+    # --- 4. CAIXA DE INPUT FIXA NO RODAPÉ ---
+    # Colocamos o input FORA das colunas para ele grudar no fundo da tela
+    if prompt := st.chat_input("Como posso ajudar no laboratório agora?"):
+        
+        # Lógica para decidir em qual histórico salvar baseado na aba que o usuário está vendo
+        # Nota: O Streamlit processa o input globalmente, então usamos um pequeno truque de estado
+        if up_geral or "cam_geral" in st.session_state: # Se o usuário interagiu com ferramentas da aba 1
+            hist_key = "messages_geral"
+            doc = up_geral
+            nome_esp = "Geral"
+        else:
+            hist_key = "messages_agentes"
+            doc = up_ag
+            nome_esp = esp
 
-            if st.session_state.messages_agentes and st.session_state.messages_agentes[-1]["role"] == "user":
-                with st.chat_message("assistant"):
-                    with st.spinner(f"{especialista} está trabalhando..."):
-                        txt_ag = extrair_texto_arquivo(up_ag)
-                        resp_ag = processar_resposta(st.session_state.messages_agentes[-1]["content"], "messages_agentes", txt_ag, especialista)
-                        st.markdown(resp_ag)
-                        st.session_state.messages_agentes.append({"role": "assistant", "content": resp_ag})
+        # Adiciona mensagem do usuário
+        st.session_state[hist_key].append({"role": "user", "content": prompt})
+        
+        # Gera resposta imediatamente
+        with st.spinner("IA processando..."):
+            txt_contexto = extrair_texto_arquivo(doc)
+            resposta = processar_resposta(prompt, hist_key, txt_contexto, nome_esp)
+            st.session_state[hist_key].append({"role": "assistant", "content": resposta})
+        
+        st.rerun()
 
 if __name__ == "__main__":
     show_chatbot()
