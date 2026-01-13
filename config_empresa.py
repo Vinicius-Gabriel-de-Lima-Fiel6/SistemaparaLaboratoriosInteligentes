@@ -3,13 +3,13 @@ import pandas as pd
 from supabase import create_client
 import auth_db as db
 import datetime
-# Apenas acrescentado: Importação do seu arquivo de automação
+
 try:
     from bot_automat import disparar_email_manual
 except ImportError:
     pass
 
-# Inicializa conexão original (Mantido)
+
 supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 
 def show_config_empresa():
@@ -83,7 +83,6 @@ def show_config_empresa():
                         else:
                             col_btn.write("✨ (Você)")
             
-            # --- ACRESCENTADO: SEÇÃO DO BOT DE INTELIGÊNCIA ---
             st.divider()
             st.write("### 🤖 Automação de Inteligência")
             
@@ -128,7 +127,7 @@ def show_config_empresa():
         except Exception as e:
             st.error(f"Erro ao carregar equipe: {e}")
 
-    # --- ABA: LABORATÓRIO (Mantido exatamente como enviado) ---
+
     with aba_laboratorio:
         st.subheader("🏢 Perfil da Organização")
         try:
