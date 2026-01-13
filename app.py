@@ -3,7 +3,6 @@ import os
 import sys
 import auth_db as db 
 
-# Adiciona o caminho ao sistema
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 st.set_page_config(
@@ -13,59 +12,75 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-
 st.markdown("""
     <style>
-    /* Importação de fonte moderna */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
     
-    html, body, [class*="css"] {
-        font-family: 'Inter', sans-serif;
+    .stApp {
+        background-color: #0E1117;
+        color: #E0E6ED;
     }
 
-    /* Estilização da Sidebar */
     [data-testid="stSidebar"] {
-        background-color: #f8f9fa;
-        border-right: 1px solid #e0e0e0;
+        background-color: #161B22;
+        border-right: 1px solid #30363D;
     }
 
-    /* Estilização de Botões */
+    h1, h2, h3, p {
+        font-family: 'Inter', sans-serif;
+        color: #FFFFFF !important;
+    }
+
     .stButton>button {
         width: 100%;
-        border-radius: 8px;
-        height: 3em;
-        background-color: #0066cc;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #00B4DB 0%, #0083B0 100%);
         color: white;
         border: none;
+        padding: 0.6rem;
+        font-weight: 700;
         transition: all 0.3s ease;
-        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1px;
     }
     
     .stButton>button:hover {
-        background-color: #0052a3;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        transform: translateY(-1px);
+        box-shadow: 0 0 15px rgba(0, 180, 219, 0.5);
+        transform: scale(1.02);
+        color: white;
     }
 
-    /* Cards e Inputs */
     .stTextInput>div>div>input {
+        background-color: #0D1117;
+        color: white;
+        border: 1px solid #30363D;
         border-radius: 8px;
     }
-    
-    /* Customização de Títulos */
-    h1 {
-        color: #1e293b;
-        font-weight: 700 !important;
-        letter-spacing: -1px;
+
+    div[data-testid="stExpander"], div.stAlert {
+        background-color: #1C2128;
+        border: 1px solid #30363D;
+        border-radius: 12px;
+        color: white;
+    }
+
+    .user-card {
+        background: rgba(255, 255, 255, 0.05);
+        padding: 15px;
+        border-radius: 15px;
+        border-left: 5px solid #00B4DB;
+        margin-bottom: 20px;
     }
     
-    /* Estilo para o Badge de Usuário */
-    .user-badge {
-        padding: 10px;
-        background-color: #ffffff;
+    ::-webkit-scrollbar {
+        width: 8px;
+    }
+    ::-webkit-scrollbar-track {
+        background: #0E1117;
+    }
+    ::-webkit-scrollbar-thumb {
+        background: #30363D;
         border-radius: 10px;
-        border: 1px solid #e2e8f0;
-        margin-bottom: 20px;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -75,44 +90,37 @@ if 'logado' not in st.session_state:
 if 'user_data' not in st.session_state:
     st.session_state.user_data = None
 
-# --- TELA DE ACESSO ---
 def tela_acesso():
-    # Centralização visual usando colunas
-    col1, col2, col3 = st.columns([1, 2, 1])
-    
+    col1, col2, col3 = st.columns([1, 1.5, 1])
     with col2:
-        st.write("") # Espaçamento
         st.write("")
-        st.markdown("<h1 style='text-align: center;'>🧪 LabSmartAI</h1>", unsafe_allow_html=True)
-        st.markdown("<p style='text-align: center; color: #64748b;'>Laboratório Inteligente & Gestão PRO</p>", unsafe_allow_html=True)
+        st.write("")
+        st.markdown("<h1 style='text-align: center; font-size: 3rem;'>🧪</h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align: center; margin-top:-20px;'>LabSmartAI <span style='color:#00B4DB'>PRO</span></h1>", unsafe_allow_html=True)
         
         with st.container():
-            st.markdown('<div style="background-color: #ffffff; padding: 30px; border-radius: 15px; border: 1px solid #e2e8f0; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);">', unsafe_allow_html=True)
+            st.markdown('<div style="background-color: #161B22; padding: 40px; border-radius: 20px; border: 1px solid #30363D; box-shadow: 0 20px 40px rgba(0,0,0,0.4);">', unsafe_allow_html=True)
             
-            st.subheader("Entrar no Sistema")
-            email_input = st.text_input("E-mail Cadastrado", key="l_email", placeholder="exemplo@lab.com")
+            st.subheader("Login do Sistema")
+            email_input = st.text_input("E-mail", key="l_email", placeholder="Digite seu e-mail...")
             senha_input = st.text_input("Senha", type="password", key="l_pass", placeholder="••••••••")
             
-            if st.button("Acessar Painel"):
+            if st.button("Entrar"):
                 user = db.buscar_usuario_por_email(email_input)
                 if user and db.verificar_senha(senha_input, user['password_hash']):
                     st.session_state.logado = True
                     st.session_state.user_data = user
-                    st.success("Autenticado com sucesso!")
+                    st.success("Acesso autorizado!")
                     st.rerun()
                 else:
-                    st.error("E-mail ou senha incorretos.")
+                    st.error("Credenciais inválidas.")
             
             st.markdown('</div>', unsafe_allow_html=True)
-            
-        st.write("")
-        st.markdown("<p style='text-align: center; font-size: 0.8rem; color: #94a3b8;'>Novo por aqui? Realize o cadastro no nosso portal externo.</p>", unsafe_allow_html=True)
+            st.markdown("<p style='text-align: center; color: #8B949E; margin-top: 20px;'>v1.0 • Laboratório de Alta Precisão</p>", unsafe_allow_html=True)
 
-# --- LÓGICA DE EXIBIÇÃO APÓS LOGIN ---
 if not st.session_state.logado:
     tela_acesso()
 else:
-    # Importações (Mantidas conforme seu original)
     try:
         from substancias import show_substances
         from ControleEstoque import show_estoque
@@ -124,49 +132,45 @@ else:
         import ia
         import relatorios
     except ImportError as e:
-        st.error(f"Erro ao carregar módulos: {e}")
+        st.error(f"Erro de módulo: {e}")
 
     user = st.session_state.user_data
     role = user.get('role', 'Visualizador')
     
-    # Navegação Profissional
     abas = ["🏠 Dashboard", "🤖 IA & Visão", "🧪 Tabelas Químicas", "🧮 Calculadora Química", "📊 Gráficos"]
-    
     if role in ["Tecnico", "ADM"]:
         abas.append("⚗️ Cadastro de Substâncias")
         abas.append("📦 Estoque")
-    
     if role == "ADM":
         abas.append("🛠️ Equipamentos")
         abas.append("👥 Gestão de Equipe")
         abas.append("📟 Painel Tinkercad")
         abas.append("📄 Relatórios")
 
-    # Sidebar Estilizada
     st.sidebar.markdown(f"""
-        <div class='user-badge'>
-            <small style='color: #64748b;'>Organização</small><br>
-            <strong>{user.get('org_name', 'Laboratório')}</strong><br><br>
-            <small style='color: #64748b;'>Usuário</small><br>
-            <strong>{user['username']}</strong><br>
-            <span style='font-size: 0.7rem; background: #e2e8f0; padding: 2px 6px; border-radius: 4px;'>{role}</span>
+        <div class="user-card">
+            <small style="color: #00B4DB; font-weight: bold;">{user.get('org_name', 'LAB')}</small><br>
+            <span style="font-size: 1.1rem; font-weight: 600;">{user['username']}</span><br>
+            <span style="color: #8B949E; font-size: 0.8rem;">{role}</span>
         </div>
     """, unsafe_allow_html=True)
     
-    selection = st.sidebar.radio("Navegação Principal", abas)
+    selection = st.sidebar.radio("MENU DE OPERAÇÕES", abas)
     
-    st.sidebar.write("")
-    if st.sidebar.button("Encerrar Sessão"):
+    st.sidebar.markdown("<br>"*5, unsafe_allow_html=True)
+    if st.sidebar.button("LOGOUT"):
         st.session_state.clear()
         st.rerun()
 
-    
-    
-    clean_selection = selection.split(" ", 1)[-1] 
+    clean_selection = selection.split(" ", 1)[-1]
 
     if clean_selection == "Dashboard":
-        st.title(f"🚀 Dashboard - {user.get('org_name')}")
-        st.info(f"Bem-vindo de volta, {user['username']}! Aqui está o resumo do laboratório.")
+        st.title(f"🚀 Status do {user.get('org_name')}")
+        col_m1, col_m2 = st.columns(2)
+        with col_m1:
+            st.info(f"Monitoramento ativo para: **{user['username']}**")
+        with col_m2:
+            st.success(f"Sistema Operacional | Nível de Acesso: {role}")
 
     elif clean_selection == "IA & Visão":
         if "ia_engine" not in st.session_state:
@@ -195,12 +199,10 @@ else:
         show_config_empresa()
 
     elif clean_selection == "Painel Tinkercad":
-        url_tinkercad = "https://www.tinkercad.com/things/1dHXe2Yoo33-sistemafisicolabia/editel"
-        st.title("📟 Painel de Controle Físico")
-        st.link_button("Abrir Tinkercad", url_tinkercad, type="primary")
+        st.title("📟 Interface de Hardware")
+        st.link_button("Abrir Simulador Tinkercad", "https://www.tinkercad.com/things/1dHXe2Yoo33-sistemafisicolabia/editel")
 
     elif clean_selection == "Relatórios":
         relatorios.show_reports()
 
-    st.sidebar.markdown("---")
-    st.sidebar.caption("LabSmartAI Project - v1.0")
+    st.sidebar.caption("LabSmartAI PRO © 2024")
