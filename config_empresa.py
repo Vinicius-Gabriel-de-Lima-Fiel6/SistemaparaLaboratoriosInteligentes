@@ -79,7 +79,7 @@ def show_config_empresa():
         except Exception as e:
             st.error(f"Erro ao carregar equipe: {e}")
 
-    # --- ABA: DADOS DA EMPRESA (MELHORIA VISUAL FOCO) ---
+    
     with aba_laboratorio:
         st.subheader("🏢 Perfil da Organização")
         
