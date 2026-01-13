@@ -4,7 +4,7 @@ import sys
 import auth_db as db 
 from supabase import create_client
 
-# Adiciona o diretório atual ao path para evitar erros de importação
+
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
@@ -15,7 +15,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- ESTILIZAÇÃO CUSTOMIZADA (CSS) ---
+
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
@@ -71,7 +71,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- INICIALIZAÇÃO DE ESTADO ---
+
 if 'logado' not in st.session_state:
     st.session_state.logado = False
 if 'user_data' not in st.session_state:
@@ -150,7 +150,7 @@ else:
 
     clean_selection = selection.split(" ", 1)[-1]
 
-    # --- PÁGINA: DASHBOARD (DINÂMICO) ---
+
     if clean_selection == "Dashboard":
         st.title(f"🚀 Painel de Controle - {org_atual}")
         
@@ -228,4 +228,5 @@ else:
         relatorios.show_reports()
 
     st.sidebar.markdown("---")
-    st.sidebar.caption("LabSmartAI • v1.3")
+    st.sidebar.caption("LabSmartAI • v1.0")
+
