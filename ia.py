@@ -86,11 +86,7 @@ def show_chatbot():
                 chat_container2.chat_message(m["role"]).write(m["content"])
 
 
-    if prompt := st.chat_input("Digite sua mensagem..."):
-        
-        # O truque final: Verificamos qual arquivo de upload foi mexido por último
-        # ou se o usuário está na aba de especialistas usando um seletor de estado.
-        # Mas para garantir separação total, usamos a lógica de "onde tem conteúdo":
+    if prompt := st.chat_input("Digite sua mensagem:"):
         
         if up_agente: # Se o usuário carregou algo na aba de agentes, ele quer falar com o agente
             h_key = "messages_agente"
@@ -113,3 +109,4 @@ def show_chatbot():
 
 if __name__ == "__main__":
     show_chatbot()
+
