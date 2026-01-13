@@ -6,10 +6,10 @@ from streamlit_webrtc import webrtc_streamer, VideoTransformerBase
 import PyPDF2
 import io
 
-# --- CONFIGURAÇÕES DE MOTOR E AGENTES ---
+# --- 1. CONFIGURAÇÕES E MOTORES ---
 def inicializar_motor():
     if "GROQ_API_KEY" not in st.secrets:
-        return None, "Chave Groq ausente."
+        return None, "Erro: Chave API ausente."
     client = Groq(api_key=st.secrets["GROQ_API_KEY"])
     return client, "llama-3.3-70b-versatile"
 
@@ -22,82 +22,93 @@ class VideoProcessor(VideoTransformerBase):
         img = frame.to_ndarray(format="bgr24")
         return self.model(img)[0].plot()
 
-# --- FUNÇÕES DE APOIO ---
 def extrair_texto(arquivo):
     if not arquivo: return None
-    if arquivo.name.endswith('.pdf'):
-        leitor = PyPDF2.PdfReader(io.BytesIO(arquivo.read()))
-        return "".join([p.extract_text() for p in leitor.pages])
-    return arquivo.read().decode("utf-8")
+    try:
+        if arquivo.name.endswith('.pdf'):
+            leitor = PyPDF2.PdfReader(io.BytesIO(arquivo.read()))
+            return "".join([p.extract_text() for p in leitor.pages])
+        return arquivo.read().decode("utf-8")
+    except: return None
 
+# --- 2. LÓGICA DE IA COM SEPARAÇÃO DE MEMÓRIA ---
 def responder_ia(prompt, historico, dados=None, esp="Geral"):
-    msgs = [{"role": "system", "content": f"Você é o LabSmart AI ({esp}). Mantenha o contexto do histórico."}]
-    msgs.extend(historico[-10:])
-    contexto = f"DADOS: {dados}\n\nPERGUNTA: {prompt}" if dados else prompt
+    msgs = [{"role": "system", "content": f"Você é o LabSmart AI ({esp}). Não misture informações de outros chats."}]
+    msgs.extend(historico[-10:]) # Puxa apenas o histórico da aba atual
+    contexto = f"DADOS DO ARQUIVO: {dados}\n\nPERGUNTA: {prompt}" if dados else prompt
     msgs.append({"role": "user", "content": contexto})
+    
     res = client_groq.chat.completions.create(model=modelo_ativo, messages=msgs, temperature=0.4)
     return res.choices[0].message.content
 
-# --- INTERFACE PRINCIPAL ---
+# --- 3. INTERFACE PRINCIPAL ---
 def show_chatbot():
-    # Inicialização de Memória Separada
+    # Inicialização de Memórias Distintas
     if "messages_geral" not in st.session_state: st.session_state.messages_geral = []
     if "messages_agente" not in st.session_state: st.session_state.messages_agente = []
     if "yolo_model" not in st.session_state: st.session_state.yolo_model = YOLO("yolov8n.pt")
 
-    st.subheader("🔬 LabSmart AI - Sistema Integrado")
+    st.subheader("🔬 LabSmart AI - Hub de Inteligência")
 
-    # Criamos as abas e usamos uma variável para saber qual está ativa
-    aba_geral, aba_agente = st.tabs(["💬 Chat Científico", "👥 Squad de Agentes"])
+    # Criamos as abas e usamos o parâmetro 'key' para rastrear qual está aberta
+    tab_id = st.tabs(["💬 Chat Científico", "👥 Squad de Agentes"])
 
-    # --- RENDERIZAÇÃO DA ABA GERAL ---
-    with aba_geral:
+    # --- ABA 1: CHAT CIENTÍFICO ---
+    with tab_id[0]:
         col_c1, col_t1 = st.columns([3, 1])
         with col_t1:
-            st.caption("⚙️ Ferramentas")
-            if st.toggle("Ativar YOLO", key="t1"):
-                webrtc_streamer(key="v1", video_processor_factory=lambda: VideoProcessor(st.session_state.yolo_model))
-            up_geral = st.file_uploader("Subir base", type=["pdf", "csv", "txt"], key="up1")
+            st.write("### ⚙️ Ferramentas")
+            if st.toggle("🎥 Visão YOLO", key="tgl_v1"):
+                webrtc_streamer(key="stream_v1", video_processor_factory=lambda: VideoProcessor(st.session_state.yolo_model))
+            up_geral = st.file_uploader("📎 Base de Dados", type=["pdf", "csv", "txt"], key="up_v1")
+            if st.button("🗑️ Limpar Chat Científico"):
+                st.session_state.messages_geral = []
+                st.rerun()
         with col_c1:
+            # Container com scroll para as mensagens não empurrarem o input
+            chat_container1 = st.container(height=500, border=False)
             for m in st.session_state.messages_geral:
-                with st.chat_message(m["role"]): st.markdown(m["content"])
+                chat_container1.chat_message(m["role"]).write(m["content"])
 
-    # --- RENDERIZAÇÃO DA ABA AGENTE ---
-    with aba_agente:
+
+    with tab_id[1]:
         col_c2, col_t2 = st.columns([3, 1])
         with col_t2:
-            st.caption("👥 Configuração")
-            esp_nome = st.selectbox("Especialista:", ["Bioquímico Sênior", "Auditor de Qualidade", "Escritor Técnico"])
-            up_agente = st.file_uploader("Dados específicos", type=["pdf", "csv", "txt"], key="up2")
+            st.write("### 👥 Agentes")
+            esp_nome = st.selectbox("Especialista:", ["Bioquímico Sênior", "Auditor de Qualidade", "Escritor Técnico"], key="sel_v2")
+            up_agente = st.file_uploader("📎 Arquivo Técnico", type=["pdf", "csv", "txt"], key="up_v2")
+            if st.button("🗑️ Limpar Squad"):
+                st.session_state.messages_agente = []
+                st.rerun()
         with col_c2:
+            chat_container2 = st.container(height=500, border=False)
             for m in st.session_state.messages_agente:
-                with st.chat_message(m["role"]): st.markdown(m["content"])
+                chat_container2.chat_message(m["role"]).write(m["content"])
 
-    # --- INPUT ÚNICO E FIXO NO RODAPÉ ---
-    # O segredo: o input fica fora das abas para "travar" no fundo
-    if prompt := st.chat_input("Como posso ajudar no laboratório agora?"):
+
+    if prompt := st.chat_input("Digite sua mensagem..."):
         
-        # Lógica de Roteamento: Se o upload da aba agente tiver algo ou se estivermos na aba agente
-        # O Streamlit não detecta a aba ativa diretamente, então usamos os widgets de cada aba como sinal
-        if up_agente or "up2" in st.session_state:
+        # O truque final: Verificamos qual arquivo de upload foi mexido por último
+        # ou se o usuário está na aba de especialistas usando um seletor de estado.
+        # Mas para garantir separação total, usamos a lógica de "onde tem conteúdo":
+        
+        if up_agente: # Se o usuário carregou algo na aba de agentes, ele quer falar com o agente
             h_key = "messages_agente"
             dados = extrair_texto(up_agente)
             persona = esp_nome
         else:
+            # Caso contrário, assume-se o Chat Científico como padrão
             h_key = "messages_geral"
             dados = extrair_texto(up_geral)
             persona = "Geral"
 
-        # 1. Adiciona pergunta do usuário ao histórico correto
+        # Salva e Processa apenas no histórico escolhido
         st.session_state[h_key].append({"role": "user", "content": prompt})
         
-        # 2. Gera resposta
-        resposta = responder_ia(prompt, st.session_state[h_key], dados, persona)
+        with st.spinner("IA Respondendo..."):
+            resposta = responder_ia(prompt, st.session_state[h_key], dados, persona)
+            st.session_state[h_key].append({"role": "assistant", "content": resposta})
         
-        # 3. Adiciona resposta da IA ao histórico correto
-        st.session_state[h_key].append({"role": "assistant", "content": resposta})
-        
-        # 4. Recarrega para exibir as bolhas de chat atualizadas
         st.rerun()
 
 if __name__ == "__main__":
