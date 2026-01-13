@@ -62,6 +62,13 @@ st.markdown("""
         border-radius: 10px;
     }
 
+    div[data-testid="metric-container"] {
+        background-color: #F7FAFC;
+        border: 1px solid #A0AEC0;
+        padding: 15px;
+        border-radius: 10px;
+    }
+
     .user-card {
         background: #F7FAFC;
         padding: 15px;
@@ -87,6 +94,8 @@ if 'logado' not in st.session_state:
     st.session_state.logado = False
 if 'user_data' not in st.session_state:
     st.session_state.user_data = None
+if 'selection' not in st.session_state:
+    st.session_state.selection = "🏠 Dashboard"
 
 def tela_acesso():
     col1, col2, col3 = st.columns([1, 1.2, 1])
@@ -109,12 +118,10 @@ def tela_acesso():
                 st.rerun()
             else:
                 st.error("Dados incorretos.")
-
-        # --- NOVA SEÇÃO DE CADASTRO ---
+        
         st.markdown("---")
-        st.markdown("<p style='text-align: center; font-size: 0.9rem; color: #4A5568;'>Não possui empresa cadastrada?</p>", unsafe_allow_html=True)
-    
-        st.link_button("CRIAR CONTA DA EMPRESA", "https://cadastro-de-empresas-e7bkusdk4tsdchmx89fh8c.streamlit.app/", use_container_width=True)
+        st.markdown("<p style='text-align: center; font-size: 0.9rem;'>Não tem login ou não tem empresa cadastrada?</p>", unsafe_allow_html=True)
+        st.link_button("CLIQUE AQUI PARA CADASTRAR SUA EMPRESA", "https://seusite.com/cadastro", use_container_width=True)
 
 if not st.session_state.logado:
     tela_acesso()
@@ -156,8 +163,9 @@ else:
         </div>
     """, unsafe_allow_html=True)
     
-    selection = st.sidebar.radio("NAVEGAÇÃO", abas)
-    
+    selection = st.sidebar.radio("NAVEGAÇÃO", abas, index=abas.index(st.session_state.selection) if st.session_state.selection in abas else 0)
+    st.session_state.selection = selection
+
     st.sidebar.markdown("<br>"*3, unsafe_allow_html=True)
     if st.sidebar.button("SAIR"):
         st.session_state.clear()
@@ -167,7 +175,38 @@ else:
 
     if clean_selection == "Dashboard":
         st.title(f"🚀 Painel de Controle - {user.get('org_name')}")
-        st.markdown(f"**Status:** Conectado como {user['username']}")
+        
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("Itens no Estoque", "1.240", "Total")
+        m2.metric("Equipamentos", "48", "Ativos")
+        m3.metric("Análises Realizadas", "856", "+12%")
+        m4.metric("Usuário Atual", user['username'], role)
+
+        st.markdown("---")
+        st.subheader("Atalhos do Sistema")
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            if st.button("🤖 IA & Visão"):
+                st.session_state.selection = "🤖 IA & Visão"
+                st.rerun()
+            if st.button("📊 Ver Gráficos"):
+                st.session_state.selection = "📊 Gráficos"
+                st.rerun()
+        with c2:
+            if st.button("🧪 Tabelas Químicas"):
+                st.session_state.selection = "🧪 Tabelas Químicas"
+                st.rerun()
+            if st.button("📦 Estoque Geral"):
+                st.session_state.selection = "📦 Estoque"
+                st.rerun()
+        with c3:
+            if st.button("🧮 Calculadora"):
+                st.session_state.selection = "🧮 Calculadora Química"
+                st.rerun()
+            if role == "ADM":
+                if st.button("🛠️ Gestão de Equipe"):
+                    st.session_state.selection = "👥 Gestão de Equipe"
+                    st.rerun()
 
     elif clean_selection == "IA & Visão":
         if "ia_engine" not in st.session_state:
@@ -204,5 +243,3 @@ else:
 
     st.sidebar.markdown("---")
     st.sidebar.caption("LabSmartAI • v1.0")
-
-
