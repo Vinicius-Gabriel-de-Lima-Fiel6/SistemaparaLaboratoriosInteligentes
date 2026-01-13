@@ -2,15 +2,19 @@ import streamlit as st
 import os
 import sys
 import auth_db as db 
+from supabase import create_client
+
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
+# --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
     page_title="LabSmartAI", 
     page_icon="🧪", 
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
 
 st.markdown("""
     <style>
@@ -49,19 +53,6 @@ st.markdown("""
         transform: translateY(-1px);
     }
 
-    .stTextInput>div>div>input {
-        background-color: #FFFFFF;
-        color: #1A202C;
-        border: 1px solid #A0AEC0;
-        border-radius: 6px;
-    }
-
-    div[data-testid="stExpander"], div.stAlert {
-        background-color: #F7FAFC;
-        border: 1px solid #A0AEC0;
-        border-radius: 10px;
-    }
-
     div[data-testid="metric-container"] {
         background-color: #F7FAFC;
         border: 1px solid #A0AEC0;
@@ -77,19 +68,10 @@ st.markdown("""
         margin-bottom: 20px;
         box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
     }
-
-    [data-testid="stSidebarNav"] {
-        background-color: transparent;
-    }
-    
-    .stRadio [data-testid="stWidgetLabel"] p {
-        font-weight: 700;
-        font-size: 1rem;
-        margin-bottom: 10px;
-    }
     </style>
     """, unsafe_allow_html=True)
 
+# --- INICIALIZAÇÃO DE ESTADO ---
 if 'logado' not in st.session_state:
     st.session_state.logado = False
 if 'user_data' not in st.session_state:
@@ -97,35 +79,33 @@ if 'user_data' not in st.session_state:
 if 'selection' not in st.session_state:
     st.session_state.selection = "🏠 Dashboard"
 
+# --- CONEXÃO SUPABASE ---
+supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
+
 def tela_acesso():
     col1, col2, col3 = st.columns([1, 1.2, 1])
     with col2:
         st.write("")
-        st.write("")
-        st.markdown("<h1 style='text-align: center; font-size: 3.5rem; margin-bottom:0;'>🧪</h1>", unsafe_allow_html=True)
-        st.markdown("<h1 style='text-align: center; margin-top:0; color: #2D3748 !important;'>LabSmartAI</h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align: center; font-size: 3.5rem;'>🧪</h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align: center; color: #2D3748 !important;'>LabSmartAI</h1>", unsafe_allow_html=True)
         
         st.subheader("Login Administrativo")
-        email_input = st.text_input("E-mail Profissional", key="l_email", placeholder="nome@empresa.com")
-        senha_input = st.text_input("Senha de Acesso", type="password", key="l_pass", placeholder="••••••••")
+        email_input = st.text_input("E-mail Profissional", key="l_email")
+        senha_input = st.text_input("Senha de Acesso", type="password", key="l_pass")
         
         if st.button("ACESSAR SISTEMA"):
             user = db.buscar_usuario_por_email(email_input)
             if user and db.verificar_senha(senha_input, user['password_hash']):
                 st.session_state.logado = True
                 st.session_state.user_data = user
-                st.success("Login confirmado.")
                 st.rerun()
             else:
                 st.error("Dados incorretos.")
-        
-        st.markdown("---")
-        st.markdown("<p style='text-align: center; font-size: 0.9rem;'>Não tem login ou não tem empresa cadastrada?</p>", unsafe_allow_html=True)
-        st.link_button("CLIQUE AQUI PARA CADASTRAR SUA EMPRESA", "https://seusite.com/cadastro", use_container_width=True)
 
 if not st.session_state.logado:
     tela_acesso()
 else:
+    # --- IMPORTAÇÃO DOS MÓDULOS ---
     try:
         from substancias import show_substances
         from ControleEstoque import show_estoque
@@ -137,107 +117,100 @@ else:
         import ia
         import relatorios
     except ImportError as e:
-        st.error(f"Erro de carregamento: {e}")
+        st.error(f"Erro ao carregar módulos: {e}")
 
     user = st.session_state.user_data
     role = user.get('role', 'Visualizador')
+    org_atual = user.get('org_name')
     
-    abas = ["🏠 Dashboard", "🤖 IA & Visão", "🧪 Tabelas Químicas", "🧮 Calculadora Química", "📊 Gráficos"]
-    if role in ["Tecnico", "ADM"]:
-        abas.append("⚗️ Cadastro de Substâncias")
-        abas.append("📦 Estoque")
-    if role == "ADM":
-        abas.append("🛠️ Equipamentos")
-        abas.append("👥 Gestão de Equipe")
-        abas.append("📟 Painel Tinkercad")
-        abas.append("📄 Relatórios")
-
+    # --- SIDEBAR E NAVEGAÇÃO ---
     st.sidebar.markdown(f"""
         <div class="user-card">
-            <small style="color: #4A5568; text-transform: uppercase; font-weight: 800; font-size: 0.7rem;">Organização</small><br>
-            <span style="font-size: 1rem; font-weight: 700; color: #2D3748;">{user.get('org_name', 'LAB')}</span><br>
+            <small style="font-weight: 800; font-size: 0.7rem;">ORGANIZAÇÃO</small><br>
+            <span style="font-size: 1rem; font-weight: 700;">{org_atual}</span><br>
             <div style="margin-top: 10px; border-top: 1px solid #CBD5E0; padding-top: 5px;">
-                <span style="font-size: 0.9rem; color: #1A202C;">{user['username']}</span><br>
-                <span style="background: #E2E8F0; color: #4A5568; font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; font-weight: bold;">{role}</span>
+                <span style="font-size: 0.9rem;">{user['username']}</span><br>
+                <span style="background: #E2E8F0; font-size: 0.7rem; padding: 2px 8px; border-radius: 10px;">{role}</span>
             </div>
         </div>
     """, unsafe_allow_html=True)
     
+    abas = ["🏠 Dashboard", "🤖 IA & Visão", "🧪 Tabelas Químicas", "🧮 Calculadora Química", "📊 Gráficos"]
+    if role in ["Tecnico", "ADM"]:
+        abas.extend(["⚗️ Cadastro de Substâncias", "📦 Estoque"])
+    if role == "ADM":
+        abas.extend(["🛠️ Equipamentos", "👥 Gestão de Equipe", "📄 Relatórios"])
+
     selection = st.sidebar.radio("NAVEGAÇÃO", abas, index=abas.index(st.session_state.selection) if st.session_state.selection in abas else 0)
     st.session_state.selection = selection
 
-    st.sidebar.markdown("<br>"*3, unsafe_allow_html=True)
     if st.sidebar.button("SAIR"):
         st.session_state.clear()
         st.rerun()
 
     clean_selection = selection.split(" ", 1)[-1]
 
+
     if clean_selection == "Dashboard":
-        st.title(f"🚀 Painel de Controle - {user.get('org_name')}")
+        st.title(f"🚀 Painel de Controle - {org_atual}")
         
+        try:
+            # Busca estoque real
+            res_sub = supabase.table("substancias").select("quantidade").eq("org_name", org_atual).execute()
+            total_itens = sum([i['quantidade'] for i in res_sub.data]) if res_sub.data else 0
+            
+            # Busca equipamentos
+            res_eq = supabase.table("equipamentos").select("id", count="exact").eq("org_name", org_atual).execute()
+            total_equip = res_eq.count if res_eq.count else 0
+            total_analises = len(res_sub.data)
+        except:
+            total_itens, total_equip, total_analises = 0, 0, 0
+
+        # Lógica da setinha colorida (Alerta de estoque baixo)
+        limite = 50
+        if total_itens < limite:
+            cor_setinha = "inverse" # Vermelho
+            texto_delta = f"-{limite - total_itens} un. (Crítico)"
+        else:
+            cor_setinha = "normal" # Verde/Padrão
+            texto_delta = "Estoque Seguro"
+
         m1, m2, m3, m4 = st.columns(4)
-        m1.metric("Itens no Estoque", "1.240", "Total")
-        m2.metric("Equipamentos", "48", "Ativos")
-        m3.metric("Análises Realizadas", "856", "+12%")
-        m4.metric("Usuário Atual", user['username'], role)
+        m1.metric("Itens no Estoque", f"{total_itens:,}".replace(",", "."), delta=texto_delta, delta_color=cor_setinha)
+        m2.metric("Equipamentos", total_equip, "Ativos")
+        m3.metric("Registros Ativos", total_analises, "Itens em Banco")
+        m4.metric("Usuário Atual", user['username'], f"Cargo: {role}")
 
         st.markdown("---")
-        st.subheader("Atalhos do Sistema")
+        st.subheader("Atalhos Rápidos")
         c1, c2, c3 = st.columns(3)
         with c1:
             if st.button("🤖 IA & Visão"):
-                st.session_state.selection = "🤖 IA & Visão"
-                st.rerun()
-            if st.button("📊 Ver Gráficos"):
-                st.session_state.selection = "📊 Gráficos"
-                st.rerun()
+                st.session_state.selection = "🤖 IA & Visão"; st.rerun()
         with c2:
             if st.button("🧪 Tabelas Químicas"):
-                st.session_state.selection = "🧪 Tabelas Químicas"
-                st.rerun()
-            if st.button("📦 Estoque Geral"):
-                st.session_state.selection = "📦 Estoque"
-                st.rerun()
+                st.session_state.selection = "🧪 Tabelas Químicas"; st.rerun()
         with c3:
             if st.button("🧮 Calculadora"):
-                st.session_state.selection = "🧮 Calculadora Química"
-                st.rerun()
-            if role == "ADM":
-                if st.button("🛠️ Gestão de Equipe"):
-                    st.session_state.selection = "👥 Gestão de Equipe"
-                    st.rerun()
+                st.session_state.selection = "🧮 Calculadora Química"; st.rerun()
 
+    # --- NAVEGAÇÃO PARA OUTROS MÓDULOS ---
     elif clean_selection == "IA & Visão":
-        if "ia_engine" not in st.session_state:
-            st.session_state.ia_engine = ia.LabSmartAI()
         ia.show_chatbot()
-
     elif clean_selection == "Tabelas Químicas":
         show_tabelas()
-
     elif clean_selection == "Calculadora Química":
         show_calculadora()
-
     elif clean_selection == "Gráficos":
         show_graficos()
-
     elif clean_selection == "Cadastro de Substâncias":
         show_substances()
-
     elif clean_selection == "Estoque":
         show_estoque()
-
     elif clean_selection == "Equipamentos":
         show_equipamentos()
-
     elif clean_selection == "Gestão de Equipe":
         show_config_empresa()
-
-    elif clean_selection == "Painel Tinkercad":
-        st.title("📟 Controle Externo")
-        st.link_button("Acessar Hardware Virtual", "https://www.tinkercad.com/things/1dHXe2Yoo33-sistemafisicolabia/editel")
-
     elif clean_selection == "Relatórios":
         relatorios.show_reports()
 
