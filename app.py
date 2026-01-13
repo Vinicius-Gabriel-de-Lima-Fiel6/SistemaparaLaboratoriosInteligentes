@@ -7,7 +7,7 @@ from supabase import create_client
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-# --- CONFIGURAÇÃO DA PÁGINA ---
+
 st.set_page_config(
     page_title="LabSmartAI", 
     page_icon="🧪", 
@@ -101,6 +101,13 @@ def tela_acesso():
                 st.rerun()
             else:
                 st.error("Dados incorretos.")
+        
+     
+        st.markdown("---")
+        st.markdown("<p style='text-align: center; color: #4A5568 !important;'>Se não tiver uma conta, clique abaixo:</p>", unsafe_allow_html=True)
+        
+        # Altere o link "https://seulink.com" conforme sua necessidade
+        st.link_button("Cadastro Empresarial","https://cadastro-de-empresas-e7bkusdk4tsdchmx89fh8c.streamlit.app/", use_container_width=True)
 
 if not st.session_state.logado:
     tela_acesso()
@@ -193,7 +200,7 @@ else:
             if st.button("🧮 Calculadora de Soluções"):
                 st.session_state.selection = "🧮 Calculadora Química"; st.rerun()
 
-        # Linha 2 de Atalhos (Novas Opções)
+       
         c4, c5, c6 = st.columns(3)
         with c4:
             if st.button("📊 Painel de Gráficos"):
@@ -229,4 +236,3 @@ else:
 
     st.sidebar.markdown("---")
     st.sidebar.caption("LabSmartAI • v1.0")
-
