@@ -20,8 +20,6 @@ def show_reports():
     # --- SEÇÃO 1: IMPORTAR DADOS ---
     with aba_import:
         st.header("📥 Importação em Massa")
-        st.info("O arquivo deve conter: nome, finalidade, concentracao, quantidade, validade")
-        
         uploaded_file = st.file_uploader("Escolha CSV ou Excel", type=['csv', 'xlsx'], key="rep_import")
 
         if uploaded_file:
@@ -41,68 +39,64 @@ def show_reports():
             except Exception as e:
                 st.error(f"Erro na importação: {e}")
 
-    # --- SEÇÃO 2: GERAR RELATÓRIOS (CORRIGIDO) ---
+    # --- BUSCA DE DADOS COM LIMPEZA PROFUNDA ---
+    try:
+        res = supabase.table("substancias").select("*").eq("org_name", org_atual).execute()
+        df_export = pd.DataFrame(res.data)
+
+        if not df_export.empty:
+            # 🛡️ BLINDAGEM CONTRA O ERRO OutOfBoundsDatetime 🛡️
+            # 1. Converte para string para evitar que o pandas tente ler objetos corrompidos
+            df_export['validade'] = df_export['validade'].astype(str)
+            # 2. Converte para data, forçando erros a virarem NaT, ignorando fusos horários
+            df_export['validade_dt'] = pd.to_datetime(df_export['validade'], errors='coerce', utc=True).dt.tz_localize(None)
+    except Exception as e:
+        st.error(f"Erro ao carregar banco: {e}")
+        df_export = pd.DataFrame()
+
+    # --- SEÇÃO 2: GERAR RELATÓRIOS ---
     with aba_export:
         st.header("📤 Exportação de Dados")
-        
-        try:
-            res = supabase.table("substancias").select("*").eq("org_name", org_atual).execute()
-            df_export = pd.DataFrame(res.data)
+        if not df_export.empty:
+            col_f1, col_f2 = st.columns(2)
+            with col_f1:
+                filtro_nome = st.multiselect("Filtrar por Substância:", options=df_export['nome'].unique())
+            with col_f2:
+                status_validade = st.checkbox("Mostrar apenas itens vencidos")
 
-            if not df_export.empty:
-                # TRATAMENTO DE DATA SEGURO (Resolve o OutOfBoundsDatetime)
-                df_export['validade_dt'] = pd.to_datetime(df_export['validade'], errors='coerce')
+            df_filtrado = df_export.copy()
+            if filtro_nome:
+                df_filtrado = df_filtrado[df_filtrado['nome'].isin(filtro_nome)]
+            if status_validade:
+                # Usa a coluna limpa validade_dt para comparar
+                df_filtrado = df_filtrado[df_filtrado['validade_dt'] < pd.Timestamp.now()]
 
-                col_f1, col_f2 = st.columns(2)
-                with col_f1:
-                    filtro_nome = st.multiselect("Filtrar por Substância:", options=df_export['nome'].unique())
-                with col_f2:
-                    status_validade = st.checkbox("Mostrar apenas itens vencidos")
+            # Mostra a tabela limpando a coluna técnica de erro
+            st.dataframe(df_filtrado.drop(columns=['validade_dt'], errors='ignore'), use_container_width=True)
 
-                df_filtrado = df_export.copy()
-                if filtro_nome:
-                    df_filtrado = df_filtrado[df_filtrado['nome'].isin(filtro_nome)]
-                if status_validade:
-                    # Filtra usando a coluna de data tratada
-                    df_filtrado = df_filtrado[df_filtrado['validade_dt'] < pd.Timestamp.now()]
+            csv = df_filtrado.drop(columns=['validade_dt'], errors='ignore').to_csv(index=False).encode('utf-8-sig')
+            st.download_button("📥 Baixar CSV/Excel", csv, "relatorio_lab.csv", "text/csv", use_container_width=True)
+        else:
+            st.warning("Nenhum dado encontrado.")
 
-                # Removemos a coluna técnica 'validade_dt' antes de mostrar ao usuário
-                st.dataframe(df_filtrado.drop(columns=['validade_dt'], errors='ignore'), use_container_width=True)
-
-                st.divider()
-                c1, c2 = st.columns(2)
-                csv = df_filtrado.drop(columns=['validade_dt'], errors='ignore').to_csv(index=False).encode('utf-8-sig')
-                c1.download_button("📥 Baixar CSV/Excel", csv, "relatorio_lab.csv", "text/csv", use_container_width=True)
-                
-            else:
-                st.warning("Nenhum dado encontrado.")
-        except Exception as e:
-            st.error(f"Erro ao carregar dados: {e}")
-
-    # --- SEÇÃO 3: VISÃO ANALÍTICA (CORRIGIDO) ---
+    # --- SEÇÃO 3: VISÃO ANALÍTICA ---
     with aba_analise:
         st.header("📈 Resumo Estatístico")
         if not df_export.empty:
-            # Garante que as datas para o gráfico e métricas sejam válidas
-            df_export['validade_dt'] = pd.to_datetime(df_export['validade'], errors='coerce')
-            
             m1, m2, m3 = st.columns(3)
-            m1.metric("Valor Total (Qtd)", f"{df_export['quantidade'].sum():.0f}")
+            m1.metric("Quantidade Total", f"{df_export['quantidade'].sum():.0f}")
             m2.metric("Variedade de Itens", len(df_export))
             
-            # Cálculo de alertas ignorando erros de data (NaT)
+            # Cálculo de alertas ignorando NaT (erros de data)
             hoje = pd.Timestamp.now()
             vencimento_proximo = hoje + pd.Timedelta(days=30)
             
-            # Filtro seguro: ignora onde a data é nula (NaT)
+            # Conta apenas datas válidas (não nulas)
             em_alerta = len(df_export[(df_export['validade_dt'].notnull()) & (df_export['validade_dt'] < vencimento_proximo)])
             
-            m3.metric("Alertas de Validade", em_alerta, delta="30 dias", delta_color="inverse")
+            m3.metric("Alertas de Validade", em_alerta, delta="Próximos 30 dias", delta_color="inverse")
 
             st.subheader("Distribuição por Finalidade")
             st.bar_chart(df_export['finalidade'].value_counts())
         else:
             st.info("Sem dados para análise.")
-
-if __name__ == "__main__":
-    show_reports()
