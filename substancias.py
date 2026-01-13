@@ -3,6 +3,9 @@ import pandas as pd
 from supabase import create_client
 from datetime import datetime
 
+# --- CONFIGURAÇÃO DA PÁGINA ---
+st.set_page_config(page_title="Sistema de Substâncias", layout="wide")
+
 # Conexão com o Banco de Dados na Nuvem
 url = st.secrets["SUPABASE_URL"]
 key = st.secrets["SUPABASE_KEY"]
@@ -96,6 +99,37 @@ def show_substances():
             cols_ordem = ['id', 'nome', 'cas', 'quantidade', 'estoque_minimo', 'validade']
             st.dataframe(df[cols_ordem], use_container_width=True, hide_index=True)
 
+            # --- SEÇÃO DE EXPORTAÇÃO E ANÁLISE (CONEXÃO EXCEL) ---
+            with st.container(border=True):
+                st.markdown("### 📊 Exportação e Análise Externa")
+                col_exp1, col_exp2, col_exp3 = st.columns([1, 1, 1])
+                
+                # Gerar CSV para download
+                csv = df.to_csv(index=False).encode('utf-8')
+                col_exp1.download_button(
+                    label="📥 Baixar Dados (CSV)",
+                    data=csv,
+                    file_name=f"inventario_{org_usuario}.csv",
+                    mime='text/csv',
+                    use_container_width=True
+                )
+
+                # Link Direto para o Excel Online
+                col_exp2.link_button(
+                    "🌐 Abrir Excel Online", 
+                    "https://excel.new", 
+                    use_container_width=True
+                )
+
+                # Instrução Didática
+                with col_exp3:
+                    with st.popover("💡 Como analisar no Excel?", use_container_width=True):
+                        st.write("""
+                        1. Clique em **Baixar Dados**.
+                        2. Clique em **Abrir Excel Online**.
+                        3. Na página que abrir, vá em **Arquivo > Abrir** e arraste o arquivo CSV baixado.
+                        """)
+
             # --- ATUALIZAÇÃO RÁPIDA DE QUANTIDADE COM LOG ---
             if role_usuario in ["ADM", "Tecnico"]:
                 with st.expander("🔄 Atualizar Quantidade em Estoque"):
@@ -104,13 +138,9 @@ def show_substances():
                     nova_qtd = col_val.number_input("Nova Quantidade", min_value=0.0)
                     
                     if col_btn.button("Atualizar Estoque", use_container_width=True):
-                        # Pega a quantidade antiga para o histórico
                         qtd_antiga = df[df['nome'] == sub_para_editar]['quantidade'].values[0]
-                        
-                        # Atualiza tabela principal
                         supabase.table("substancias").update({"quantidade": nova_qtd}).eq("nome", sub_para_editar).execute()
                         
-                        # Registra no Log
                         log_data = {
                             "usuario": username_atual,
                             "substancia": sub_para_editar,
@@ -119,7 +149,6 @@ def show_substances():
                             "org_name": org_usuario
                         }
                         supabase.table("logs_estoque").insert(log_data).execute()
-                        
                         st.success(f"Estoque de {sub_para_editar} atualizado!")
                         st.rerun()
 
@@ -161,3 +190,7 @@ def show_substances():
             
     except Exception as e:
         st.error(f"Erro ao carregar dados: {e}")
+
+# Execução da função (Streamlit requer chamada se não estiver no topo)
+if __name__ == "__main__":
+    show_substances()
