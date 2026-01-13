@@ -2,12 +2,18 @@ import streamlit as st
 import pandas as pd
 from supabase import create_client
 import auth_db as db
+import datetime
+# Apenas acrescentado: Importação do seu arquivo de automação
+try:
+    from bot_automat import disparar_email_manual
+except ImportError:
+    pass
 
-# Inicializa conexão original
+# Inicializa conexão original (Mantido)
 supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 
 def show_config_empresa():
-    # Estilo CSS personalizado para fontes e métricas
+    # Estilo CSS personalizado (Mantido)
     st.markdown("""
         <style>
         [data-testid="stMetricValue"] { font-size: 1.8rem; font-weight: 700; }
@@ -30,7 +36,7 @@ def show_config_empresa():
             df = pd.DataFrame(res.data)
 
             if not df.empty:
-                # Dashboard de Métricas Moderno
+                # Dashboard de Métricas Moderno (Mantido)
                 c1, c2, c3, c4 = st.columns(4)
                 c1.metric("Membros", len(df))
                 c2.metric("Técnicos", len(df[df['role'] == 'Tecnico']))
@@ -65,7 +71,7 @@ def show_config_empresa():
                     with st.container(border=True):
                         col_txt, col_btn = st.columns([4, 1])
                         with col_txt:
-                            # Badge de cor para o cargo
+                            # Badge de cor para o cargo (Mantido)
                             role_color = "blue" if func['role'] == "Tecnico" else "red" if func['role'] == "ADM" else "gray"
                             st.markdown(f"**{func['username']}** :{role_color}[({func['role']})]")
                             st.caption(f"📧 {func['email']}")
@@ -76,21 +82,60 @@ def show_config_empresa():
                                     st.rerun()
                         else:
                             col_btn.write("✨ (Você)")
+            
+            # --- ACRESCENTADO: SEÇÃO DO BOT DE INTELIGÊNCIA ---
+            st.divider()
+            st.write("### 🤖 Automação de Inteligência")
+            
+            res_bot = supabase.table("config_automacao").select("*").eq("org_name", org_name).execute()
+            config_bot = res_bot.data[0] if res_bot.data else {}
+
+            with st.container(border=True):
+                st.markdown("**Relatórios Automáticos por E-mail**")
+                st.caption("O bot analisa tráfego, estoque e equipamentos desta unidade.")
+                
+                with st.expander("⚙️ Configurar Agendamento"):
+                    with st.form("form_bot_config"):
+                        e_dest = st.text_input("E-mail de Destino", value=config_bot.get('email_destino', ''))
+                        col_b1, col_b2 = st.columns(2)
+                        dias = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"]
+                        dia_bot = col_b1.selectbox("Dia do envio", dias)
+                        hora_bot = col_b2.time_input("Horário", value=datetime.time(8, 0))
+                        
+                        st.write("---")
+                        st.caption("Credenciais de Envio (SMTP)")
+                        s_user = st.text_input("E-mail Remetente", value=config_bot.get('smtp_user', ''))
+                        s_pass = st.text_input("Senha de App", type="password")
+
+                        if st.form_submit_button("Salvar Configuração", use_container_width=True):
+                            bot_data = {
+                                "org_name": org_name, "email_destino": e_dest,
+                                "dia_semana": dia_bot, "horario": str(hora_bot),
+                                "smtp_user": s_user, "smtp_pass": s_pass if s_pass else config_bot.get('smtp_pass')
+                            }
+                            supabase.table("config_automacao").upsert(bot_data).execute()
+                            st.success("Configuração salva!")
+                            st.rerun()
+
+                if config_bot:
+                    if st.button("🚀 Disparar Relatório Agora", use_container_width=True, type="primary"):
+                        with st.spinner("Bot processando dados..."):
+                            if disparar_email_manual(config_bot, st):
+                                st.toast("Relatório enviado!", icon="✅")
+                            else:
+                                st.error("Erro no envio. Verifique as credenciais.")
+
         except Exception as e:
             st.error(f"Erro ao carregar equipe: {e}")
 
-    
+    # --- ABA: LABORATÓRIO (Mantido exatamente como enviado) ---
     with aba_laboratorio:
         st.subheader("🏢 Perfil da Organização")
-        
         try:
-            # Busca dados detalhados
             org_res = supabase.table("organizations").select("*").eq("id", org_id).single().execute()
             dados = org_res.data
             
-    
             col_id, col_plano = st.columns(2)
-            
             with col_id:
                 with st.container(border=True):
                     st.markdown("### 🆔 Identidade")
@@ -104,19 +149,14 @@ def show_config_empresa():
                     st.markdown("### 💳 Assinatura")
                     status = dados.get('status_assinatura', 'Ativo').upper()
                     st.markdown(f"**Status:** :green[{status} ✅]")
-                    
                     plano = dados.get('plano_ativo', 'Trial / Beta')
                     st.markdown(f"**Plano Atual:** `{plano}`")
-                    
                     metodo = dados.get('metodo_pagto', 'Não informado')
                     st.write(f"**Pagamento via:** {metodo}")
-                    
                     if st.button("Gerenciar Assinatura", use_container_width=True):
                         st.info("Redirecionando para o portal financeiro...")
 
             st.divider()
-            
-      
             with st.container(border=True):
                 st.markdown("### 🔒 Segurança e Dados")
                 st.write("Os dados deste laboratório estão criptografados e seguem as normas da LGPD.")
@@ -125,7 +165,6 @@ def show_config_empresa():
                 col_btn2.button("Editar Informações Públicas", use_container_width=True)
 
         except Exception as e:
-        
             st.warning("Não foi possível carregar os detalhes da assinatura.")
             with st.container(border=True):
                 st.write(f"**Laboratório:** {org_name}")
