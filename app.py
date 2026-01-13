@@ -54,11 +54,11 @@ st.markdown("""
         padding: 10px;
     }
 
-    /* Remove fundos automáticos de blocos verticais que causam o 'quadrado branco' */
+    /* AJUSTE: Remove fundos e espaçamentos fantasmas do Streamlit */
     [data-testid="stVerticalBlock"] > div {
         background-color: transparent !important;
     }
-
+    
     .user-card {
         background: #F8FAFC;
         padding: 12px;
@@ -89,7 +89,6 @@ def tela_acesso():
     col1, col2, col3 = st.columns([1, 1.5, 1])
     
     with col2:
-        # Tudo inserido dentro de um único container para evitar gaps
         st.markdown('<div class="login-container">', unsafe_allow_html=True)
         st.markdown("<h1 style='text-align: center; margin-bottom: 10px;'>🧪 LabSmartAI</h1>", unsafe_allow_html=True)
         st.markdown("<p style='text-align: center; color: #64748B !important; margin-bottom: 30px;'>Acesse o painel de controle do laboratório</p>", unsafe_allow_html=True)
