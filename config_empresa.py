@@ -12,7 +12,7 @@ except ImportError:
 supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 
 def show_config_empresa():
-    # Estilo CSS personalizado (Original)
+    # Estilo CSS personalizado (Mantido Original)
     st.markdown("""
         <style>
         [data-testid="stMetricValue"] { font-size: 1.8rem; font-weight: 700; }
@@ -36,7 +36,7 @@ def show_config_empresa():
             lista_emails = df['email'].tolist() if not df.empty else []
 
             if not df.empty:
-                # Dashboard de Métricas (Original Restaurado)
+                # Dashboard de Métricas Moderno (Original)
                 c1, c2, c3, c4 = st.columns(4)
                 c1.metric("Membros", len(df))
                 c2.metric("Técnicos", len(df[df['role'] == 'Tecnico']))
@@ -93,12 +93,12 @@ def show_config_empresa():
                 st.caption("O bot analisa tráfego, estoque e equipamentos desta unidade.")
                 
                 with st.expander("⚙️ Configurar Agendamento"):
-                    # Processamento da lista de destinatários
+                    # Processamento para o multiselect
                     email_salvo_raw = config_bot.get('email_destino', '')
                     emails_ja_selecionados = [e.strip() for e in email_salvo_raw.split(",")] if email_salvo_raw else []
                     emails_validos = [e for e in emails_ja_selecionados if e in lista_emails]
 
-                    # CORREÇÃO: O multiselect e os campos agora estão dentro de um FORM correto
+                    # TUDO DENTRO DO FORM PARA NÃO DAR O ERRO DA IMAGEM
                     with st.form("form_bot_config_v2"):
                         receptores = st.multiselect("Receptores do Relatório", options=lista_emails, default=emails_validos)
                         
@@ -115,10 +115,7 @@ def show_config_empresa():
                         hora_bot = col_b2.time_input("Horário", value=hora_atual)
                         
                         st.write("---")
-                        c_head, c_btn_ajuda = st.columns([3, 1])
-                        c_head.caption("Credenciais de Envio (SMTP)")
-                        
-                        # O popover fica fora do form para evitar erro de clique
+                        st.caption("Credenciais de Envio (SMTP)")
                         s_user = st.text_input("E-mail Remetente", value=config_bot.get('smtp_user', ''))
                         s_pass = st.text_input("Senha de App", type="password", placeholder="Deixe vazio para manter a atual")
 
@@ -132,9 +129,9 @@ def show_config_empresa():
                             st.success("Configuração salva!")
                             st.rerun()
                     
-                    # Botão de ajuda colocado logo após o form para segurança
-                    with st.popover("❓ Ajuda: Como conseguir a senha?"):
-                        st.markdown("1. Acesse sua Conta Google > Segurança\n2. Ative Verificação em 2 Etapas\n3. No final, clique em 'Senhas de App'\n4. Copie os 16 dígitos e cole no campo acima.")
+                    # Popover de Ajuda fora do Form
+                    with st.popover("❓ Como conseguir a Senha de App?"):
+                        st.markdown("1. Conta Google > Segurança\n2. Ative Verificação em 2 Etapas\n3. Selecione 'Senhas de App'\n4. Gere e cole os 16 dígitos.")
 
                 if config_bot:
                     if st.button("🚀 Disparar Relatório Agora", use_container_width=True, type="primary"):
@@ -142,7 +139,7 @@ def show_config_empresa():
                             if disparar_email_manual(config_bot, st):
                                 st.toast("Relatório enviado!", icon="✅")
                             else:
-                                st.error("Erro no envio. Verifique SMTP.")
+                                st.error("Erro no envio.")
 
         except Exception as e:
             st.error(f"Erro ao carregar equipe: {e}")
@@ -150,25 +147,43 @@ def show_config_empresa():
     with aba_laboratorio:
         st.subheader("🏢 Perfil da Organização")
         try:
-            org_res = supabase.table("organizations").select("*").eq("id", org_id).single().execute()
-            dados = org_res.data
+            org_res = supabase.table("organizations").select("*").eq("id", org_id).execute()
             
-            col_id, col_plano = st.columns(2)
-            with col_id:
-                with st.container(border=True):
-                    st.markdown("### 🆔 Identidade")
-                    st.write(f"**Nome do Laboratório:**\n{org_name}")
-                    st.write("**ID Único da Empresa:**")
-                    st.code(org_id, language="text")
+            if not org_res.data:
+                st.warning("📊 Dados da organização não encontrados. Vamos preenchê-los?")
+                with st.form("completar_cadastro_org"):
+                    novo_plano = st.selectbox("Escolha seu Plano", ["Trial / Beta", "Essencial", "Premium"])
+                    metodo = st.selectbox("Método de Pagamento Preferencial", ["PIX", "Cartão", "Boleto"])
+                    if st.form_submit_button("Finalizar Cadastro da Empresa"):
+                        supabase.table("organizations").insert({
+                            "id": org_id, "name": org_name, 
+                            "plano_ativo": novo_plano, "metodo_pagto": metodo,
+                            "status_assinatura": "Ativo"
+                        }).execute()
+                        st.rerun()
+            else:
+                dados = org_res.data[0]
+                col_id, col_plano = st.columns(2)
+                with col_id:
+                    with st.container(border=True):
+                        st.markdown("### 🆔 Identidade")
+                        st.write(f"**Nome:** {org_name}")
+                        st.write("**ID Único:**")
+                        st.code(org_id, language="text")
 
-            with col_plano:
+                with col_plano:
+                    with st.container(border=True):
+                        st.markdown("### 💳 Assinatura")
+                        status = dados.get('status_assinatura', 'Ativo').upper()
+                        st.markdown(f"**Status:** :green[{status} ✅]")
+                        st.markdown(f"**Plano:** `{dados.get('plano_ativo', 'Trial')}`")
+                        st.write(f"**Pagamento via:** {dados.get('metodo_pagto', 'N/A')}")
+                
+                st.divider()
                 with st.container(border=True):
-                    st.markdown("### 💳 Assinatura")
-                    status = dados.get('status_assinatura', 'Ativo').upper()
-                    st.markdown(f"**Status:** :green[{status} ✅]")
-                    plano = dados.get('plano_ativo', 'Trial / Beta')
-                    st.markdown(f"**Plano Atual:** `{plano}`")
-                    if st.button("Gerenciar Assinatura", use_container_width=True):
-                        st.info("Acessando portal financeiro...")
-        except:
-            st.warning("Dados da organização não encontrados.")
+                    st.markdown("### 🔒 Segurança e Dados")
+                    st.write("Dados criptografados conforme a LGPD.")
+                    st.button("Editar Informações Públicas", use_container_width=True)
+
+        except Exception as e:
+            st.error(f"Erro ao carregar dados da empresa: {e}")
