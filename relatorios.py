@@ -39,16 +39,15 @@ def show_reports():
             except Exception as e:
                 st.error(f"Erro na importação: {e}")
 
-    # --- BUSCA DE DADOS COM LIMPEZA PROFUNDA ---
     try:
         res = supabase.table("substancias").select("*").eq("org_name", org_atual).execute()
         df_export = pd.DataFrame(res.data)
 
         if not df_export.empty:
-            # 🛡️ BLINDAGEM CONTRA O ERRO OutOfBoundsDatetime 🛡️
-            # 1. Converte para string para evitar que o pandas tente ler objetos corrompidos
+        
+          
             df_export['validade'] = df_export['validade'].astype(str)
-            # 2. Converte para data, forçando erros a virarem NaT, ignorando fusos horários
+     
             df_export['validade_dt'] = pd.to_datetime(df_export['validade'], errors='coerce', utc=True).dt.tz_localize(None)
     except Exception as e:
         st.error(f"Erro ao carregar banco: {e}")
@@ -60,7 +59,7 @@ def show_reports():
         if not df_export.empty:
             col_f1, col_f2 = st.columns(2)
             with col_f1:
-                filtro_nome = st.multiselect("Filtrar por Substância:", options=df_export['nome'].unique())
+                filtro_nome = st.multiselect("Filtrar por Substância:", options=df_export['nome'].unique(),placeholder="Escolha a opção")
             with col_f2:
                 status_validade = st.checkbox("Mostrar apenas itens vencidos")
 
@@ -87,7 +86,7 @@ def show_reports():
             m1.metric("Quantidade Total", f"{df_export['quantidade'].sum():.0f}")
             m2.metric("Variedade de Itens", len(df_export))
             
-            # Cálculo de alertas ignorando NaT (erros de data)
+            
             hoje = pd.Timestamp.now()
             vencimento_proximo = hoje + pd.Timedelta(days=30)
             
@@ -100,3 +99,4 @@ def show_reports():
             st.bar_chart(df_export['finalidade'].value_counts())
         else:
             st.info("Sem dados para análise.")
+
