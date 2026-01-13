@@ -31,10 +31,10 @@ def extrair_texto(arquivo):
         return arquivo.read().decode("utf-8")
     except: return None
 
-# --- 2. LÓGICA DE IA COM SEPARAÇÃO DE MEMÓRIA ---
+# --- 2. LÓGICA DE IA ---
 def responder_ia(prompt, historico, dados=None, esp="Geral"):
-    msgs = [{"role": "system", "content": f"Você é o LabSmart AI ({esp}). Não misture informações de outros chats."}]
-    msgs.extend(historico[-10:]) # Puxa apenas o histórico da aba atual
+    msgs = [{"role": "system", "content": f"Você é o LabSmart AI especializado como {esp}. Use APENAS o histórico desta aba."}]
+    msgs.extend(historico[-10:]) 
     contexto = f"DADOS DO ARQUIVO: {dados}\n\nPERGUNTA: {prompt}" if dados else prompt
     msgs.append({"role": "user", "content": contexto})
     
@@ -43,65 +43,67 @@ def responder_ia(prompt, historico, dados=None, esp="Geral"):
 
 # --- 3. INTERFACE PRINCIPAL ---
 def show_chatbot():
-    # Inicialização de Memórias Distintas
+    # Inicialização de Memórias e Controle de Aba
     if "messages_geral" not in st.session_state: st.session_state.messages_geral = []
     if "messages_agente" not in st.session_state: st.session_state.messages_agente = []
+    if "aba_atual" not in st.session_state: st.session_state.aba_atual = "Chat Científico"
     if "yolo_model" not in st.session_state: st.session_state.yolo_model = YOLO("yolov8n.pt")
 
     st.subheader("🔬 LabSmart AI - Hub de Inteligência")
 
-    # Criamos as abas e usamos o parâmetro 'key' para rastrear qual está aberta
-    tab_id = st.tabs(["💬 Chat Científico", "👥 Squad de Agentes"])
+    # Criamos um rádio ou botões para selecionar a aba de forma explícita (Garante que a IA saiba onde você está)
+    escolha_aba = st.radio("Selecione o ambiente de trabalho:", ["💬 Chat Científico", "👥 Squad de Agentes"], horizontal=True)
+    st.session_state.aba_atual = escolha_aba
 
-    # --- ABA 1: CHAT CIENTÍFICO ---
-    with tab_id[0]:
+    st.divider()
+
+    # --- ÁREA DINÂMICA DE CHAT ---
+    if st.session_state.aba_atual == "💬 Chat Científico":
         col_c1, col_t1 = st.columns([3, 1])
         with col_t1:
             st.write("### ⚙️ Ferramentas")
             if st.toggle("🎥 Visão YOLO", key="tgl_v1"):
                 webrtc_streamer(key="stream_v1", video_processor_factory=lambda: VideoProcessor(st.session_state.yolo_model))
             up_geral = st.file_uploader("📎 Base de Dados", type=["pdf", "csv", "txt"], key="up_v1")
-            if st.button("🗑️ Limpar Chat Científico"):
+            if st.button("🗑️ Limpar Chat"):
                 st.session_state.messages_geral = []
                 st.rerun()
         with col_c1:
-            # Container com scroll para as mensagens não empurrarem o input
-            chat_container1 = st.container(height=500, border=False)
+            chat_container = st.container(height=500, border=False)
             for m in st.session_state.messages_geral:
-                chat_container1.chat_message(m["role"]).write(m["content"])
-
-
-    with tab_id[1]:
+                chat_container.chat_message(m["role"]).write(m["content"])
+            
+    else:
         col_c2, col_t2 = st.columns([3, 1])
         with col_t2:
-            st.write("### 👥 Agentes")
+            st.write("### 👥 Squad")
             esp_nome = st.selectbox("Especialista:", ["Bioquímico Sênior", "Auditor de Qualidade", "Escritor Técnico"], key="sel_v2")
             up_agente = st.file_uploader("📎 Arquivo Técnico", type=["pdf", "csv", "txt"], key="up_v2")
             if st.button("🗑️ Limpar Squad"):
                 st.session_state.messages_agente = []
                 st.rerun()
         with col_c2:
-            chat_container2 = st.container(height=500, border=False)
+            chat_container = st.container(height=500, border=False)
             for m in st.session_state.messages_agente:
-                chat_container2.chat_message(m["role"]).write(m["content"])
+                chat_container.chat_message(m["role"]).write(m["content"])
 
 
-    if prompt := st.chat_input("Digite sua mensagem:"):
+    if prompt := st.chat_input("Digite sua mensagem para o ambiente selecionado..."):
         
-        if up_agente: # Se o usuário carregou algo na aba de agentes, ele quer falar com o agente
-            h_key = "messages_agente"
-            dados = extrair_texto(up_agente)
-            persona = esp_nome
-        else:
-            # Caso contrário, assume-se o Chat Científico como padrão
+        # Lógica de Separação Total baseada na aba selecionada
+        if st.session_state.aba_atual == "💬 Chat Científico":
             h_key = "messages_geral"
-            dados = extrair_texto(up_geral)
+            dados = extrair_texto(up_geral) if 'up_geral' in locals() else None
             persona = "Geral"
+        else:
+            h_key = "messages_agente"
+            dados = extrair_texto(up_agente) if 'up_agente' in locals() else None
+            persona = esp_nome
 
-        # Salva e Processa apenas no histórico escolhido
+        # Adiciona e Processa
         st.session_state[h_key].append({"role": "user", "content": prompt})
         
-        with st.spinner("IA Respondendo..."):
+        with st.spinner(f"O {persona} está processando..."):
             resposta = responder_ia(prompt, st.session_state[h_key], dados, persona)
             st.session_state[h_key].append({"role": "assistant", "content": resposta})
         
@@ -109,4 +111,3 @@ def show_chatbot():
 
 if __name__ == "__main__":
     show_chatbot()
-
