@@ -6,7 +6,7 @@ import auth_db as db
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 st.set_page_config(
-    page_title="LabSmartAI", 
+    page_title="LabSmartAI PRO", 
     page_icon="🧪", 
     layout="wide",
     initial_sidebar_state="expanded"
@@ -96,24 +96,24 @@ def tela_acesso():
         st.markdown("<h1 style='text-align: center; font-size: 3.5rem; margin-bottom:0;'>🧪</h1>", unsafe_allow_html=True)
         st.markdown("<h1 style='text-align: center; margin-top:0; color: #2D3748 !important;'>LabSmartAI PRO</h1>", unsafe_allow_html=True)
         
-        with st.container():
-            st.markdown('<div style="background-color: #F7FAFC; padding: 35px; border-radius: 15px; border: 1px solid #A0AEC0; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">', unsafe_allow_html=True)
-            
-            st.subheader("Login Administrativo")
-            email_input = st.text_input("E-mail Profissional", key="l_email", placeholder="nome@empresa.com")
-            senha_input = st.text_input("Senha de Acesso", type="password", key="l_pass", placeholder="••••••••")
-            
-            if st.button("ACESSAR SISTEMA"):
-                user = db.buscar_usuario_por_email(email_input)
-                if user and db.verificar_senha(senha_input, user['password_hash']):
-                    st.session_state.logado = True
-                    st.session_state.user_data = user
-                    st.success("Login confirmado.")
-                    st.rerun()
-                else:
-                    st.error("Dados incorretos.")
-            
-            st.markdown('</div>', unsafe_allow_html=True)
+        # O bloco de estilo agora envolve o conteúdo do login para não ficar vazio
+        st.markdown('<div style="background-color: #F7FAFC; padding: 35px; border-radius: 15px; border: 1px solid #A0AEC0; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">', unsafe_allow_html=True)
+        
+        st.subheader("Login Administrativo")
+        email_input = st.text_input("E-mail Profissional", key="l_email", placeholder="nome@empresa.com")
+        senha_input = st.text_input("Senha de Acesso", type="password", key="l_pass", placeholder="••••••••")
+        
+        if st.button("ACESSAR SISTEMA"):
+            user = db.buscar_usuario_por_email(email_input)
+            if user and db.verificar_senha(senha_input, user['password_hash']):
+                st.session_state.logado = True
+                st.session_state.user_data = user
+                st.success("Login confirmado.")
+                st.rerun()
+            else:
+                st.error("Dados incorretos.")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
 
 if not st.session_state.logado:
     tela_acesso()
@@ -202,4 +202,4 @@ else:
         relatorios.show_reports()
 
     st.sidebar.markdown("---")
-    st.sidebar.caption("LabSmartAI • v1.0")
+    st.sidebar.caption("LabSmartAI PRO • v1.0")
