@@ -96,9 +96,7 @@ def tela_acesso():
         st.markdown("<h1 style='text-align: center; font-size: 3.5rem; margin-bottom:0;'>🧪</h1>", unsafe_allow_html=True)
         st.markdown("<h1 style='text-align: center; margin-top:0; color: #2D3748 !important;'>LabSmartAI PRO</h1>", unsafe_allow_html=True)
         
-        # O bloco de estilo agora envolve o conteúdo do login para não ficar vazio
-        st.markdown('<div style="background-color: #F7FAFC; padding: 35px; border-radius: 15px; border: 1px solid #A0AEC0; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">', unsafe_allow_html=True)
-        
+        # Removido o container e a div vazia que criavam o retângulo marcado
         st.subheader("Login Administrativo")
         email_input = st.text_input("E-mail Profissional", key="l_email", placeholder="nome@empresa.com")
         senha_input = st.text_input("Senha de Acesso", type="password", key="l_pass", placeholder="••••••••")
@@ -112,8 +110,6 @@ def tela_acesso():
                 st.rerun()
             else:
                 st.error("Dados incorretos.")
-        
-        st.markdown('</div>', unsafe_allow_html=True)
 
 if not st.session_state.logado:
     tela_acesso()
