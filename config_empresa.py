@@ -4,6 +4,7 @@ from supabase import create_client
 import auth_db as db
 import datetime
 
+# Importação segura do bot
 try:
     from bot_automat import disparar_email_manual
 except ImportError:
@@ -12,7 +13,7 @@ except ImportError:
 supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 
 def show_config_empresa():
-    # Estilo CSS personalizado (Mantido Original)
+    # Estilo CSS (Mantido Original)
     st.markdown("""
         <style>
         [data-testid="stMetricValue"] { font-size: 1.8rem; font-weight: 700; }
@@ -28,7 +29,7 @@ def show_config_empresa():
     
     aba_equipe, aba_laboratorio = st.tabs(["👥 Gestão de Equipe", "🏢 Dados da Empresa"])
 
-    # --- ABA: GESTÃO DE EQUIPE ---
+    # --- ABA 1: GESTÃO DE EQUIPE ---
     with aba_equipe:
         try:
             res = supabase.table("users").select("*").eq("org_name", org_name).execute()
@@ -36,7 +37,7 @@ def show_config_empresa():
             lista_emails = df['email'].tolist() if not df.empty else []
 
             if not df.empty:
-                # Dashboard de Métricas Moderno (Original)
+                # Dashboard de Métricas (RESTAURADO)
                 c1, c2, c3, c4 = st.columns(4)
                 c1.metric("Membros", len(df))
                 c2.metric("Técnicos", len(df[df['role'] == 'Tecnico']))
@@ -48,11 +49,11 @@ def show_config_empresa():
 
             st.divider()
 
-            with st.expander("➕ **Adicionar Novo Membro à Equipe**"):
+            with st.expander("➕ **Adicionar Novo Membro**"):
                 with st.form("cadastrar_interno", clear_on_submit=True):
                     c1, c2 = st.columns(2)
                     nome_func = c1.text_input("Nome Completo")
-                    email_func = c2.text_input("E-mail de Login")
+                    email_func = c2.text_input("E-mail")
                     senha_func = c1.text_input("Senha Provisória", type="password")
                     cargo_func = c2.selectbox("Nível de Acesso", ["Visualizador", "Tecnico", "ADM"])
                     
@@ -60,7 +61,7 @@ def show_config_empresa():
                         if nome_func and email_func and senha_func:
                             sucesso, msg = db.cadastrar_usuario(nome_func, email_func, senha_func, org_name, cargo_func)
                             if sucesso:
-                                st.success(f"Acesso liberado para {nome_func}!")
+                                st.success("Acesso liberado!")
                                 st.rerun()
                             else:
                                 st.error(msg)
@@ -76,114 +77,107 @@ def show_config_empresa():
                             st.caption(f"📧 {func['email']}")
                         
                         if func['email'] != user_data['email']:
-                            if col_btn.button("Remover", key=f"del_{func['id']}", type="secondary", use_container_width=True):
+                            if col_btn.button("Remover", key=f"del_{func['id']}", use_container_width=True):
                                 if db.excluir_usuario_por_id(func['id'])[0]:
                                     st.rerun()
                         else:
                             col_btn.write("✨ (Você)")
             
+            # --- SEÇÃO DO BOT ---
             st.divider()
             st.write("### 🤖 Automação de Dados")
-            
             res_bot = supabase.table("config_automacao").select("*").eq("org_name", org_name).execute()
             config_bot = res_bot.data[0] if res_bot.data else {}
 
             with st.container(border=True):
-                st.markdown("**Relatórios Automáticos por E-mail**")
-                st.caption("O bot analisa tráfego, estoque e equipamentos desta unidade.")
-                
-                with st.expander("⚙️ Configurar Agendamento"):
-                    # Processamento para o multiselect
-                    email_salvo_raw = config_bot.get('email_destino', '')
-                    emails_ja_selecionados = [e.strip() for e in email_salvo_raw.split(",")] if email_salvo_raw else []
-                    emails_validos = [e for e in emails_ja_selecionados if e in lista_emails]
+                with st.expander("⚙️ Configurar Destinatários e SMTP"):
+                    # Carregamento dos e-mails salvos
+                    e_salvos = [x.strip() for x in config_bot.get('email_destino', '').split(',')] if config_bot.get('email_destino') else []
+                    e_validos = [x for x in e_salvos if x in lista_emails]
 
-                    # TUDO DENTRO DO FORM PARA NÃO DAR O ERRO DA IMAGEM
-                    with st.form("form_bot_config_v2"):
-                        receptores = st.multiselect("Receptores do Relatório", options=lista_emails, default=emails_validos)
+                    # TUDO DENTRO DO FORM PARA CORRIGIR O ERRO DA FOTO
+                    with st.form("form_automacao_v3"):
+                        receptores = st.multiselect("Quem receberá o relatório?", options=lista_emails, default=e_validos)
                         
-                        col_b1, col_b2 = st.columns(2)
+                        col1, col2 = st.columns(2)
                         dias = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"]
-                        dia_bot = col_b1.selectbox("Dia do envio", dias, index=dias.index(config_bot.get('dia_semana', 'Segunda')) if config_bot.get('dia_semana') in dias else 0)
+                        dia_bot = col1.selectbox("Dia", dias, index=dias.index(config_bot.get('dia_semana', 'Segunda')) if config_bot.get('dia_semana') in dias else 0)
+                        hora_bot = col2.time_input("Horário", value=datetime.time(8, 0))
                         
-                        hora_atual = datetime.time(8, 0)
-                        if config_bot.get('horario'):
-                            try:
-                                h, m, s = map(int, config_bot.get('horario').split(':'))
-                                hora_atual = datetime.time(h, m)
-                            except: pass
-                        hora_bot = col_b2.time_input("Horário", value=hora_atual)
-                        
-                        st.write("---")
-                        st.caption("Credenciais de Envio (SMTP)")
-                        s_user = st.text_input("E-mail Remetente", value=config_bot.get('smtp_user', ''))
+                        st.caption("Credenciais SMTP")
+                        s_user = st.text_input("Seu E-mail (Gmail)", value=config_bot.get('smtp_user', ''))
                         s_pass = st.text_input("Senha de App", type="password", placeholder="Deixe vazio para manter a atual")
 
-                        if st.form_submit_button("Salvar Configuração", use_container_width=True):
+                        if st.form_submit_button("💾 Salvar Tudo", use_container_width=True):
                             bot_data = {
                                 "org_name": org_name, "email_destino": ", ".join(receptores),
                                 "dia_semana": dia_bot, "horario": str(hora_bot),
                                 "smtp_user": s_user, "smtp_pass": s_pass if s_pass else config_bot.get('smtp_pass')
                             }
                             supabase.table("config_automacao").upsert(bot_data).execute()
-                            st.success("Configuração salva!")
+                            st.success("Configurações salvas!")
                             st.rerun()
-                    
-                    # Popover de Ajuda fora do Form
-                    with st.popover("❓ Como conseguir a Senha de App?"):
-                        st.markdown("1. Conta Google > Segurança\n2. Ative Verificação em 2 Etapas\n3. Selecione 'Senhas de App'\n4. Gere e cole os 16 dígitos.")
+
+                    # Botão de ajuda fora do form
+                    with st.popover("❓ Ajuda: Senha de App"):
+                        st.write("Gere a senha de 16 dígitos na sua Conta Google > Segurança > Senhas de App.")
 
                 if config_bot:
-                    if st.button("🚀 Disparar Relatório Agora", use_container_width=True, type="primary"):
-                        with st.spinner("Bot processando dados..."):
-                            if disparar_email_manual(config_bot, st):
-                                st.toast("Relatório enviado!", icon="✅")
-                            else:
-                                st.error("Erro no envio.")
+                    if st.button("🚀 Disparar Agora", use_container_width=True, type="primary"):
+                        if disparar_email_manual(config_bot, st):
+                            st.toast("Relatório enviado!", icon="✅")
 
         except Exception as e:
-            st.error(f"Erro ao carregar equipe: {e}")
+            st.error(f"Erro: {e}")
 
+    # --- ABA 2: DADOS DA EMPRESA (CORREÇÃO DA FOTO 4) ---
     with aba_laboratorio:
         st.subheader("🏢 Perfil da Organização")
         try:
+            # Busca os dados da empresa
             org_res = supabase.table("organizations").select("*").eq("id", org_id).execute()
             
+            # SE NÃO EXISTIR DADOS (Caso da foto 4), MOSTRA FORMULÁRIO DE CADASTRO
             if not org_res.data:
-                st.warning("📊 Dados da organização não encontrados. Vamos preenchê-los?")
-                with st.form("completar_cadastro_org"):
-                    novo_plano = st.selectbox("Escolha seu Plano", ["Trial / Beta", "Essencial", "Premium"])
-                    metodo = st.selectbox("Método de Pagamento Preferencial", ["PIX", "Cartão", "Boleto"])
-                    if st.form_submit_button("Finalizar Cadastro da Empresa"):
+                st.warning("📊 Dados da empresa ainda não configurados no banco.")
+                with st.form("completar_cadastro_empresa"):
+                    st.write("### 📝 Finalizar Cadastro da Empresa")
+                    plano = st.selectbox("Plano Ativo", ["Trial / Beta", "Essencial", "Premium"])
+                    metodo = st.selectbox("Pagamento", ["PIX", "Cartão", "Boleto"])
+                    
+                    if st.form_submit_button("Salvar Perfil da Empresa"):
                         supabase.table("organizations").insert({
                             "id": org_id, "name": org_name, 
-                            "plano_ativo": novo_plano, "metodo_pagto": metodo,
+                            "plano_ativo": plano, "metodo_pagto": metodo,
                             "status_assinatura": "Ativo"
                         }).execute()
                         st.rerun()
             else:
+                # Se os dados existirem, mostra o layout original (Foto 3 corrigida)
                 dados = org_res.data[0]
-                col_id, col_plano = st.columns(2)
-                with col_id:
+                col_info, col_status = st.columns(2)
+                
+                with col_info:
                     with st.container(border=True):
                         st.markdown("### 🆔 Identidade")
-                        st.write(f"**Nome:** {org_name}")
+                        st.write(f"**Laboratório:** {org_name}")
                         st.write("**ID Único:**")
                         st.code(org_id, language="text")
 
-                with col_plano:
+                with col_status:
                     with st.container(border=True):
                         st.markdown("### 💳 Assinatura")
-                        status = dados.get('status_assinatura', 'Ativo').upper()
+                        status = dados.get('status_assinatura', 'ATIVO').upper()
                         st.markdown(f"**Status:** :green[{status} ✅]")
-                        st.markdown(f"**Plano:** `{dados.get('plano_ativo', 'Trial')}`")
-                        st.write(f"**Pagamento via:** {dados.get('metodo_pagto', 'N/A')}")
+                        st.write(f"**Plano:** `{dados.get('plano_ativo')}`")
+                        if st.button("Gerenciar Assinatura", use_container_width=True):
+                            st.info("Acessando financeiro...")
                 
                 st.divider()
                 with st.container(border=True):
-                    st.markdown("### 🔒 Segurança e Dados")
-                    st.write("Dados criptografados conforme a LGPD.")
-                    st.button("Editar Informações Públicas", use_container_width=True)
+                    st.markdown("### 🔒 Segurança")
+                    st.write("Seus dados estão protegidos sob as normas da LGPD.")
+                    st.button("Editar Perfil Público", use_container_width=True)
 
         except Exception as e:
-            st.error(f"Erro ao carregar dados da empresa: {e}")
+            st.error(f"Erro ao carregar laboratório: {e}")
