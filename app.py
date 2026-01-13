@@ -94,7 +94,7 @@ def tela_acesso():
         st.write("")
         st.write("")
         st.markdown("<h1 style='text-align: center; font-size: 3.5rem; margin-bottom:0;'>🧪</h1>", unsafe_allow_html=True)
-        st.markdown("<h1 style='text-align: center; margin-top:0; color: #2D3748 !important;'>LabSmartAI PRO</h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align: center; margin-top:0; color: #2D3748 !important;'>LabSmartAI</h1>", unsafe_allow_html=True)
         
         st.subheader("Login Administrativo")
         email_input = st.text_input("E-mail Profissional", key="l_email", placeholder="nome@empresa.com")
@@ -112,9 +112,9 @@ def tela_acesso():
 
         # --- NOVA SEÇÃO DE CADASTRO ---
         st.markdown("---")
-        st.markdown("<p style='text-align: center; font-size: 0.9rem; color: #4A5568;'>Não tem login ou empresa cadastrada?</p>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; font-size: 0.9rem; color: #4A5568;'>Não possui empresa cadastrada?</p>", unsafe_allow_html=True)
     
-        st.link_button("CRIAR CONTA DA EMPRESA", "https://seusite.com/cadastro", use_container_width=True)
+        st.link_button("CRIAR CONTA DA EMPRESA", "https://cadastro-de-empresas-e7bkusdk4tsdchmx89fh8c.streamlit.app/", use_container_width=True)
 
 if not st.session_state.logado:
     tela_acesso()
@@ -204,4 +204,5 @@ else:
 
     st.sidebar.markdown("---")
     st.sidebar.caption("LabSmartAI • v1.0")
+
 
