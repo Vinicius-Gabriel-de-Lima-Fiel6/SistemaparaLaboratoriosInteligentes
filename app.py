@@ -96,7 +96,6 @@ def tela_acesso():
         st.markdown("<h1 style='text-align: center; font-size: 3.5rem; margin-bottom:0;'>🧪</h1>", unsafe_allow_html=True)
         st.markdown("<h1 style='text-align: center; margin-top:0; color: #2D3748 !important;'>LabSmartAI PRO</h1>", unsafe_allow_html=True)
         
-        # Removido o container e a div vazia que criavam o retângulo marcado
         st.subheader("Login Administrativo")
         email_input = st.text_input("E-mail Profissional", key="l_email", placeholder="nome@empresa.com")
         senha_input = st.text_input("Senha de Acesso", type="password", key="l_pass", placeholder="••••••••")
@@ -110,6 +109,12 @@ def tela_acesso():
                 st.rerun()
             else:
                 st.error("Dados incorretos.")
+
+        # --- NOVA SEÇÃO DE CADASTRO ---
+        st.markdown("---")
+        st.markdown("<p style='text-align: center; font-size: 0.9rem; color: #4A5568;'>Não tem login ou empresa cadastrada?</p>", unsafe_allow_html=True)
+        # Substitua a URL abaixo pelo link real do seu site de cadastro
+        st.link_button("CRIAR CONTA DA EMPRESA", "https://seusite.com/cadastro", use_container_width=True)
 
 if not st.session_state.logado:
     tela_acesso()
