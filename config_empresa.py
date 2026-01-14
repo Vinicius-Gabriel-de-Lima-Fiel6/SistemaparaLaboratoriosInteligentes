@@ -4,7 +4,6 @@ from supabase import create_client
 import auth_db as db
 import datetime
 
-# Importação segura
 try:
     from bot_automat import disparar_email_manual
 except ImportError:
@@ -13,7 +12,6 @@ except ImportError:
 supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 
 def show_config_empresa():
-    # Estilo CSS (Mantido Original)
     st.markdown("""
         <style>
         [data-testid="stMetricValue"] { font-size: 1.8rem; font-weight: 700; }
@@ -28,7 +26,6 @@ def show_config_empresa():
     org_name = user_data.get('org_name')
     
     aba_equipe, aba_laboratorio = st.tabs(["👥 Gestão de Equipe", "🏢 Dados da Empresa"])
-
 
     with aba_equipe:
         try:
@@ -47,7 +44,6 @@ def show_config_empresa():
 
             st.divider()
 
-          
             with st.expander("➕ **Adicionar Novo Membro**"):
                 with st.form("cadastrar_interno"):
                     c1, c2 = st.columns(2)
@@ -61,7 +57,6 @@ def show_config_empresa():
                             if suc: st.rerun()
                             else: st.error(msg)
 
-            # Lista de Equipe
             if not df.empty:
                 for _, f in df.iterrows():
                     with st.container(border=True):
@@ -81,7 +76,6 @@ def show_config_empresa():
                 with st.expander("⚙️ Configurar Agendamento"):
                     e_salvos = [x.strip() for x in config_bot.get('email_destino', '').split(',')] if config_bot.get('email_destino') else []
                     
-                   
                     with st.form("form_bot_final"):
                         receptores = st.multiselect("Destinatários", options=lista_emails, default=[e for e in e_salvos if e in lista_emails])
                         col_b1, col_b2 = st.columns(2)
@@ -93,7 +87,6 @@ def show_config_empresa():
                         s_user = st.text_input("E-mail Remetente", value=config_bot.get('smtp_user', ''))
                         s_pass = st.text_input("Senha de App", type="password")
 
-                        # O BOTÃO DE SALVAR ESTÁ AGORA DENTRO DO FORM (Essencial!)
                         if st.form_submit_button("💾 Salvar Configuração", use_container_width=True):
                             bot_data = {
                                 "org_name": org_name, "email_destino": ", ".join(receptores),
@@ -104,24 +97,39 @@ def show_config_empresa():
                             st.success("Salvo!")
                             st.rerun()
 
+            st.write("### 🛠️ Ferramentas Auxiliares")
+            st.caption("Conecte o LabSmartAI a outras plataformas para criar fluxos de trabalho personalizados.")
+            
+            with st.container(border=True):
+                c_aux1, c_aux2, c_aux3 = st.columns(3)
+                with c_aux1:
+                    st.link_button("⚡ Power Automate", "https://make.powerautomate.com/", use_container_width=True)
+                with c_aux2:
+                    st.link_button("🔗 Make", "https://www.make.com/", use_container_width=True)
+                with c_aux3:
+                    st.link_button("🚀 Zapier", "https://zapier.com/", use_container_width=True)
+
+                with st.expander("💡 Utilidade no Beta"):
+                    st.markdown("""
+                    - Notificações de estoque via WhatsApp.
+                    - Backup de relatórios no Google Drive.
+                    - Integração com planilhas externas.
+                    """)
+
         except Exception as e:
             st.error(f"Erro na equipe: {e}")
 
-   
     with aba_laboratorio:
         st.subheader("🏢 Perfil da Organização")
         
-
         if not org_id or org_id == "None":
             st.error("⚠️ Erro Crítico: ID da Organização não detectado. Contate o suporte.")
             return
 
         try:
-            # Tenta buscar os dados
             org_res = supabase.table("organizations").select("*").eq("id", org_id).execute()
             
             if not org_res.data:
-                
                 st.info(f"O perfil da **{org_name}** ainda não foi finalizado.")
                 with st.form("ativar_empresa"):
                     plano = st.selectbox("Plano", ["Trial / Beta", "Essencial", "Premium"])
@@ -134,7 +142,6 @@ def show_config_empresa():
                         }).execute()
                         st.rerun()
             else:
-            
                 dados = org_res.data[0]
                 c_id, c_pl = st.columns(2)
                 with c_id:
