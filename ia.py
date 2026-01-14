@@ -1,182 +1,124 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
-import plotly.graph_objects as go
-from scipy.interpolate import make_interp_spline
-from scipy.signal import savgol_filter
-try:
-    from scipy.integrate import cumulative_trapezoid as cumtrapz
-except ImportError:
-    from scipy.integrate import cumtrapz
-from sklearn.metrics import r2_score
-import io
-import numexpr as ne
+from groq import Groq
+from ultralytics import YOLO
+from streamlit_webrtc import webrtc_streamer, VideoTransformerBase
 import PyPDF2
-import re
-from fpdf import FPDF
+import io
 
-def extrair_dados_inteligente(arquivo):
-    if arquivo is None: return None
-    nome = arquivo.name.lower()
+def inicializar_motor():
+    if "GROQ_API_KEY" not in st.secrets:
+        return None, "Erro: Chave API ausente."
+    client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+    return client, "llama-3.3-70b-versatile"
+
+client_groq, modelo_ativo = inicializar_motor()
+
+class VideoProcessor(VideoTransformerBase):
+    def __init__(self, model):
+        self.model = model
+    def transform(self, frame):
+        img = frame.to_ndarray(format="bgr24")
+        return self.model(img)[0].plot()
+
+def extrair_texto(arquivo):
+    if not arquivo: return None
     try:
-        if nome.endswith('.csv'):
-            return pd.read_csv(arquivo)
-        elif nome.endswith(('.xls', '.xlsx')):
-            return pd.read_excel(arquivo)
-        elif nome.endswith('.pdf'):
+        if arquivo.name.endswith('.pdf'):
             leitor = PyPDF2.PdfReader(io.BytesIO(arquivo.read()))
-            texto = "".join([p.extract_text() for p in leitor.pages])
-            numeros = re.findall(r"[-+]?\d*\.\d+|\d+", texto)
-            dados = [float(n) for n in numeros]
-            if len(dados) >= 4:
-                meio = len(dados) // 2
-                return pd.DataFrame({'X': dados[:meio], 'Y': dados[meio:]})
+            return "".join([p.extract_text() for p in leitor.pages])
+        return arquivo.read().decode("utf-8")
     except: return None
-    return None
 
-def gerar_pdf_laudo(series, stats, org_name):
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font("Arial", 'B', 16)
-    pdf.cell(200, 10, f"Laudo Tecnico - {org_name}", ln=True, align='C')
-    pdf.ln(10)
-    for s in series:
-        pdf.set_font("Arial", 'B', 12)
-        pdf.cell(0, 10, f"Amostra: {s['nome']}", ln=True)
-        pdf.set_font("Arial", size=10)
-        pdf.cell(0, 7, f"Tipo: {s['tipo']}", ln=True)
-    pdf.ln(10)
-    pdf.cell(0, 10, "Estatisticas:", ln=True)
-    for stat in stats:
-        pdf.cell(0, 7, f"{stat['Amostra']}: Media={stat['Media']} | Max={stat['Maximo']}", ln=True)
-    return pdf.output(dest='S').encode('latin-1')
+def responder_ia(prompt, historico, dados=None, esp="Geral"):
+    msgs = [{"role": "system", "content": f"Você é o LabSmart AI especializado como {esp}. Use APENAS o histórico desta aba."}]
+    msgs.extend(historico[-10:]) 
+    contexto = f"DADOS DO ARQUIVO: {dados}\n\nPERGUNTA: {prompt}" if dados else prompt
+    msgs.append({"role": "user", "content": contexto})
+    
+    res = client_groq.chat.completions.create(model=modelo_ativo, messages=msgs, temperature=0.4)
+    return res.choices[0].message.content
 
-def show_graficos():
-    st.markdown("<style>.stMetric { background-color: #f8f9fa; padding: 10px; border-radius: 10px; border: 1px solid #e0e0e0; }</style>", unsafe_allow_html=True)
-    st.title("📊 Laboratório Gráfico de Alta Precisão")
+def show_chatbot():
+    if "messages_geral" not in st.session_state: st.session_state.messages_geral = []
+    if "messages_agente" not in st.session_state: st.session_state.messages_agente = []
+    if "aba_atual" not in st.session_state: st.session_state.aba_atual = "Chat Científico"
+    if "yolo_model" not in st.session_state: st.session_state.yolo_model = YOLO("yolov8n.pt")
 
-    if 'series_graficas' not in st.session_state:
-        st.session_state.series_graficas = []
+    st.subheader("🔬 LabSmart AI - Hub de Inteligência")
 
-    dict_bi = {
-        "Power BI": {"desc": "Painéis corporativos.", "url": "https://app.powerbi.com/"},
-        "Looker": {"desc": "Relatórios rápidos.", "url": "https://lookerstudio.google.com/"},
-        "Tableau": {"desc": "Visualização complexa.", "url": "https://public.tableau.com/"}
+    escolha_aba = st.radio("Selecione o ambiente de trabalho:", ["💬 Chat Científico", "👥 Squad de Agentes"], horizontal=True)
+    st.session_state.aba_atual = escolha_aba
+
+    st.divider()
+
+    dict_ferramentas = {
+        "Lovable": {"desc": "Crie interfaces e protótipos de sistemas internos sem programar.", "url": "https://lovable.dev/"},
+        "Gamma": {"desc": "Transforme dados em apresentações profissionais em segundos.", "url": "https://gamma.app/"},
+        "Manus": {"desc": "Agente de IA para execução de tarefas digitais e pesquisas.", "url": "https://manus.ai/"},
+        "Perplexity": {"desc": "Buscador técnico para verificação de artigos e fatos.", "url": "https://www.perplexity.ai/"}
     }
 
-    aba_graf, aba_estequio = st.tabs(["📈 Analise Grafica", "🧪 Estequiometria & Laudos"])
+    if st.session_state.aba_atual == "💬 Chat Científico":
+        col_c1, col_t1 = st.columns([3, 1])
+        with col_t1:
+            st.write("### ⚙️ Ferramentas")
+            if st.toggle("🎥 Visão YOLO", key="tgl_v1"):
+                webrtc_streamer(key="stream_v1", video_processor_factory=lambda: VideoProcessor(st.session_state.yolo_model))
+            up_geral = st.file_uploader("📎 Base de Dados", type=["pdf", "csv", "txt"], key="up_v1")
+            if st.button("🗑️ Limpar Chat"):
+                st.session_state.messages_geral = []
+                st.rerun()
+            
+            st.write("---")
+            st.write("🛠️ **Auxiliares**")
+            ft_sel = st.selectbox("Selecionar:", list(dict_ferramentas.keys()), key="ft_geral")
+            with st.popover("Ver Detalhes", use_container_width=True):
+                st.write(dict_ferramentas[ft_sel]["desc"])
+                st.link_button(f"Abrir {ft_sel}", dict_ferramentas[ft_sel]["url"], use_container_width=True)
 
-    with aba_graf:
-        with st.expander("🌐 Recursos Científicos", expanded=False):
-            c1, c2, c3, c4 = st.columns(4)
-            c1.link_button("🌐 GeoGebra", "https://www.geogebra.org/graphing", use_container_width=True)
-            c2.link_button("🧠 WolframAlpha", "https://www.wolframalpha.com/", use_container_width=True)
-            c3.link_button("📈 Weibull", "https://www-acsu-buffalo-edu.translate.goog/~adamcunn/probability/weibull.html", use_container_width=True)
-            c4.link_button("💻 Matlab Web", "https://matlab.mathworks.com/", use_container_width=True)
-
-        st.divider()
-
-        with st.sidebar:
-            st.header("📥 Entrada Inteligente")
-            modo_entrada = st.radio("Método:", ["Manual/Função", "Upload de Arquivo (IA)"])
-            with st.container(border=True):
-                tipo_grafico = st.selectbox(
-                    "Modelo Analítico (+60):",
-                    [
-                        "Linhas e Pontos", "Barras", "Dispersão (Scatter)", "Histograma",
-                        "Regressão Linear (R²)", "Regressão Polinomial", "Regressão Logarítmica",
-                        "Suavização Savitzky-Golay", "Spline Cubic", "UV-Vis (Área Sob Curva)", 
-                        "Cromatograma (HPLC/GC)", "Derivada Primeira (Taxa)", "Derivada Segunda",
-                        "Integral Acumulada", "Linearização (Log-Log)", "Linearização (Semi-Log)",
-                        "Superfície 3D (Multivariável)", "Mapa de Calor", "Cinética Química",
-                        "Arrhenius", "Michaelis-Menten", "Isoterma de Langmuir",
-                        "Capacidade Térmica (DSC)", "Solubilidade", "Titulação Potenciométrica", 
-                        "Corrosão (Tafel)", "TGA", "RMN", "Mass Spectrum", "XRD", "FTIR"
-                    ]
-                )
-                nome = st.text_input("ID Amostra", f"Amostra_{len(st.session_state.series_graficas)+1}")
-                if modo_entrada == "Manual/Função":
-                    sub_modo = st.selectbox("Formato:", ["Pontos Manuais", "Função f(x)"])
-                    if sub_modo == "Pontos Manuais":
-                        in_x = st.text_input("Eixo X", "1, 2, 3, 4")
-                        in_y = st.text_input("Eixo Y", "10, 20, 30, 40")
-                    else:
-                        formula = st.text_input("f(x):", "exp(-x/2) * sin(x)")
-                        f_min, f_max = st.slider("Intervalo", -50.0, 50.0, (0.0, 10.0))
-                        f_pts = st.number_input("Resolução", 10, 5000, 200)
-                else:
-                    up_arq = st.file_uploader("Arraste seu arquivo (CSV, Excel, PDF)", type=["csv", "xlsx", "xls", "pdf"])
-                    if up_arq:
-                        df_ia = extrair_dados_inteligente(up_arq)
-                        if df_ia is not None:
-                            st.success("Dados detectados!")
-                            col_x_sel = st.selectbox("Coluna X", df_ia.columns)
-                            col_y_sel = st.selectbox("Coluna Y", df_ia.columns)
-                            x_ia, y_ia = df_ia[col_x_sel].values, df_ia[col_y_sel].values
-                cor = st.color_picker("Cor", "#1f77b4")
-                nota = st.text_input("Anotação Especial", "")
-
-            if st.button("➕ Integrar ao Laboratório", use_container_width=True):
-                try:
-                    if modo_entrada == "Manual/Função":
-                        if sub_modo == "Pontos Manuais":
-                            x = np.array([float(i.strip()) for i in in_x.split(',')])
-                            y = np.array([float(i.strip()) for i in in_y.split(',')])
-                        else:
-                            x = np.linspace(f_min, f_max, int(f_pts))
-                            y = ne.evaluate(formula, local_dict={'x': x})
-                    else: x, y = x_ia, y_ia
-                    st.session_state.series_graficas.append({"nome": nome, "x": x, "y": y, "cor": cor, "tipo": tipo_grafico, "nota": nota})
-                    st.rerun()
-                except Exception as e: st.error(f"Erro: {e}")
-
-            if st.button("🗑️ Resetar Workspace", use_container_width=True):
-                st.session_state.series_graficas = []
+        with col_c1:
+            chat_container = st.container(height=500, border=False)
+            for m in st.session_state.messages_geral:
+                chat_container.chat_message(m["role"]).write(m["content"])
+            
+    else:
+        col_c2, col_t2 = st.columns([3, 1])
+        with col_t2:
+            st.write("### 👥 Squad")
+            esp_nome = st.selectbox("Especialista:", ["Bioquímico Sênior", "Auditor de Qualidade", "Escritor Técnico"], key="sel_v2")
+            up_agente = st.file_uploader("📎 Arquivo Técnico", type=["pdf", "csv", "txt"], key="up_v2")
+            if st.button("🗑️ Limpar Squad"):
+                st.session_state.messages_agente = []
                 st.rerun()
 
-        if not st.session_state.series_graficas:
-            st.info("💡 Adicione dados para gerar gráficos.")
-        else:
-            fig = go.Figure()
-            stats_list = []
-            for s in st.session_state.series_graficas:
-                x, y = s['x'], s['y']
-                if s['tipo'] == "Derivada Primeira (Taxa)":
-                    dy = np.gradient(y, x)
-                    fig.add_trace(go.Scatter(x=x, y=dy, mode='lines', name=f"dy/dx {s['nome']}", line=dict(color=s['cor'])))
-                elif s['tipo'] == "Integral Acumulada":
-                    iy = cumtrapz(y, x, initial=0)
-                    fig.add_trace(go.Scatter(x=x, y=iy, mode='lines', name=f"∫ {s['nome']}", fill='tozeroy', line=dict(color=s['cor'])))
-                elif s['tipo'] == "Superfície 3D (Multivariável)":
-                    X, Y = np.meshgrid(x, y); Z = np.sin(np.sqrt(X**2 + Y**2))
-                    fig.add_trace(go.Surface(z=Z, x=x, y=y, colorscale=[[0, 'white'], [1, s['cor']]]))
-                elif s['tipo'] == "Regressão Linear (R²)":
-                    coef = np.polyfit(x, y, 1); p = np.poly1d(coef); r2 = r2_score(y, p(x))
-                    fig.add_trace(go.Scatter(x=x, y=p(x), mode='lines', name=f"R²:{r2:.3f}", line=dict(color=s['cor'], dash='dash')))
-                    fig.add_trace(go.Scatter(x=x, y=y, mode='markers', name=s['nome'], marker=dict(color=s['cor'])))
-                elif s['tipo'] == "UV-Vis (Área Sob Curva)":
-                    area = np.trapz(y, x)
-                    fig.add_trace(go.Scatter(x=x, y=y, mode='lines', name=f"Area:{area:.2f}", fill='tozeroy', line=dict(color=s['cor'])))
-                else:
-                    fig.add_trace(go.Scatter(x=x, y=y, mode='lines+markers', name=s['nome'], line=dict(color=s['cor'])))
-                
-                stats_list.append({"Amostra": s['nome'], "Media": f"{np.mean(y):.2f}", "Maximo": f"{np.max(y):.2f}", "Integral": f"{np.trapz(y, x):.2f}"})
-            
-            fig.update_layout(template="plotly_white", margin=dict(l=0, r=0, t=30, b=0))
-            st.plotly_chart(fig, use_container_width=True)
-            st.dataframe(pd.DataFrame(stats_list), use_container_width=True)
+            st.write("---")
+            st.write("🛠️ **Auxiliares**")
+            ft_sel_ag = st.selectbox("Selecionar:", list(dict_ferramentas.keys()), key="ft_agente")
+            with st.popover("Ver Detalhes", use_container_width=True):
+                st.write(dict_ferramentas[ft_sel_ag]["desc"])
+                st.link_button(f"Abrir {ft_sel_ag}", dict_ferramentas[ft_sel_ag]["url"], use_container_width=True)
 
-    with aba_estequio:
-        st.subheader("🧪 Ferramentas Auxiliares")
-        m_reag = st.number_input("Massa Reagente (g)", value=1.0)
-        mol_r = st.number_input("MM Reagente (g/mol)", value=1.0)
-        mol_p = st.number_input("MM Produto (g/mol)", value=1.0)
-        st.metric("Rendimento Teorico", f"{(m_reag / mol_r) * mol_p:.4f} g")
-        
-        if st.session_state.series_graficas:
-            if st.button("🚀 Gerar PDF do Laudo"):
-                pdf_data = gerar_pdf_laudo(st.session_state.series_graficas, stats_list, "LabSmartAI")
-                st.download_button("📥 Baixar PDF", pdf_data, "laudo.pdf", "application/pdf")
+        with col_c2:
+            chat_container = st.container(height=500, border=False)
+            for m in st.session_state.messages_agente:
+                chat_container.chat_message(m["role"]).write(m["content"])
+
+    if prompt := st.chat_input("Digite sua mensagem para o ambiente selecionado..."):
+        if st.session_state.aba_atual == "💬 Chat Científico":
+            h_key = "messages_geral"
+            dados = extrair_texto(up_geral) if 'up_geral' in locals() else None
+            persona = "Geral"
+        else:
+            h_key = "messages_agente"
+            dados = extrair_texto(up_agente) if 'up_agente' in locals() else None
+            persona = esp_nome
+
+        st.session_state[h_key].append({"role": "user", "content": prompt})
+        with st.spinner(f"O {persona} está processando..."):
+            resposta = responder_ia(prompt, st.session_state[h_key], dados, persona)
+            st.session_state[h_key].append({"role": "assistant", "content": resposta})
+        st.rerun()
 
 if __name__ == "__main__":
-    show_graficos()
+    show_chatbot()
