@@ -16,3 +16,6 @@ streamlit-webrtc
 serial
 plotly
 pyPDF2
+numexpr
+fpdf
+openpyxl
