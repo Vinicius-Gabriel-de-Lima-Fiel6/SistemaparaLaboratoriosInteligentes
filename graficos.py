@@ -2,142 +2,156 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-import io
 import numexpr as ne
-from fpdf import FPDF
+import re
+import io
 
-
-def realizar_integracao(y, x):
-    try:
-        from scipy.integrate import cumulative_trapezoid
-        return cumulative_trapezoid(y, x, initial=0)
-    except:
-        # Fallback para ambientes sem scipy.integrate.cumtrapz (Python 3.13+)
-        return np.concatenate(([0], np.cumsum((y[1:] + y[:-1]) * np.diff(x) / 2)))
-
-MODELOS_CIENTIFICOS = {
-    "Química Analítica": ["UV-Vis Absorbância", "Cromatografia HPLC/GC", "Titulação Potenciométrica", "Espectro de Massa", "FTIR", "RMN", "Lei de Beer-Lambert", "ICP-OES"],
-    "Cinética e Termodinâmica": ["Ordem Zero", "Primeira Ordem", "Segunda Ordem", "Arrhenius (Ea)", "Equação de Eyring", "Michaelis-Menten", "Lineweaver-Burk", "Van't Hoff", "Energia Livre de Gibbs"],
-    "Engenharia de Materiais": ["TGA (Degradação)", "DSC (Cristalinidade)", "XRD (Difração)", "Isoterma de Langmuir", "Isoterma de Freundlich", "Ensaio de Tração", "Dureza Vickers", "Fadiga de Materiais"],
-    "Física e Engenharia": ["Oscilador Harmônico", "Decaimento Radioativo", "Série de Fourier", "Condução Térmica", "Queda Livre", "Circuitos RLC", "Efeito Doppler", "Mecânica de Fluidos"],
-    "Bioinformática & Saúde": ["Crescimento Bacteriano", "Logística de Verhulst", "Modelagem SIR", "Farmacocinética", "Ligação Proteica", "Bioestatística de Sobrevivência"]
+BIBLIOTECA_CIENTIFICA = {
+    "Física 1: Mecânica e Dinâmica": {
+        "MRUV: Posição": "s0 + v0*t + 0.5*a*t**2",
+        "Energia Cinética": "0.5 * m * v**2",
+        "Energia Potencial Gravitacional": "m * 9.8 * h",
+        "Queda Livre com Arrast": "(m*9.8/k) * (1 - exp(-k*t/m))",
+        "Alcance de Projétil": "(v**2 * sin(2*theta)) / 9.8",
+        "Força Centrípeta": "m * v**2 / r",
+        "Pêndulo Simples": "A * cos(sqrt(9.8/L) * t)",
+        "Potência": "F * v",
+        "Quantidade de Movimento": "m * v"
+    },
+    "Física 2: Fluidos e Termodinâmica": {
+        "Equação de Bernoulli": "p1 + 0.5*rho*v1**2 + rho*9.8*h1",
+        "Viscosidade de Poiseuille": "(pi * R**4 * deltaP) / (8 * eta * L)",
+        "Lei de Stevin": "p0 + rho * 9.8 * h",
+        "Dilatação Linear": "L0 * (1 + alpha * deltaT)",
+        "Gás Ideal (p/V)": "(n * 0.082 * T) / V",
+        "Eficiência de Carnot": "1 - (T_fria / T_quente)",
+        "Variação de Entropia": "n * 8.314 * log(V2/V1)",
+        "Lei de Resfriamento de Newton": "T_amb + (T0 - T_amb) * exp(-k * t)"
+    },
+    "Física 3 e 4: Eletromagnetismo e Moderna": {
+        "Lei de Coulomb": "k * q1 * q2 / r**2",
+        "Carga de Capacitor (RC)": "V0 * (1 - exp(-t/(R*C)))",
+        "Descarga de Indutor (RL)": "I0 * exp(-t*(R/L))",
+        "Lei de Snell (Refração)": "asin((n1 * sin(theta1)) / n2)",
+        "Energia de Einstein": "m * 3e8**2",
+        "Decaimento Atômico": "N0 * exp(-lambda_val * t)",
+        "Efeito Fotoelétrico": "h * f - trab",
+        "Comprimento de Onda de De Broglie": "6.63e-34 / (m * v)"
+    },
+    "Química Analítica e Físico-Química": {
+        "Lei de Beer-Lambert": "eps * b * c",
+        "Equação de Arrhenius": "A * exp(-Ea / (8.314 * T))",
+        "Equação de Nernst": "E0 - (0.0592/n) * log10(Q)",
+        "Isoterma de Langmuir": "(qmax * kl * C) / (1 + kl * C)",
+        "Isoterma de Freundlich": "kf * C**(1/n)",
+        "Cinética de Ordem 1": "C0 * exp(-k * t)",
+        "Cinética de Ordem 2": "C0 / (1 + k * t * C0)",
+        "Equação de Henderson-Hasselbalch": "pKa + log10(sal / acido)"
+    },
+    "Bioquímica e Biologia": {
+        "Michaelis-Menten": "(Vmax * S) / (Km + S)",
+        "Crescimento Logístico": "K / (1 + ((K-N0)/N0) * exp(-r * t))",
+        "Equação de Hill": "Vmax * (S**n / (Ka**n + S**n))",
+        "Difusão de Fick": "D * (C2 - C1) / d",
+        "Modelo SIR (Epidemiologia)": "I0 * exp((beta - gamma) * t)",
+        "Inibição Enzimática Competitiva": "(Vmax * S) / (Km * (1 + I/Ki) + S)"
+    },
+    "Farmácia e Farmacocinética": {
+        "Eliminação Monocompartimental": "C0 * exp(-ke * t)",
+        "Absorção Extra-Vascular (Bateman)": "((F * D * ka) / (Vd * (ka - ke))) * (exp(-ke * t) - exp(-ka * t))",
+        "Infusão IV Contínua": "(R / (ke * Vd)) * (1 - exp(-ke * t))",
+        "Dose de Manutenção": "(Css * Cl * tau) / F",
+        "Estado Estacionário (Css)": "Dose / (Cl * tau)",
+        "Volume de Distribuição": "Dose / C0",
+        "Meia-vida": "0.693 / ke"
+    }
 }
 
 def show_graficos():
-    st.set_page_config(page_title="LabSmart AI Extreme", layout="wide")
+    st.set_page_config(page_title="SmartGraphs Ultra", layout="wide")
     
-    if 'workspace' not in st.session_state:
-        st.session_state.workspace = []
+    if 'plots' not in st.session_state:
+        st.session_state.plots = []
 
-    st.title("🧪 LabSmart AI: Laboratório Multi-Dimensão v5.0")
+    st.title("🔬 SmartGraphs AI: Laboratório Multi-Plataforma")
 
-    # BARRA DE FERRAMENTAS ELITE
-    with st.expander("🌐 Ecossistema Científico Global", expanded=False):
+    # --- ECOSSISTEMA CIENTÍFICO EXPANDIDO ---
+    with st.expander("🛠️ Ferramentas Auxiliares e Bases de Dados", expanded=True):
+        st.subheader("Cálculo e Simulação")
         c1, c2, c3, c4, c5 = st.columns(5)
         c1.link_button("💻 MATLAB Online", "https://matlab.mathworks.com/", use_container_width=True)
         c2.link_button("🧠 WolframAlpha", "https://www.wolframalpha.com/", use_container_width=True)
-        c3.link_button("📐 GeoGebra", "https://www.geogebra.org/", use_container_width=True)
-        c4.link_button("🧪 NIST WebBook", "https://webbook.nist.gov/", use_container_width=True)
-        c5.link_button("🧬 PubChem", "https://pubchem.ncbi.nlm.nih.gov/", use_container_width=True)
+        c3.link_button("📐 GeoGebra 3D", "https://www.geogebra.org/3d", use_container_width=True)
+        c4.link_button("🐍 Google Colab", "https://colab.research.google.com/", use_container_width=True)
+        c5.link_button("📊 Desmos Graphing", "https://www.desmos.com/calculator", use_container_width=True)
+
+        st.subheader("Bancos de Dados e Pesquisa")
+        d1, d2, d3, d4, d5 = st.columns(5)
+        d1.link_button("📚 ScienceDirect", "https://www.sciencedirect.com/", use_container_width=True)
+        d2.link_button("💊 PubChem", "https://pubchem.ncbi.nlm.nih.gov/", use_container_width=True)
+        d3.link_button("🧬 Reaxys", "https://www.reaxys.com/", use_container_width=True)
+        d4.link_button("🧪 NIST WebBook", "https://webbook.nist.gov/chemistry/", use_container_width=True)
+        d5.link_button("📑 Google Scholar", "https://scholar.google.com/", use_container_width=True)
 
     with st.sidebar:
-        st.header("⚙️ Entrada Inteligente")
-        modo = st.selectbox("Tipo de Entrada:", 
-                           ["📂 Arquivo Experimental", "📈 Função Teórica", "📍 Pontos/Manual"])
+        st.header("⚙️ Configurar Fenômeno")
+        area = st.selectbox("Área Acadêmica:", list(BIBLIOTECA_CIENTIFICA.keys()))
+        modelo = st.selectbox("Modelo:", list(BIBLIOTECA_CIENTIFICA[area].keys()))
+        formula_base = BIBLIOTECA_CIENTIFICA[area][modelo]
         
-        with st.container(border=True):
-            nome = st.text_input("ID Amostra", f"Série_{len(st.session_state.workspace)+1}")
-            cor = st.color_picker("Cor", "#00FFAA")
+        st.info(f"Fórmula: {formula_base}")
+        
+        tokens = re.findall(r'[a-zA-Z_][a-zA-Z0-9_]*', formula_base)
+        var_indep = 't' if 't' in tokens else 'x'
+        reservadas = {var_indep, 'exp', 'log10', 'sin', 'cos', 'sqrt', 'pow', 'log', 'asin', 'pi', 'ln'}
+        params = sorted(list(set(tokens) - reservadas))
+        
+        p_values = {}
+        for p in params:
+            p_values[p] = st.number_input(f"Parâmetro {p}:", value=1.0, format="%.4f")
+            
+        alcance = st.slider(f"Alcance de {var_indep}:", 0.0, 1000.0, (0.0, 50.0))
+        cor = st.color_picker("Cor do Plot", "#00FFAA")
+        nome_serie = st.text_input("Identificação do Ensaio", f"Lote {len(st.session_state.plots)+1}")
 
-            # 1. ARQUIVOS (MODELOS ANALÍTICOS)
-            if "Arquivo" in modo:
-                up_arq = st.file_uploader("Importar CSV/Excel", type=["csv", "xlsx"])
-                cat = st.selectbox("Categoria:", list(MODELOS_CIENTIFICOS.keys()))
-                modelo = st.selectbox("Modelo Analítico:", MODELOS_CIENTIFICOS[cat])
-                if st.button("🚀 Processar Arquivo", use_container_width=True):
-                    if up_arq:
-                        try:
-                            df = pd.read_csv(up_arq) if up_arq.name.endswith('.csv') else pd.read_excel(up_arq)
-                            st.session_state.workspace.append({
-                                "nome": nome, "x": df.iloc[:,0].values, "y": df.iloc[:,1].values, 
-                                "cor": cor, "tipo": "experimental", "modelo": modelo, "dim": "2D"
-                            })
-                            st.rerun()
-                        except Exception as e: st.error(f"Erro no arquivo: {e}")
-
-            # 2. FUNÇÕES (MODELAGEM PURA - 2D ISOLADO OU 3D)
-            elif "Função" in modo:
-                dim_f = st.radio("Dimensão:", ["2D Isolado", "3D Superfície"])
-                if dim_f == "2D Isolado":
-                    formula = st.text_input("f(x):", "exp(-x/5)*sin(x)")
-                    alcance = st.slider("Alcance X", -100.0, 100.0, (0.0, 20.0))
-                else:
-                    formula = st.text_input("f(x,y):", "sin(sqrt(x**2 + y**2))")
-                    res = st.slider("Resolução", 5, 100, 30)
+        if st.button("🚀 Plotar e Analisar", use_container_width=True):
+            try:
+                x_val = np.linspace(alcance[0], alcance[1], 1000)
+                contexto = p_values.copy()
+                contexto[var_indep] = x_val
+                contexto['ln'] = np.log
+                y_val = ne.evaluate(formula_base, local_dict=contexto)
                 
-                if st.button("➕ Gerar Equação", use_container_width=True):
-                    try:
-                        if dim_f == "2D Isolado":
-                            x_t = np.linspace(alcance[0], alcance[1], 500)
-                            y_t = ne.evaluate(formula, local_dict={'x': x_t})
-                            st.session_state.workspace.append({"nome": nome, "x": x_t, "y": y_t, "cor": cor, "tipo": "linha", "dim": "2D"})
-                        else:
-                            m = np.linspace(-res, res, 50)
-                            X, Y = np.meshgrid(m, m)
-                            Z = ne.evaluate(formula, local_dict={'x': X, 'y': Y})
-                            st.session_state.workspace.append({"nome": nome, "x": m, "y": m, "z": Z, "cor": cor, "tipo": "superficie", "dim": "3D"})
-                        st.rerun()
-                    except Exception as e: st.error(f"Erro matemático: {e}")
+                st.session_state.plots.append({
+                    "nome": nome_serie, "x": x_val, "y": y_val, "cor": cor, "modelo": modelo
+                })
+                st.rerun()
+            except Exception as e:
+                st.error(f"Erro no processamento: {e}")
 
-            # 3. PONTOS/RETA (HISTOGRAMA OU MARCAÇÃO)
-            else:
-                estilo = st.radio("Estilo:", ["Pontos", "Histograma", "Reta"])
-                in_x = st.text_input("X (vírgula):", "1, 2, 3, 4")
-                in_y = st.text_input("Y (vírgula):", "10, 25, 15, 30")
-                if st.button("📍 Plotar Pontos", use_container_width=True):
-                    px = np.fromstring(in_x, sep=',')
-                    py = np.fromstring(in_y, sep=',')
-                    st.session_state.workspace.append({"nome": nome, "x": px, "y": py, "cor": cor, "tipo": estilo, "dim": "2D"})
-                    st.rerun()
-
-        if st.button("🗑️ Resetar Workspace", use_container_width=True):
-            st.session_state.workspace = []
+        if st.button("🗑️ Resetar Bancada", use_container_width=True):
+            st.session_state.plots = []
             st.rerun()
 
-    # --- RENDERIZAÇÃO ---
-    aba_graf, aba_quimica = st.tabs(["📊 Análise Avançada 2D/3D", "⚗️ Engenharia de Reagentes"])
-
-    with aba_graf:
-        if st.session_state.workspace:
-            fig = go.Figure()
-            stats = []
-            for s in st.session_state.workspace:
-                if s["tipo"] in ["experimental", "linha", "Pontos", "Reta"]:
-                    fig.add_trace(go.Scatter(x=s["x"], y=s["y"], name=s["nome"], 
-                                           mode='lines' if s["tipo"] in ["linha", "experimental"] else 'markers',
-                                           line=dict(color=s["cor"], width=3)))
-                    stats.append({"Amostra": s["nome"], "Média": f"{np.mean(s['y']):.3f}", "Integral": f"{np.trapz(s['y'], s['x']):.3f}"})
-                elif s["tipo"] == "Histograma":
-                    fig.add_trace(go.Histogram(x=s["y"], name=s["nome"], marker_color=s["cor"]))
-                elif s["tipo"] == "superficie":
-                    fig.add_trace(go.Surface(z=s["z"], x=s["x"], y=s["y"], colorscale=[[0, 'black'], [1, s["cor"]]], name=s["nome"]))
-            
-            fig.update_layout(template="plotly_dark", height=700, margin=dict(l=0, r=0, t=30, b=0))
-            st.plotly_chart(fig, use_container_width=True)
-            if stats: st.table(pd.DataFrame(stats))
-
-    with aba_quimica:
-        st.header("⚡ Preparo e Diluição de Soluções")
-        c1, c2 = st.columns(2)
-        with c1:
-            mm = st.number_input("Massa Molar (g/mol)", 1.0)
-            conc = st.number_input("Conc. Alvo (mol/L)", 0.1)
-            vol = st.number_input("Volume (L)", 0.5)
-            st.metric("Massa Necessária", f"{mm * conc * vol:.4f} g")
-        with c2:
-            st.info("Cálculo baseado em balanço de massa para soluções analíticas.")
-            if st.button("📄 Gerar Laudo Técnico"):
-                st.success("Laudo preparado para exportação.")
+    # --- ÁREA VISUAL E EXPORTAÇÃO ---
+    if st.session_state.plots:
+        fig = go.Figure()
+        for p in st.session_state.plots:
+            fig.add_trace(go.Scatter(x=p["x"], y=p["y"], name=f"{p['nome']} ({p['modelo']})",
+                                   line=dict(color=p["cor"], width=3)))
+        
+        fig.update_layout(template="plotly_dark", height=700, xaxis_title="Eixo de Controle", yaxis_title="Resposta Científica")
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # Exportação consertada
+        df_exp = pd.DataFrame()
+        for p in st.session_state.plots:
+            df_exp = pd.concat([df_exp, pd.DataFrame({f"{p['nome']}_X": p['x'], f"{p['nome']}_Y": p['y']})], axis=1)
+        
+        st.download_button("📥 Exportar Dados Brutos (CSV)", df_exp.to_csv(index=False).encode('utf-8'), 
+                           "lab_data.csv", "text/csv", use_container_width=True)
+    else:
+        st.info("Aguardando modelagem. Use as ferramentas acima para buscar constantes se necessário.")
 
 if __name__ == "__main__":
     show_graficos()
