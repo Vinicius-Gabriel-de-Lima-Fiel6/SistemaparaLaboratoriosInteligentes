@@ -6,7 +6,6 @@ from streamlit_webrtc import webrtc_streamer, VideoTransformerBase
 import PyPDF2
 import io
 
-# --- 1. CONFIGURAÇÕES E MOTORES ---
 def inicializar_motor():
     if "GROQ_API_KEY" not in st.secrets:
         return None, "Erro: Chave API ausente."
@@ -31,7 +30,6 @@ def extrair_texto(arquivo):
         return arquivo.read().decode("utf-8")
     except: return None
 
-# --- 2. LÓGICA DE IA ---
 def responder_ia(prompt, historico, dados=None, esp="Geral"):
     msgs = [{"role": "system", "content": f"Você é o LabSmart AI especializado como {esp}. Use APENAS o histórico desta aba."}]
     msgs.extend(historico[-10:]) 
@@ -41,9 +39,7 @@ def responder_ia(prompt, historico, dados=None, esp="Geral"):
     res = client_groq.chat.completions.create(model=modelo_ativo, messages=msgs, temperature=0.4)
     return res.choices[0].message.content
 
-# --- 3. INTERFACE PRINCIPAL ---
 def show_chatbot():
-    # Inicialização de Memórias e Controle de Aba
     if "messages_geral" not in st.session_state: st.session_state.messages_geral = []
     if "messages_agente" not in st.session_state: st.session_state.messages_agente = []
     if "aba_atual" not in st.session_state: st.session_state.aba_atual = "Chat Científico"
@@ -51,13 +47,11 @@ def show_chatbot():
 
     st.subheader("🔬 LabSmart AI - Hub de Inteligência")
 
-    # Criamos um rádio ou botões para selecionar a aba de forma explícita (Garante que a IA saiba onde você está)
     escolha_aba = st.radio("Selecione o ambiente de trabalho:", ["💬 Chat Científico", "👥 Squad de Agentes"], horizontal=True)
     st.session_state.aba_atual = escolha_aba
 
     st.divider()
 
-    # --- ÁREA DINÂMICA DE CHAT ---
     if st.session_state.aba_atual == "💬 Chat Científico":
         col_c1, col_t1 = st.columns([3, 1])
         with col_t1:
@@ -87,10 +81,7 @@ def show_chatbot():
             for m in st.session_state.messages_agente:
                 chat_container.chat_message(m["role"]).write(m["content"])
 
-
     if prompt := st.chat_input("Digite sua mensagem para o ambiente selecionado..."):
-        
-        # Lógica de Separação Total baseada na aba selecionada
         if st.session_state.aba_atual == "💬 Chat Científico":
             h_key = "messages_geral"
             dados = extrair_texto(up_geral) if 'up_geral' in locals() else None
@@ -100,7 +91,6 @@ def show_chatbot():
             dados = extrair_texto(up_agente) if 'up_agente' in locals() else None
             persona = esp_nome
 
-        # Adiciona e Processa
         st.session_state[h_key].append({"role": "user", "content": prompt})
         
         with st.spinner(f"O {persona} está processando..."):
@@ -108,6 +98,29 @@ def show_chatbot():
             st.session_state[h_key].append({"role": "assistant", "content": resposta})
         
         st.rerun()
+
+    st.markdown("---")
+    st.write("### 🛠️ IAs Auxiliares de Produtividade")
+    st.caption("Utilize estas IAs líderes de mercado para tarefas complementares de design, documentos e prototipagem.")
+
+    with st.container(border=True):
+        c_ia1, c_ia2, c_ia3, c_ia4 = st.columns(4)
+        with c_ia1:
+            st.link_button("Lovable", "https://lovable.dev/", use_container_width=True)
+        with c_ia2:
+            st.link_button("Gamma", "https://gamma.app/", use_container_width=True)
+        with c_ia3:
+            st.link_button("Manus", "https://manus.ai/", use_container_width=True)
+        with c_ia4:
+            st.link_button("Perplexity", "https://www.perplexity.ai/", use_container_width=True)
+
+        with st.expander("💡 Por que usar estas ferramentas auxiliares?"):
+            st.markdown("""
+            - **Lovable:** Crie interfaces e protótipos de sistemas internos sem precisar programar do zero.
+            - **Gamma:** Transforme relatórios químicos ou de estoque em apresentações profissionais em segundos.
+            - **Manus:** Use como um agente de execução para tarefas digitais complexas e automação de pesquisa.
+            - **Perplexity:** Uma alternativa poderosa para buscas técnicas e verificações de artigos científicos.
+            """)
 
 if __name__ == "__main__":
     show_chatbot()
