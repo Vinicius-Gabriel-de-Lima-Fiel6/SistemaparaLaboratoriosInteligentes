@@ -52,6 +52,13 @@ def show_chatbot():
 
     st.divider()
 
+    dict_ferramentas = {
+        "Lovable": {"desc": "Crie interfaces e protótipos de sistemas internos sem programar.", "url": "https://lovable.dev/"},
+        "Gamma": {"desc": "Transforme dados em apresentações profissionais em segundos.", "url": "https://gamma.app/"},
+        "Manus": {"desc": "Agente de IA para execução de tarefas digitais e pesquisas.", "url": "https://manus.ai/"},
+        "Perplexity": {"desc": "Buscador técnico para verificação de artigos e fatos.", "url": "https://www.perplexity.ai/"}
+    }
+
     if st.session_state.aba_atual == "💬 Chat Científico":
         col_c1, col_t1 = st.columns([3, 1])
         with col_t1:
@@ -62,6 +69,14 @@ def show_chatbot():
             if st.button("🗑️ Limpar Chat"):
                 st.session_state.messages_geral = []
                 st.rerun()
+            
+            st.write("---")
+            st.write("🛠️ **Auxiliares**")
+            ft_sel = st.selectbox("Selecionar:", list(dict_ferramentas.keys()), key="ft_geral")
+            with st.popover("Ver Detalhes", use_container_width=True):
+                st.write(dict_ferramentas[ft_sel]["desc"])
+                st.link_button(f"Abrir {ft_sel}", dict_ferramentas[ft_sel]["url"], use_container_width=True)
+
         with col_c1:
             chat_container = st.container(height=500, border=False)
             for m in st.session_state.messages_geral:
@@ -76,6 +91,14 @@ def show_chatbot():
             if st.button("🗑️ Limpar Squad"):
                 st.session_state.messages_agente = []
                 st.rerun()
+
+            st.write("---")
+            st.write("🛠️ **Auxiliares**")
+            ft_sel_ag = st.selectbox("Selecionar:", list(dict_ferramentas.keys()), key="ft_agente")
+            with st.popover("Ver Detalhes", use_container_width=True):
+                st.write(dict_ferramentas[ft_sel_ag]["desc"])
+                st.link_button(f"Abrir {ft_sel_ag}", dict_ferramentas[ft_sel_ag]["url"], use_container_width=True)
+
         with col_c2:
             chat_container = st.container(height=500, border=False)
             for m in st.session_state.messages_agente:
@@ -92,35 +115,10 @@ def show_chatbot():
             persona = esp_nome
 
         st.session_state[h_key].append({"role": "user", "content": prompt})
-        
         with st.spinner(f"O {persona} está processando..."):
             resposta = responder_ia(prompt, st.session_state[h_key], dados, persona)
             st.session_state[h_key].append({"role": "assistant", "content": resposta})
-        
         st.rerun()
-
-    st.markdown("---")
-    st.write("### 🛠️ IAs Auxiliares de Produtividade")
-    st.caption("Utilize estas IAs líderes de mercado para tarefas complementares de design, documentos e prototipagem.")
-
-    with st.container(border=True):
-        c_ia1, c_ia2, c_ia3, c_ia4 = st.columns(4)
-        with c_ia1:
-            st.link_button("Lovable", "https://lovable.dev/", use_container_width=True)
-        with c_ia2:
-            st.link_button("Gamma", "https://gamma.app/", use_container_width=True)
-        with c_ia3:
-            st.link_button("Manus", "https://manus.ai/", use_container_width=True)
-        with c_ia4:
-            st.link_button("Perplexity", "https://www.perplexity.ai/", use_container_width=True)
-
-        with st.expander("💡 Por que usar estas ferramentas auxiliares?"):
-            st.markdown("""
-            - **Lovable:** Crie interfaces e protótipos de sistemas internos sem precisar programar do zero.
-            - **Gamma:** Transforme relatórios químicos ou de estoque em apresentações profissionais em segundos.
-            - **Manus:** Use como um agente de execução para tarefas digitais complexas e automação de pesquisa.
-            - **Perplexity:** Uma alternativa poderosa para buscas técnicas e verificações de artigos científicos.
-            """)
 
 if __name__ == "__main__":
     show_chatbot()
