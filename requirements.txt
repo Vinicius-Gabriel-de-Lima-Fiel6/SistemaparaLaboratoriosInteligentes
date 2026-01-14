@@ -6,7 +6,7 @@ requests
 opencv-python
 scikit-learn
 matplotlib
-scipy
+scipy>=1.14.0
 supabase
 bcrypt
 groq
@@ -17,5 +17,6 @@ serial
 plotly
 pyPDF2
 numexpr
-fpdf
+fpdf2
 openpyxl
+
