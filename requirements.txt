@@ -17,6 +17,7 @@ serial
 plotly
 pyPDF2
 numexpr
-fpdf2
+fpdf
 openpyxl
+
 
