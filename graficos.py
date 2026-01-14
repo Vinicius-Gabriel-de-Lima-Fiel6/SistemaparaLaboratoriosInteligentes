@@ -216,9 +216,10 @@ def show_graficos():
         st.subheader("📄 Gerador de Laudos Profissionais")
         if st.session_state.series_graficas:
             if st.button("🚀 Gerar Laudo Tecnico PDF", use_container_width=True):
-                pdf_data = gerar_pdf_laudo(st.session_state.series_graficas, stats_list, "Laboratório SmartAI")
+                pdf_data = gerar_pdf_laudo(st.session_state.series_graficas, stats_list, "Laboratório SmartGraph")
                 st.download_button("📥 Baixar Laudo PDF", pdf_data, "laudo_tecnico.pdf", "application/pdf", use_container_width=True)
         else: st.warning("Adicione dados para gerar laudos.")
 
 if __name__ == "__main__":
     show_graficos()
+
