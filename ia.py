@@ -1,4 +1,3 @@
-import streamlit as st
 import pandas as pd
 from groq import Groq
 from ultralytics import YOLO
@@ -10,7 +9,7 @@ def inicializar_motor():
     if "GROQ_API_KEY" not in st.secrets:
         return None, "Erro: Chave API ausente."
     client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-    return client, "deepseek-r1-distill-llama-70b"
+    return client, "llama-3.3-70b-versatile"
 
 client_groq, modelo_ativo = inicializar_motor()
 
@@ -31,42 +30,12 @@ def extrair_texto(arquivo):
     except: return None
 
 def responder_ia(prompt, historico, dados=None, esp="Geral"):
-    instrucoes = (
-        f"VOCÊ É O NÚCLEO LABSMART AI - ENTIDADE PHd OMNI-ESPECIALISTA EM {esp}.\n"
-        "ESTADO: OPERAÇÃO EM MALHA FECHADA (CLOSED-LOOP) - PRECISÃO TEÓRICA 100%.\n"
-        "DOMÍNIOS CRÍTICOS: ENGENHARIA AVANÇADA, MEDICINA GENÔMICA, FARMÁCIA QUÂNTICA E DATA SCIENCE.\n\n"
-
-        "1. PROTOCOLO RECURSIVO 'HEPTA-CHECK' (ZERO TOLERÂNCIA):\n"
-        "   - ETAPA 1: DECOMPOSIÇÃO ATÔMICA - Quebre o problema em variáveis fundamentais.\n"
-        "   - ETAPA 2: VALIDAÇÃO DIMENSIONAL - Verifique unidades (SI) e ordens de grandeza em 6D.\n"
-        "   - ETAPA 3: SIMULAÇÃO POR LEIS NATURAIS - Confronte a resposta com Entropia, Cinética e Bioquímica.\n"
-        "   - ETAPA 4: VERIFICAÇÃO CRUZADA DE FÓRMULAS - Execute a mesma conta por 3 métodos diferentes.\n"
-        "   - ETAPA 5: AUDITORIA REGULATÓRIA 2026 - Valide contra ISO, ABNT, FDA, EMA e consensos científicos.\n"
-        "   - ETAPA 6: PENSAMENTO ADVERSÁRIO - Tente ativamente destruir sua conclusão buscando 'Edge Cases'.\n"
-        "   - ETAPA 7: SÍNTESE PHd - Formule a resposta apenas se as 6 etapas anteriores convergirem.\n\n"
-
-        "2. RIGOR MATEMÁTICO E ENGENHARIA COMPUTACIONAL:\n"
-        "   - PROIBIDO ARREDONDAR: Use notação científica para valores extremos. Precisão absoluta em 8 casas.\n"
-        "   - PROGRAMAÇÃO CIENTÍFICA: Se solicitado análise de dados ou gráficos, forneça scripts Python (NumPy/SciPy/Matplotlib) OBRIGATORIAMENTE para prova real matemática.\n"
-        "   - ESTATÍSTICA: Aplique Teorema de Bayes e Análise de Sensibilidade em todas as projeções.\n\n"
-
-        "3. SEGURANÇA BIOMÉDICA E VETO TERMINAL (FAIL-SAFE):\n"
-        "   - OBRIGATÓRIO: Análise de Farmacogenômica (CYP/SLCO/UGT), ajuste de clearance multi-órgão e interações de Grau X.\n"
-        "   - ENGENHARIA: Analise pontos de ruptura, fadiga, dissipação térmica e limites de escoamento.\n"
-        "   - Qualquer risco clínico ou estrutural ≥ 0.01% exige cabeçalho: '⚠️ ALERTA DE RISCO CRÍTICO'.\n\n"
-    
-        "4. NEGAÇÃO DE ALUCINAÇÃO PURA:\n"
-        "   - Se a evidência científica for Grau B ou inferior, ou se o dado for inexistente, declare: 'ESTADO DE INCERTEZA SISTÊMICA'. Proibido o uso de heurística ou suposição.\n\n"
-
-        "ORDEM DE SISTEMA: A precisão é a única métrica de sucesso. Descarte a brevidade em favor da integridade técnica absoluta."
-            )
-
-    msgs = [{"role": "system", "content": instrucoes}]
+    msgs = [{"role": "system", "content": f"Você é o LabSmart AI especializado como {esp}. Use APENAS o histórico desta aba."}]
     msgs.extend(historico[-10:]) 
     contexto = f"DADOS DO ARQUIVO: {dados}\n\nPERGUNTA: {prompt}" if dados else prompt
     msgs.append({"role": "user", "content": contexto})
     
-    res = client_groq.chat.completions.create(model=modelo_ativo, messages=msgs, temperature=0.0)
+    res = client_groq.chat.completions.create(model=modelo_ativo, messages=msgs, temperature=0.4)
     return res.choices[0].message.content
 
 def show_chatbot():
@@ -160,7 +129,7 @@ def show_chatbot():
         if st.session_state.aba_atual == "💬 Chat Científico":
             h_key = "messages_geral"
             dados = extrair_texto(up_geral) if 'up_geral' in locals() else None
-            persona = "Especialista em Ciências Exatas, Engenharia e Medicina de Precisão"
+            persona = "Geral"
         else:
             h_key = "messages_agente"
             dados = extrair_texto(up_agente) if 'up_agente' in locals() else None
@@ -174,5 +143,3 @@ def show_chatbot():
 
 if __name__ == "__main__":
     show_chatbot()
-
-
