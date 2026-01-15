@@ -19,5 +19,7 @@ pyPDF2
 numexpr
 fpdf
 openpyxl
+chempy
+
 
 
