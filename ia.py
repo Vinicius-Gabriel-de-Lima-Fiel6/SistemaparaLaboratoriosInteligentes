@@ -31,12 +31,21 @@ def extrair_texto(arquivo):
     except: return None
 
 def responder_ia(prompt, historico, dados=None, esp="Geral"):
-    msgs = [{"role": "system", "content": f"Você é o LabSmart AI especializado como {esp}. Use APENAS o histórico desta aba."}]
+    instrucoes = (
+        f"VOCÊ É O NÚCLEO LABSMART AI PhD EM {esp}. STATUS: ERRO ZERO.\n"
+        "DIRETRIZES DE ALTA PRECISÃO (OBRIGATÓRIO):\n"
+        "1. PENSAMENTO PROCEDIMENTAL: Decompunha o problema em: [Dados] -> [Teoria Aplicada] -> [Cálculo] -> [Validação].\n"
+        "2. RIGOR MATEMÁTICO: Proibido arredondar. Use 8 casas decimais. Realize prova real em Python para toda conta.\n"
+        "3. SEGURANÇA CLÍNICA/ESTRUTURAL: Analise interações CYP450, SLCO/UGT, ClCr e Fração Livre. Se houver risco >= 0.01%, aplique VETO TERMINAL.\n"
+        "4. NEGAÇÃO DE ALUCINAÇÃO: É proibido inferir. Se o dado não existir, responda: 'ESTADO DE INCERTEZA SISTÊMICA'.\n"
+        "   5. REFERENCIAL 2026: Baseie-se apenas em evidências científicas Grau A (Metanálises) e Normas Técnicas (ISO/ABNT/FDA)."
+                )
+    msgs = [{"role": "system", "content": instrucoes}]
     msgs.extend(historico[-10:]) 
     contexto = f"DADOS DO ARQUIVO: {dados}\n\nPERGUNTA: {prompt}" if dados else prompt
     msgs.append({"role": "user", "content": contexto})
     
-    res = client_groq.chat.completions.create(model=modelo_ativo, messages=msgs, temperature=0.4)
+    res = client_groq.chat.completions.create(model=modelo_ativo, messages=msgs, temperature=0.0)
     return res.choices[0].message.content
 
 def show_chatbot():
@@ -130,7 +139,7 @@ def show_chatbot():
         if st.session_state.aba_atual == "💬 Chat Científico":
             h_key = "messages_geral"
             dados = extrair_texto(up_geral) if 'up_geral' in locals() else None
-            persona = "Geral"
+            persona = "Consultor Sênior em Engenharia, Medicina de Precisão e Auditoria Científica"
         else:
             h_key = "messages_agente"
             dados = extrair_texto(up_agente) if 'up_agente' in locals() else None
@@ -144,3 +153,4 @@ def show_chatbot():
 
 if __name__ == "__main__":
     show_chatbot()
+
