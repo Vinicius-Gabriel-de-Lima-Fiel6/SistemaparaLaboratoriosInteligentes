@@ -262,7 +262,7 @@ def show_calculadora():
                 except Exception:
                     st.error("🧪 Erro nas formulas. Verifique maiusculas (Ex: H2O).")
 
-        with cr:
+       
             st.markdown("### 3. Resultado e PDF")
             if "ia_res" in st.session_state:
                 res = st.session_state.ia_res
@@ -283,4 +283,5 @@ def show_calculadora():
                     st.download_button("📥 Baixar Laudo PDF", pdf_data, "laudo.pdf", "application/pdf", use_container_width=True)
             else:
                 st.info("Insira os dados a esquerda para gerar a analise.")
+
 
