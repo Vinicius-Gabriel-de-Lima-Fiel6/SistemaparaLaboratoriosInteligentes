@@ -1,9 +1,20 @@
+
 import streamlit as st
 import math
 import pandas as pd
-import numpy as np
 from chempy.chemistry import Substance
 from motores_quimicos import MotorCalculoAvancado
+from fpdf import FPDF
+
+def export_pdf(conteudo, titulo="Laudo Técnico"):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", 'B', 16)
+    pdf.cell(200, 10, txt=titulo, ln=True, align='C')
+    pdf.ln(10)
+    pdf.set_font("Arial", size=12)
+    pdf.multi_cell(0, 10, txt=conteudo.encode('latin-1', 'replace').decode('latin-1'))
+    return pdf.output(dest='S').encode('latin-1')
 
 def show_calculadora():
     st.title("🧪 Central de Inteligência Química")
@@ -27,9 +38,11 @@ def show_calculadora():
                 m = c2.number_input("Massa (g)", min_value=0.0, key="q2")
                 v = c1.number_input("Volume (mL)", min_value=0.1, key="q3")
                 if f and m > 0:
-                    mm = Substance.from_formula(f).mass
-                    res_q = m / (mm * (v/1000))
-                    st.caption(f"MM: {mm:.2f} g/mol")
+                    try:
+                        mm = Substance.from_formula(f).mass
+                        res_q = m / (mm * (v/1000))
+                        st.caption(f"MM: {mm:.2f} g/mol")
+                    except: st.error("Fórmula inválida")
 
             elif calc_q == "Diluição (C1V1=C2V2)":
                 v1 = c1.number_input("V1 (mL)", key="q4")
@@ -84,7 +97,7 @@ def show_calculadora():
             elif calc_q == "Rendimento Percentual":
                 teo = c1.number_input("Teórico (g)", key="q23")
                 exp = c2.number_input("Real (g)", key="q24")
-                if teo>0: res_q = (exp/teo)*100
+                if teo>0: res_q = (exp / teo) * 100
 
             elif calc_q == "Fator de Diluição":
                 vf = c1.number_input("Vol. Final", key="q25")
@@ -136,8 +149,7 @@ def show_calculadora():
                 n, t_k = t1.number_input("n (mol)", 1.0, key="t1"), t2.number_input("T (K)", 298.0, key="t2")
                 v_l = t1.number_input("V (L)", 22.4, key="t3")
                 if v_l>0: res_t = (n*0.08206*t_k)/v_l
-
-            elif calc_t == "Gases Reais (Van der Waals)":
+		    elif calc_t == "Gases Reais (Van der Waals)":
                 n, v = t1.number_input("n", 1.0, key="t4"), t2.number_input("V", 1.0, key="t5")
                 te, a = t1.number_input("T", 298.0, key="t6"), t2.number_input("a", 0.0, key="t7")
                 b = t1.number_input("b", 0.0, key="t8")
@@ -199,29 +211,69 @@ def show_calculadora():
             elif calc_t == "Calor Latente (Q=mL)":
                 m, l = t1.number_input("m (g)", key="t37"), t2.number_input("L", key="t38")
                 res_t = m*l
-
+          
             st.metric("Resultado", f"{res_t:.4f}")
 
     with tab_avancada:
+        st.subheader("🚀 Análise Estequiométrica com Inteligência Artificial")
         motor = MotorCalculoAvancado()
+        
         cl, cr = st.columns([1.2, 1])
         with cl:
-            ri, pi = st.text_input("Reagentes:"), st.text_input("Produtos:")
+            st.markdown("##### 🧪 Configuração da Reação")
+            ri = st.text_input("Reagentes:", placeholder="Ex: NaOH + H2SO4")
+            pi = st.text_input("Produtos:", placeholder="Ex: Na2SO4 + H2O")
+            
             if ri and pi:
-                rb, pb, err = motor.balancear_e_resolver(ri, pi)
-                if not err:
-                    eq = " + ".join([f"{v if v>1 else ''}{k}" for k, v in rb.items()]) + " ➞ " + " + ".join([f"{v if v>1 else ''}{k}" for k, v in pb.items()])
-                    st.success(eq)
-                    m_d = {r: st.number_input(f"Massa {r}", key=f"m_{r}") for r in rb.keys()}
-                    if st.button("ANALISAR IA"):
-                        m_m = {s: m_d[s]/Substance.from_formula(s).mass for s in m_d if m_d[s]>0}
-                        lim = min(m_m, key=lambda x: m_m[x]/rb[x])
-                        fat = m_m[lim]/rb[lim]
-                        st.session_state.ia = {"lim": lim, "fat": fat, "pb": pb, "eq": eq}
+                try:
+                    rb, pb, err = motor.balancear_e_resolver(ri, pi)
+                    if err:
+                        st.warning("⚠️ Certifique-se de que os elementos nos reagentes são os mesmos nos produtos.")
+                    else:
+                        eq = " + ".join([f"{v if v>1 else ''}{k}" for k, v in rb.items()]) + " ➞ " + \
+                             " + ".join([f"{v if v>1 else ''}{k}" for k, v in pb.items()])
+                        st.success(f"**Equação:** `{eq}`")
+                        
+                        st.markdown("---")
+                        m_d = {}
+                        for r in rb.keys():
+                            m_v = st.number_input(f"Massa de {r} (g)", min_value=0.0, key=f"m_ia_{r}")
+                            if m_v > 0: m_d[r] = m_v
+                        
+                        if st.button("ANALISAR IMPACTO IA", type="primary"):
+                            if len(m_d) < len(rb):
+                                st.error("Insira a massa de todos os reagentes.")
+                            else:
+                                with st.spinner("Calculando estequiometria..."):
+                                    m_mols = {s: m_d[s]/Substance.from_formula(s).mass for s in m_d}
+                                    lim = min(m_mols, key=lambda x: m_mols[x]/rb[x])
+                                    fat = m_mols[lim]/rb[lim]
+                                    st.session_state.ia = {"lim": lim, "fat": fat, "pb": pb, "eq": eq}
+                except:
+                    st.error("⚠️ Erro nas fórmulas químicas digitadas.")
+
         with cr:
             if "ia" in st.session_state:
                 res = st.session_state.ia
-                st.info(f"Limitante: {res['lim']}")
-                lista = [{"Produto": k, "Massa": res['fat']*v*Substance.from_formula(k).mass} for k, v in res['pb'].items()]
-                st.table(pd.DataFrame(lista))
-                st.markdown(motor.consultoria_ia(res['eq'], res['lim'], f"{lista[0]['Massa']:.4f}"))
+                st.info(f"**Reagente Limitante:** {res['lim']}")
+                
+                lista_prod = []
+                for k, v in res['pb'].items():
+                    m_f = res['fat'] * v * Substance.from_formula(k).mass
+                    lista_prod.append({"Produto": k, "Massa Esperada (g)": f"{m_f:.4f}"})
+                
+                st.table(pd.DataFrame(lista_prod))
+                
+                with st.spinner("Gerando Relatório IA..."):
+                    laudo = motor.consultoria_ia(res['eq'], res['lim'], lista_prod[0]['Massa Esperada (g)'])
+                    st.markdown(laudo)
+                    
+                    pdf_data = export_pdf(laudo, f"Laudo Estequiométrico: {res['eq']}")
+                    st.download_button(
+                        label="📄 Baixar Relatório em PDF",
+                        data=pdf_data,
+                        file_name="relatorio_quimico.pdf",
+                        mime="application/pdf"
+                    )
+            else:
+                st.info("Defina a reação e as massas para iniciar a análise.")
