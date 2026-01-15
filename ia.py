@@ -19,7 +19,7 @@ class VideoProcessor(VideoTransformerBase):
         self.model = model
     def transform(self, frame):
         img = frame.to_ndarray(format="bgr24")
-        return self.model(img).plot()
+        return self.model(img)[0].plot()
 
 def extrair_texto(arquivo):
     if not arquivo: return None
@@ -53,15 +53,10 @@ def show_chatbot():
     st.divider()
 
     dict_ferramentas = {
-        "🧬 AlphaFold Hub": {
-            "Banco de Dados": {"desc": "Busque estruturas 3D já conhecidas no repositório oficial.", "url": "alphafold.ebi.ac.uk"},
-            "Sistema de Previsão": {"desc": "Gere novas modelagens (AlphaFold 3) para proteínas e DNA.", "url": "alphafoldserver.com"},
-            "Materiais (GNoME)": {"desc": "Pesquise novos cristais e materiais inorgânicos.", "url": "next-gen.materialsproject.org"}
-        },
-        "Lovable": {"desc": "Crie interfaces e protótipos de sistemas internos sem programar.", "url": "lovable.dev"},
-        "Gamma": {"desc": "Transforme dados em apresentações profissionais em segundos.", "url": "gamma.app"},
-        "Manus": {"desc": "Agente de IA para execução de tarefas digitais e pesquisas.", "url": "manus.ai"},
-        "Perplexity": {"desc": "Buscador técnico para verificação de artigos e fatos.", "url": "www.perplexity.ai"}
+        "Lovable": {"desc": "Crie interfaces e protótipos de sistemas internos sem programar.", "url": "https://lovable.dev/"},
+        "Gamma": {"desc": "Transforme dados em apresentações profissionais em segundos.", "url": "https://gamma.app/"},
+        "Manus": {"desc": "Agente de IA para execução de tarefas digitais e pesquisas.", "url": "https://manus.ai/"},
+        "Perplexity": {"desc": "Buscador técnico para verificação de artigos e fatos.", "url": "https://www.perplexity.ai/"}
     }
 
     if st.session_state.aba_atual == "💬 Chat Científico":
@@ -78,18 +73,9 @@ def show_chatbot():
             st.write("---")
             st.write("🛠️ **Auxiliares**")
             ft_sel = st.selectbox("Selecionar:", list(dict_ferramentas.keys()), key="ft_geral")
-            
-            if ft_sel == "🧬 AlphaFold Hub":
-                sub_sel = st.selectbox("Opção AlphaFold:", list(dict_ferramentas[ft_sel].keys()), key="sub_geral")
-                item_f = dict_ferramentas[ft_sel][sub_sel]
-                nome_f = sub_sel
-            else:
-                item_f = dict_ferramentas[ft_sel]
-                nome_f = ft_sel
-
             with st.popover("Ver Detalhes", use_container_width=True):
-                st.write(item_f["desc"])
-                st.link_button(f"Abrir {nome_f}", item_f["url"], use_container_width=True)
+                st.write(dict_ferramentas[ft_sel]["desc"])
+                st.link_button(f"Abrir {ft_sel}", dict_ferramentas[ft_sel]["url"], use_container_width=True)
 
         with col_c1:
             chat_container = st.container(height=500, border=False)
@@ -109,18 +95,9 @@ def show_chatbot():
             st.write("---")
             st.write("🛠️ **Auxiliares**")
             ft_sel_ag = st.selectbox("Selecionar:", list(dict_ferramentas.keys()), key="ft_agente")
-            
-            if ft_sel_ag == "🧬 AlphaFold Hub":
-                sub_sel_ag = st.selectbox("Opção AlphaFold:", list(dict_ferramentas[ft_sel_ag].keys()), key="sub_agente")
-                item_f_ag = dict_ferramentas[ft_sel_ag][sub_sel_ag]
-                nome_f_ag = sub_sel_ag
-            else:
-                item_f_ag = dict_ferramentas[ft_sel_ag]
-                nome_f_ag = ft_sel_ag
-
             with st.popover("Ver Detalhes", use_container_width=True):
-                st.write(item_f_ag["desc"])
-                st.link_button(f"Abrir {nome_f_ag}", item_f_ag["url"], use_container_width=True)
+                st.write(dict_ferramentas[ft_sel_ag]["desc"])
+                st.link_button(f"Abrir {ft_sel_ag}", dict_ferramentas[ft_sel_ag]["url"], use_container_width=True)
 
         with col_c2:
             chat_container = st.container(height=500, border=False)
@@ -145,3 +122,4 @@ def show_chatbot():
 
 if __name__ == "__main__":
     show_chatbot()
+
