@@ -56,7 +56,15 @@ def show_chatbot():
         "Lovable": {"desc": "Crie interfaces e protótipos de sistemas internos sem programar.", "url": "https://lovable.dev/"},
         "Gamma": {"desc": "Transforme dados em apresentações profissionais em segundos.", "url": "https://gamma.app/"},
         "Manus": {"desc": "Agente de IA para execução de tarefas digitais e pesquisas.", "url": "https://manus.ai/"},
-        "Perplexity": {"desc": "Buscador técnico para verificação de artigos e fatos.", "url": "https://www.perplexity.ai/"}
+        "Perplexity": {"desc": "Buscador técnico para verificação de artigos e fatos.", "url": "https://www.perplexity.ai/"},
+        "AlphaFold": {
+            "desc": "Inteligência Artificial para predição de estruturas de proteínas.",
+            "sub": {
+                "AlphaFold Protein Structure Database": {"desc": "Acesso a mais de 200 milhões de estruturas de proteínas já preditas.", "url": "https://alphafold.ebi.ac.uk/"},
+                "AlphaFold Server (Previsão)": {"desc": "Ferramenta para prever novas estruturas de proteínas e interações.", "url": "https://alphafoldserver.com/"},
+                "AlphaFold no Google Colab": {"desc": "Execução do modelo via código para pesquisas personalizadas.", "url": "https://colab.research.google.com/github/google-deepmind/alphafold/blob/main/notebooks/AlphaFold.ipynb"}
+            }
+        }
     }
 
     if st.session_state.aba_atual == "💬 Chat Científico":
@@ -73,9 +81,16 @@ def show_chatbot():
             st.write("---")
             st.write("🛠️ **Auxiliares**")
             ft_sel = st.selectbox("Selecionar:", list(dict_ferramentas.keys()), key="ft_geral")
+            
+            if ft_sel == "AlphaFold":
+                sub_sel = st.selectbox("Tipo de AlphaFold:", list(dict_ferramentas["AlphaFold"]["sub"].keys()), key="sub_geral")
+                info = dict_ferramentas["AlphaFold"]["sub"][sub_sel]
+            else:
+                info = dict_ferramentas[ft_sel]
+
             with st.popover("Ver Detalhes", use_container_width=True):
-                st.write(dict_ferramentas[ft_sel]["desc"])
-                st.link_button(f"Abrir {ft_sel}", dict_ferramentas[ft_sel]["url"], use_container_width=True)
+                st.write(info["desc"])
+                st.link_button(f"Abrir {sub_sel if ft_sel == 'AlphaFold' else ft_sel}", info["url"], use_container_width=True)
 
         with col_c1:
             chat_container = st.container(height=500, border=False)
@@ -95,9 +110,16 @@ def show_chatbot():
             st.write("---")
             st.write("🛠️ **Auxiliares**")
             ft_sel_ag = st.selectbox("Selecionar:", list(dict_ferramentas.keys()), key="ft_agente")
+            
+            if ft_sel_ag == "AlphaFold":
+                sub_sel_ag = st.selectbox("Tipo de AlphaFold:", list(dict_ferramentas["AlphaFold"]["sub"].keys()), key="sub_agente")
+                info_ag = dict_ferramentas["AlphaFold"]["sub"][sub_sel_ag]
+            else:
+                info_ag = dict_ferramentas[ft_sel_ag]
+
             with st.popover("Ver Detalhes", use_container_width=True):
-                st.write(dict_ferramentas[ft_sel_ag]["desc"])
-                st.link_button(f"Abrir {ft_sel_ag}", dict_ferramentas[ft_sel_ag]["url"], use_container_width=True)
+                st.write(info_ag["desc"])
+                st.link_button(f"Abrir {sub_sel_ag if ft_sel_ag == 'AlphaFold' else ft_sel_ag}", info_ag["url"], use_container_width=True)
 
         with col_c2:
             chat_container = st.container(height=500, border=False)
@@ -122,4 +144,3 @@ def show_chatbot():
 
 if __name__ == "__main__":
     show_chatbot()
-
