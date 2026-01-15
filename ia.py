@@ -6,21 +6,14 @@ from streamlit_webrtc import webrtc_streamer, VideoTransformerBase
 import PyPDF2
 import io
 
-# ==========================================
-# 1. CONFIGURAÇÃO DO MOTOR E MODELOS (2026)
-# ==========================================
 def inicializar_motor():
     if "GROQ_API_KEY" not in st.secrets:
         return None, "Erro: Chave API ausente."
     client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-    # Modelo Principal: Raciocínio PhD | Modelo Backup: Velocidade/Estabilidade
-    return client, "deepseek-r1-distill-llama-70b"
+    return client, "llama-3.3-70b-versatile"
 
 client_groq, modelo_ativo = inicializar_motor()
 
-# ==========================================
-# 2. CLASSES E FUNÇÕES DE APOIO
-# ==========================================
 class VideoProcessor(VideoTransformerBase):
     def __init__(self, model):
         self.model = model
@@ -37,129 +30,116 @@ def extrair_texto(arquivo):
         return arquivo.read().decode("utf-8")
     except: return None
 
-# ==========================================
-# 3. NÚCLEO DE INTELIGÊNCIA E PRECISÃO
-# ==========================================
 def responder_ia(prompt, historico, dados=None, esp="Geral"):
-    # Prompt de Alta Densidade (Otimizado para evitar BadRequest)
-    instrucoes = (
-        f"NÚCLEO LABSMART AI PhD {esp}. STATUS: ERRO ZERO.\n"
-        "HEPTA-CHECK: 1.Decomp; 2.Dim-Val; 3.Laws; 4.Triple-Calc; 5.Reg-Audit; 6.Adv-Attack; 7.Synthesis.\n"
-        "REGRAS: Sem arredondar (8 casas). Use Python para cálculos. Veto se risco >= 0.01%.\n"
-        "Analise CYP450, SLCO/UGT, ClCr e Fração Livre. Precisão >99.9%."
-    )
+    msgs = [{"role": "system", "content": f"Você é o LabSmart AI especializado como {esp}. Use APENAS o histórico desta aba."}]
+    msgs.extend(historico[-10:]) 
+    contexto = f"DADOS DO ARQUIVO: {dados}\n\nPERGUNTA: {prompt}" if dados else prompt
+    msgs.append({"role": "user", "content": contexto})
     
-    # Limpeza de contexto para estabilidade (Mantém apenas 2 turnos + prompt atual)
-    msgs = [{"role": "system", "content": instrucoes}]
-    msgs.extend(historico[-2:]) 
-    
-    # Limite de segurança para dados de arquivos (5000 caracteres)
-    ctx_doc = f"DADOS DOC: {dados[:5000]}\n" if dados else ""
-    msgs.append({"role": "user", "content": f"{ctx_doc}INPUT: {prompt}"})
-    
-    try:
-        # Tentativa com o modelo PhD (DeepSeek-R1)
-        res = client_groq.chat.completions.create(
-            model=modelo_ativo, 
-            messages=msgs, 
-            temperature=0.1, # Estabilidade térmica 2026
-            max_tokens=4000
-        )
-        return res.choices[0].message.content
-    except Exception as e:
-        # Sistema de Fallback Automático para Llama 3.3 em caso de erro da API
-        try:
-            res_backup = client_groq.chat.completions.create(
-                model="llama-3.3-70b-versatile",
-                messages=msgs,
-                temperature=0.0
-            )
-            return "⚠️ (MODO BACKUP ATIVADO)\n\n" + res_backup.choices[0].message.content
-        except:
-            return f"🚨 ERRO CRÍTICO: {str(e)}. Use o botão 'Limpar Chat' e tente novamente."
+    res = client_groq.chat.completions.create(model=modelo_ativo, messages=msgs, temperature=0.4)
+    return res.choices[0].message.content
 
-# ==========================================
-# 4. INTERFACE DO SISTEMA (STREAMLIT)
-# ==========================================
 def show_chatbot():
-    # Configuração de Página (Deve ser a primeira instrução Streamlit)
     if "messages_geral" not in st.session_state: st.session_state.messages_geral = []
     if "messages_agente" not in st.session_state: st.session_state.messages_agente = []
     if "aba_atual" not in st.session_state: st.session_state.aba_atual = "Chat Científico"
-    if "yolo_model" not in st.session_state: 
-        try: st.session_state.yolo_model = YOLO("yolov8n.pt")
-        except: st.session_state.yolo_model = None
+    if "yolo_model" not in st.session_state: st.session_state.yolo_model = YOLO("yolov8n.pt")
 
-    st.subheader("🔬 LabSmart AI - Hub de Inteligência Multidisciplinar")
+    st.subheader("🔬 LabSmart AI - Hub de Inteligência")
 
-    escolha_aba = st.radio("Ambiente de Trabalho:", ["💬 Chat Científico", "👥 Squad de Agentes"], horizontal=True)
+    escolha_aba = st.radio("Selecione o ambiente de trabalho:", ["💬 Chat Científico", "👥 Squad de Agentes"], horizontal=True)
     st.session_state.aba_atual = escolha_aba
 
     st.divider()
 
     dict_ferramentas = {
-        "Lovable": {"desc": "Interfaces e protótipos.", "url": "https://lovable.dev"},
-        "Gamma": {"desc": "Apresentações profissionais.", "url": "https://gamma.app"},
-        "Manus": {"desc": "Agente de execução digital.", "url": "https://manus.im"},
-        "Perplexity": {"desc": "Buscador técnico.", "url": "https://www.perplexity.ai"},
+        "Lovable": {"desc": "Crie interfaces e protótipos de sistemas internos sem programar.", "url": "https://lovable.dev/"},
+        "Gamma": {"desc": "Transforme dados em apresentações profissionais em segundos.", "url": "https://gamma.app/"},
+        "Manus": {"desc": "Agente de IA para execução de tarefas digitais e pesquisas.", "url": "https://manus.ai/"},
+        "Perplexity": {"desc": "Buscador técnico para verificação de artigos e fatos.", "url": "https://www.perplexity.ai/"},
         "AlphaFold": {
-            "desc": "Predição proteica.",
+            "desc": "Inteligência Artificial para predição de estruturas de proteínas.",
             "sub": {
-                "AlphaFold DB": {"desc": "Estruturas preditas.", "url": "https://alphafold.ebi.ac.uk"},
-                "AlphaFold Server": {"desc": "Novas estruturas.", "url": "https://alphafoldserver.com"}
+                "AlphaFold Protein Structure Database": {"desc": "Acesso a mais de 200 milhões de estruturas de proteínas já preditas.", "url": "https://alphafold.ebi.ac.uk/"},
+                "AlphaFold Server (Previsão)": {"desc": "Ferramenta para prever novas estruturas de proteínas e interações.", "url": "https://alphafoldserver.com/"},
+                "AlphaFold no Google Colab": {"desc": "Execução do modelo via código para pesquisas personalizadas.", "url": "https://colab.research.google.com/github/google-deepmind/alphafold/blob/main/notebooks/AlphaFold.ipynb"}
             }
         }
     }
 
-    col_c, col_t = st.columns([3, 1])
+    if st.session_state.aba_atual == "💬 Chat Científico":
+        col_c1, col_t1 = st.columns([3, 1])
+        with col_t1:
+            st.write("### ⚙️ Ferramentas")
+            if st.toggle("🎥 Visão YOLO", key="tgl_v1"):
+                webrtc_streamer(key="stream_v1", video_processor_factory=lambda: VideoProcessor(st.session_state.yolo_model))
+            up_geral = st.file_uploader("📎 Base de Dados", type=["pdf", "csv", "txt"], key="up_v1")
+            if st.button("🗑️ Limpar Chat"):
+                st.session_state.messages_geral = []
+                st.rerun()
+            
+            st.write("---")
+            st.write("🛠️ **Auxiliares**")
+            ft_sel = st.selectbox("Selecionar:", list(dict_ferramentas.keys()), key="ft_geral")
+            
+            if ft_sel == "AlphaFold":
+                sub_sel = st.selectbox("Tipo de AlphaFold:", list(dict_ferramentas["AlphaFold"]["sub"].keys()), key="sub_geral")
+                info = dict_ferramentas["AlphaFold"]["sub"][sub_sel]
+            else:
+                info = dict_ferramentas[ft_sel]
 
-    with col_t:
-        st.write("### ⚙️ Painel")
+            with st.popover("Ver Detalhes", use_container_width=True):
+                st.write(info["desc"])
+                st.link_button(f"Abrir {sub_sel if ft_sel == 'AlphaFold' else ft_sel}", info["url"], use_container_width=True)
+
+        with col_c1:
+            chat_container = st.container(height=500, border=False)
+            for m in st.session_state.messages_geral:
+                chat_container.chat_message(m["role"]).write(m["content"])
+            
+    else:
+        col_c2, col_t2 = st.columns([3, 1])
+        with col_t2:
+            st.write("### 👥 Squad")
+            esp_nome = st.selectbox("Especialista:", ["Bioquímico Sênior", "Auditor de Qualidade", "Escritor Técnico"], key="sel_v2")
+            up_agente = st.file_uploader("📎 Arquivo Técnico", type=["pdf", "csv", "txt"], key="up_v2")
+            if st.button("🗑️ Limpar Squad"):
+                st.session_state.messages_agente = []
+                st.rerun()
+
+            st.write("---")
+            st.write("🛠️ **Auxiliares**")
+            ft_sel_ag = st.selectbox("Selecionar:", list(dict_ferramentas.keys()), key="ft_agente")
+            
+            if ft_sel_ag == "AlphaFold":
+                sub_sel_ag = st.selectbox("Tipo de AlphaFold:", list(dict_ferramentas["AlphaFold"]["sub"].keys()), key="sub_agente")
+                info_ag = dict_ferramentas["AlphaFold"]["sub"][sub_sel_ag]
+            else:
+                info_ag = dict_ferramentas[ft_sel_ag]
+
+            with st.popover("Ver Detalhes", use_container_width=True):
+                st.write(info_ag["desc"])
+                st.link_button(f"Abrir {sub_sel_ag if ft_sel_ag == 'AlphaFold' else ft_sel_ag}", info_ag["url"], use_container_width=True)
+
+        with col_c2:
+            chat_container = st.container(height=500, border=False)
+            for m in st.session_state.messages_agente:
+                chat_container.chat_message(m["role"]).write(m["content"])
+
+    if prompt := st.chat_input("Digite sua mensagem para o ambiente selecionado..."):
         if st.session_state.aba_atual == "💬 Chat Científico":
-            up_file = st.file_uploader("📎 Base de Dados", type=["pdf", "csv", "txt"], key="up_v1")
             h_key = "messages_geral"
-            persona = "Especialista Multidisciplinar em Ciências e Engenharia"
+            dados = extrair_texto(up_geral) if 'up_geral' in locals() else None
+            persona = "Geral"
         else:
-            esp_nome = st.selectbox("Especialista:", ["Bioquímico Sênior", "Auditor de Qualidade", "Escritor Técnico"])
-            up_file = st.file_uploader("📎 Arquivo Técnico", type=["pdf", "csv", "txt"], key="up_v2")
             h_key = "messages_agente"
+            dados = extrair_texto(up_agente) if 'up_agente' in locals() else None
             persona = esp_nome
 
-        if st.button("🗑️ Limpar Chat/Memória"):
-            st.session_state[h_key] = []
-            st.rerun()
-            
-        st.write("---")
-        if st.toggle("🎥 Visão YOLO"):
-            if st.session_state.yolo_model:
-                webrtc_streamer(key="stream", video_processor_factory=lambda: VideoProcessor(st.session_state.yolo_model))
-            else: st.error("Modelo YOLO não carregado.")
-
-        st.write("🛠️ **Auxiliares**")
-        ft_sel = st.selectbox("Selecionar:", list(dict_ferramentas.keys()))
-        if ft_sel == "AlphaFold":
-            sub = st.selectbox("Versão:", list(dict_ferramentas["AlphaFold"]["sub"].keys()))
-            info = dict_ferramentas["AlphaFold"]["sub"][sub]
-        else: info = dict_ferramentas[ft_sel]
-
-        with st.popover("Ver Detalhes"):
-            st.write(info["desc"])
-            st.link_button("Abrir Ferramenta", info["url"], use_container_width=True)
-
-    with col_c:
-        chat_container = st.container(height=500, border=False)
-        for m in st.session_state[h_key]:
-            chat_container.chat_message(m["role"]).write(m["content"])
-
-    if prompt := st.chat_input("Digite sua consulta PhD..."):
         st.session_state[h_key].append({"role": "user", "content": prompt})
-        with chat_container: st.chat_message("user").write(prompt)
-
-        with st.spinner(f"O {persona} está analisando..."):
-            dados = extrair_texto(up_file) if up_file else None
+        with st.spinner(f"O {persona} está processando..."):
             resposta = responder_ia(prompt, st.session_state[h_key], dados, persona)
             st.session_state[h_key].append({"role": "assistant", "content": resposta})
-            with chat_container: st.chat_message("assistant").write(resposta)
         st.rerun()
 
 if __name__ == "__main__":
