@@ -7,13 +7,15 @@ from motores_quimicos import MotorCalculoAvancado
 from fpdf import FPDF
 
 def export_pdf(conteudo, titulo="Laudo Técnico"):
-    pdf = FPDF()
+	pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", 'B', 16)
-    pdf.cell(200, 10, txt=titulo, ln=True, align='C')
+    pdf.cell(200, 10, txt="Relatório Técnico de Estequiometria", ln=True, align='C')
     pdf.ln(10)
-    pdf.set_font("Arial", size=12)
-    pdf.multi_cell(0, 10, txt=conteudo.encode('latin-1', 'replace').decode('latin-1'))
+    pdf.set_font("Arial", size=11)
+    # Limpa caracteres especiais para evitar erro no PDF
+    txt_limpo = conteudo.replace('➞', '->').encode('latin-1', 'replace').decode('latin-1')
+    pdf.multi_cell(0, 7, txt=txt_limpo)
     return pdf.output(dest='S').encode('latin-1')
 
 def show_calculadora():
@@ -217,6 +219,9 @@ def show_calculadora():
     with tab_avancada:
         st.subheader("🚀 Análise Estequiométrica com Inteligência Artificial")
         motor = MotorCalculoAvancado()
+		if st.button("💡 Carregar Exemplo (Combustão do Metano)"):
+    	st.session_state.r_input = "CH4 + O2"
+    	st.session_state.p_input = "CO2 + H2O"
         
         cl, cr = st.columns([1.2, 1])
         with cl:
@@ -253,27 +258,24 @@ def show_calculadora():
                     st.error("⚠️ Erro nas fórmulas químicas digitadas.")
 
         with cr:
-            if "ia" in st.session_state:
-                res = st.session_state.ia
-                st.info(f"**Reagente Limitante:** {res['lim']}")
-                
-                lista_prod = []
-                for k, v in res['pb'].items():
-                    m_f = res['fat'] * v * Substance.from_formula(k).mass
-                    lista_prod.append({"Produto": k, "Massa Esperada (g)": f"{m_f:.4f}"})
-                
-                st.table(pd.DataFrame(lista_prod))
-                
-                with st.spinner("Gerando Relatório IA..."):
-                    laudo = motor.consultoria_ia(res['eq'], res['lim'], lista_prod[0]['Massa Esperada (g)'])
-                    st.markdown(laudo)
-                    
-                    pdf_data = export_pdf(laudo, f"Laudo Estequiométrico: {res['eq']}")
-                    st.download_button(
-                        label="📄 Baixar Relatório em PDF",
-                        data=pdf_data,
-                        file_name="relatorio_quimico.pdf",
-                        mime="application/pdf"
-                    )
-            else:
-                st.info("Defina a reação e as massas para iniciar a análise.")
+			if "ia" in st.session_state:
+        		res = st.session_state.ia
+        		st.info(f"**Reagente Limitante:** {res['lim']}")
+        
+        		lista = [{"Produto": k, "Massa": f"{res['fat']*v*Substance.from_formula(k).mass:.4f}"} for k, v in res['pb'].items()]
+        		st.dataframe(pd.DataFrame(lista), use_container_width=True)
+        
+        		with st.expander("📄 Laudo da IA e Exportação", expanded=True):
+            		laudo = motor.consultoria_ia(res['eq'], res['lim'], lista[0]['Massa'])
+            		st.write(laudo)
+            
+            		pdf_bytes = export_pdf(laudo, res['eq'])
+            		st.download_button(
+                		label="📥 Baixar Laudo em PDF",
+                		data=pdf_bytes,
+                		file_name="relatorio_quimico.pdf",
+                		mime="application/pdf",
+                		use_container_width=True
+            							)
+    		else:
+        		st.info("Insira os reagentes e produtos para iniciar.")
