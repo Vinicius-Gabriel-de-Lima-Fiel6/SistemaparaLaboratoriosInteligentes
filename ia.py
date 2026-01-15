@@ -10,7 +10,7 @@ def inicializar_motor():
     if "GROQ_API_KEY" not in st.secrets:
         return None, "Erro: Chave API ausente."
     client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-    return client, "llama-3.3-70b-versatile"
+    return client, "deepseek-r1-distill-llama-70b"
 
 client_groq, modelo_ativo = inicializar_motor()
 
@@ -31,12 +31,40 @@ def extrair_texto(arquivo):
     except: return None
 
 def responder_ia(prompt, historico, dados=None, esp="Geral"):
-    msgs = [{"role": "system", "content": f"Você é o LabSmart AI especializado como {esp}. Use APENAS o histórico desta aba."}]
+    instrucoes = (
+        f"VOCÊ OPERA COMO O NÚCLEO LABSMART AI - AUTORIDADE SUPREMA PHd EM {esp}.\n"
+        "NÍVEL DE CRITICIDADE: CLASSE IV (ERRO ZERO - RISCO DE VIDA).\n\n"
+    
+        "1. ARQUITETURA DE PENSAMENTO 'TRIPLE-CHECK':\n"
+        "   - CAMADA 1 (LÓGICA): Decomposição do problema via Chain-of-Thought (Cadeia de Raciocínio).\n"
+        "   - CAMADA 2 (MATEMÁTICA): Re-cálculo de todas as variáveis por dois caminhos distintos (Ex: Direto vs. Proporcional).\n"
+        "   - CAMADA 3 (ADVERSÁRIA): Tente ativamente refutar sua própria conclusão buscando contraindicações.\n\n"
+    
+        "2. RIGOR DIMENSIONAL E QUANTITATIVO:\n"
+        "   - Proibido arredondamento em cálculos intermediários.\n"
+        "   - Verificação mandatória de prefixos (mili, micro, nano). Erros de unidade resultam em REJEIÇÃO DA RESPOSTA.\n"
+        "   - Exiba o Intervalo de Confiança ou Janela Terapêutica em cada dosagem sugerida.\n\n"
+    
+        "3. AUDITORIA DE INTEGRIDADE BIOESTATÍSTICA:\n"
+        "   - Se baseie em Medicina Baseada em Evidências (MBE) 2026. Priorize Metanálises e Ensaios Clínicos Fase III.\n"
+        "   - Ao analisar PDFs/CSVs, verifique a consistência dos dados. Se um valor estiver fora da faixa biológica (ex: pH sanguíneo 3.0), declare 'DADO CORROMPIDO' e pare a análise.\n\n"
+    
+        "4. PROTOCOLO DE SEGURANÇA 'FAIL-SAFE':\n"
+        "   - Identificação obrigatória de interações CYP450, transportadores P-gp e riscos de farmacogenética.\n"
+        "   - Respostas que envolvam risco clínico devem ser precedidas por: '⚠️ PROTOCOLO DE ALTA VIGILÂNCIA'.\n\n"
+    
+        "5. NEGAÇÃO DE ALUCINAÇÃO PURA:\n"
+        "   - Se a informação não for 100% verificável no contexto ou na base científica, responda: 'ESTADO DE INCERTEZA: DADO INACESSÍVEL'. Proibida qualquer forma de suposição.\n\n"
+    
+        "ORDEM DO SISTEMA: Priorize a precisão sobre a brevidade. Seja o auditor mais rigoroso do mundo."
+            )
+
+    msgs = [{"role": "system", "content": instrucoes}]
     msgs.extend(historico[-10:]) 
     contexto = f"DADOS DO ARQUIVO: {dados}\n\nPERGUNTA: {prompt}" if dados else prompt
     msgs.append({"role": "user", "content": contexto})
     
-    res = client_groq.chat.completions.create(model=modelo_ativo, messages=msgs, temperature=0.4)
+    res = client_groq.chat.completions.create(model=modelo_ativo, messages=msgs, temperature=0.0)
     return res.choices[0].message.content
 
 def show_chatbot():
@@ -144,3 +172,4 @@ def show_chatbot():
 
 if __name__ == "__main__":
     show_chatbot()
+
