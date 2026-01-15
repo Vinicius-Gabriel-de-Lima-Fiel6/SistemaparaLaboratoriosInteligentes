@@ -53,11 +53,6 @@ def show_chatbot():
     st.divider()
 
     dict_ferramentas = {
-         "Ecossistema AlphaFold": {
-            "AlphaDB": {"desc": "Busque estruturas 3D já conhecidas.", "url": "alphafold.ebi.ac.uk"},
-            "AlphaServer": {"desc": "Gere novas predições (AlphaFold 3).", "url": "alphafoldserver.com"},
-            "AlphaGNoME": {"desc": "Banco de dados de novos materiais.", "url": "next-gen.materialsproject.org"}
-        },
         "Lovable": {"desc": "Crie interfaces e protótipos de sistemas internos sem programar.", "url": "https://lovable.dev/"},
         "Gamma": {"desc": "Transforme dados em apresentações profissionais em segundos.", "url": "https://gamma.app/"},
         "Manus": {"desc": "Agente de IA para execução de tarefas digitais e pesquisas.", "url": "https://manus.ai/"},
@@ -78,16 +73,9 @@ def show_chatbot():
             st.write("---")
             st.write("🛠️ **Auxiliares**")
             ft_sel = st.selectbox("Selecionar:", list(dict_ferramentas.keys()), key="ft_geral")
-            if ft_sel == "Ecossistema AlphaFold":
-                sub_sel = st.selectbox("Escolha a ferramenta:", list(dict_ferramentas[ft_sel].keys()))
-                item = dict_ferramentas[ft_sel][sub_sel]
-                label_botao = f"Abrir AlphaFold {sub_sel}"
-            else:
-                item = dict_ferramentas[ft_sel]
-                label_botao = f"Abrir {ft_sel}"
             with st.popover("Ver Detalhes", use_container_width=True):
                 st.write(dict_ferramentas[ft_sel]["desc"])
-                st.link_button(label_botao, item["url"], use_container_width=True)
+                st.link_button(f"Abrir {ft_sel}", dict_ferramentas[ft_sel]["url"], use_container_width=True)
 
         with col_c1:
             chat_container = st.container(height=500, border=False)
@@ -134,4 +122,3 @@ def show_chatbot():
 
 if __name__ == "__main__":
     show_chatbot()
-
