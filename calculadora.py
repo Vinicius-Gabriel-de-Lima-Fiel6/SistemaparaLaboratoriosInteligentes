@@ -7,15 +7,13 @@ from motores_quimicos import MotorCalculoAvancado
 from fpdf import FPDF
 
 def export_pdf(conteudo, titulo="Laudo Técnico"):
-	pdf = FPDF()
+    pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", 'B', 16)
-    pdf.cell(200, 10, txt="Relatório Técnico de Estequiometria", ln=True, align='C')
+    pdf.cell(200, 10, txt=titulo, ln=True, align='C')
     pdf.ln(10)
-    pdf.set_font("Arial", size=11)
-    # Limpa caracteres especiais para evitar erro no PDF
-    txt_limpo = conteudo.replace('➞', '->').encode('latin-1', 'replace').decode('latin-1')
-    pdf.multi_cell(0, 7, txt=txt_limpo)
+    pdf.set_font("Arial", size=12)
+    pdf.multi_cell(0, 10, txt=conteudo.encode('latin-1', 'replace').decode('latin-1'))
     return pdf.output(dest='S').encode('latin-1')
 
 def show_calculadora():
@@ -151,7 +149,7 @@ def show_calculadora():
                 n, t_k = t1.number_input("n (mol)", 1.0, key="t1"), t2.number_input("T (K)", 298.0, key="t2")
                 v_l = t1.number_input("V (L)", 22.4, key="t3")
                 if v_l>0: res_t = (n*0.08206*t_k)/v_l
-		    elif calc_t == "Gases Reais (Van der Waals)":
+	elif calc_t == "Gases Reais (Van der Waals)":
                 n, v = t1.number_input("n", 1.0, key="t4"), t2.number_input("V", 1.0, key="t5")
                 te, a = t1.number_input("T", 298.0, key="t6"), t2.number_input("a", 0.0, key="t7")
                 b = t1.number_input("b", 0.0, key="t8")
@@ -217,71 +215,65 @@ def show_calculadora():
             st.metric("Resultado", f"{res_t:.4f}")
 
     with tab_avancada:
-        st.subheader("🚀 Análise Estequiométrica Avançada")
-        
-     
+        st.subheader("🚀 Análise Estequiométrica com Inteligência Artificial")
         motor = MotorCalculoAvancado()
-
-        # 2. Lógica do Botão de Exemplo
-        if st.button("💡 Carregar Exemplo (Combustão do Metano)"):
-            st.session_state["r_input"] = "CH4 + O2"
-            st.session_state["p_input"] = "CO2 + H2O"
-
-        cl, cr = st.columns([1.2, 1])
         
+        cl, cr = st.columns([1.2, 1])
         with cl:
-            st.markdown("### 1. Definição da Reação")
-            # O parâmetro 'value' permite que o botão de exemplo preencha a caixa
-            ri = st.text_input("Reagentes:", value=st.session_state.get("r_input", ""), placeholder="Ex: NaOH + HCl")
-            pi = st.text_input("Produtos:", value=st.session_state.get("p_input", ""), placeholder="Ex: NaCl + H2O")
+            st.markdown("##### 🧪 Configuração da Reação")
+            ri = st.text_input("Reagentes:", placeholder="Ex: NaOH + H2SO4")
+            pi = st.text_input("Produtos:", placeholder="Ex: Na2SO4 + H2O")
             
             if ri and pi:
                 try:
                     rb, pb, err = motor.balancear_e_resolver(ri, pi)
                     if err:
-                        st.warning("⚠️ Elementos não batem entre reagentes e produtos.")
+                        st.warning("⚠️ Certifique-se de que os elementos nos reagentes são os mesmos nos produtos.")
                     else:
                         eq = " + ".join([f"{v if v>1 else ''}{k}" for k, v in rb.items()]) + " ➞ " + \
                              " + ".join([f"{v if v>1 else ''}{k}" for k, v in pb.items()])
                         st.success(f"**Equação:** `{eq}`")
                         
                         st.markdown("---")
-                        st.markdown("### 2. Massas")
                         m_d = {}
                         for r in rb.keys():
                             m_v = st.number_input(f"Massa de {r} (g)", min_value=0.0, key=f"m_ia_{r}")
                             if m_v > 0: m_d[r] = m_v
                         
-                        if st.button("🚀 ANALISAR COM IA", type="primary"):
+                        if st.button("ANALISAR IMPACTO IA", type="primary"):
                             if len(m_d) < len(rb):
                                 st.error("Insira a massa de todos os reagentes.")
                             else:
-                                with st.spinner("IA Calculando..."):
+                                with st.spinner("Calculando estequiometria..."):
                                     m_mols = {s: m_d[s]/Substance.from_formula(s).mass for s in m_d}
                                     lim = min(m_mols, key=lambda x: m_mols[x]/rb[x])
                                     fat = m_mols[lim]/rb[lim]
-                                    st.session_state.ia_res = {"lim": lim, "fat": fat, "pb": pb, "eq": eq}
-                except Exception:
-                    st.error("🧪 Erro nas fórmulas. Verifique maiúsculas (Ex: H2O).")
+                                    st.session_state.ia = {"lim": lim, "fat": fat, "pb": pb, "eq": eq}
+                except:
+                    st.error("⚠️ Erro nas fórmulas químicas digitadas.")
 
         with cr:
-            st.markdown("### 3. Resultado e PDF")
-            if "ia_res" in st.session_state:
-                res = st.session_state.ia_res
-                st.info(f"**Limitante:** {res['lim']}")
+            if "ia" in st.session_state:
+                res = st.session_state.ia
+                st.info(f"**Reagente Limitante:** {res['lim']}")
                 
                 lista_prod = []
                 for k, v in res['pb'].items():
                     m_f = res['fat'] * v * Substance.from_formula(k).mass
-                    lista_prod.append({"Produto": k, "Massa (g)": f"{m_f:.4f}"})
+                    lista_prod.append({"Produto": k, "Massa Esperada (g)": f"{m_f:.4f}"})
                 
-                st.dataframe(pd.DataFrame(lista_prod), use_container_width=True)
+                st.table(pd.DataFrame(lista_prod))
                 
-                laudo = motor.consultoria_ia(res['eq'], res['lim'], lista_prod[0]['Massa (g)'])
-                st.markdown(laudo)
-                
-                # Botão de PDF integrado
-                pdf_data = export_pdf(laudo, res['eq'])
-                st.download_button("📥 Baixar Laudo PDF", pdf_data, "laudo.pdf", "application/pdf", use_container_width=True)
+                with st.spinner("Gerando Relatório IA..."):
+                    laudo = motor.consultoria_ia(res['eq'], res['lim'], lista_prod[0]['Massa Esperada (g)'])
+                    st.markdown(laudo)
+                    
+                    pdf_data = export_pdf(laudo, f"Laudo Estequiométrico: {res['eq']}")
+                    st.download_button(
+                        label="📄 Baixar Relatório em PDF",
+                        data=pdf_data,
+                        file_name="relatorio_quimico.pdf",
+                        mime="application/pdf"
+                    )
             else:
-                st.info("Aguardando dados para análise.")
+                st.info("Defina a reação e as massas para iniciar a análise.")
