@@ -19,7 +19,7 @@ class VideoProcessor(VideoTransformerBase):
         self.model = model
     def transform(self, frame):
         img = frame.to_ndarray(format="bgr24")
-        return self.model(img)[0].plot()
+        return self.model(img).plot()
 
 def extrair_texto(arquivo):
     if not arquivo: return None
@@ -36,22 +36,17 @@ def responder_ia(prompt, historico, dados=None, esp="Geral"):
         "ESTADO: OPERAÇÃO EM MALHA FECHADA (CLOSED-LOOP) - PRECISÃO TEÓRICA 100%.\n"
         "DOMÍNIOS CRÍTICOS: ENGENHARIA AVANÇADA, MEDICINA GENÔMICA, FARMÁCIA QUÂNTICA E DATA SCIENCE.\n\n"
         "1. PROTOCOLO RECURSIVO 'HEPTA-CHECK' (ZERO TOLERÂNCIA):\n"
-        "   - ETAPA 1: DECOMPOSIÇÃO ATÔMICA - Quebre o problema em variáveis fundamentais.\n"
-        "   - ETAPA 2: VALIDAÇÃO DIMENSIONAL - Verifique unidades (SI) e ordens de grandeza em 6D.\n"
-        "   - ETAPA 3: SIMULAÇÃO POR LEIS NATURAIS - Confronte a resposta com Entropia, Cinética e Bioquímica.\n"
-        "   - ETAPA 4: VERIFICAÇÃO CRUZADA DE FÓRMULAS - Execute a mesma conta por 3 métodos diferentes.\n"
-        "   - ETAPA 5: AUDITORIA REGULATÓRIA 2026 - Valide contra ISO, ABNT, FDA, EMA e consensos científicos.\n"
-        "   - ETAPA 6: PENSAMENTO ADVERSÁRIO - Tente ativamente destruir sua conclusão buscando 'Edge Cases'.\n"
-        "   - ETAPA 7: SÍNTESE PHd - Formule a resposta apenas se as 6 etapas anteriores convergirem.\n\n"
-        "2. RIGOR MATEMÁTICO E ENGENHARIA COMPUTACIONAL:\n"
-        "   - PROIBIDO ARREDONDAR: Use notação científica para valores extremos. Precisão absoluta em 8 casas.\n"
-        "   - PROGRAMAÇÃO CIENTÍFICA: Se solicitado análise de dados ou gráficos, forneça scripts Python (NumPy/SciPy/Matplotlib) OBRIGATORIAMENTE para prova real matemática.\n\n"
-        "3. SEGURANÇA BIOMÉDICA E VETO TERMINAL (FAIL-SAFE):\n"
-        "   - OBRIGATÓRIO: Análise de Farmacogenômica (CYP/SLCO/UGT), ajuste de clearance multi-órgão e interações de Grau X.\n"
-        "   - Qualquer risco clínico ou estrutural ≥ 0.01% exige cabeçalho: '⚠️ ALERTA DE RISCO CRÍTICO'.\n\n"
-        "4. NEGAÇÃO DE ALUCINAÇÃO PURA:\n"
-        "   - Se a evidência científica for Grau B ou inferior, ou se o dado for inexistente, declare: 'ESTADO DE INCERTEZA SISTÊMICA'.\n\n"
-        "ORDEM DE SISTEMA: A precisão absoluta anula a brevidade. Seja o auditor PhD mais rigoroso do planeta."
+        "   - ETAPA 1: DECOMPOSIÇÃO ATÔMICA - Variáveis fundamentais.\n"
+        "   - ETAPA 2: VALIDAÇÃO DIMENSIONAL - Unidades (SI) e ordens de grandeza em 6D.\n"
+        "   - ETAPA 3: SIMULAÇÃO POR LEIS NATURAIS - Entropia, Cinética e Bioquímica.\n"
+        "   - ETAPA 4: VERIFICAÇÃO CRUZADA DE FÓRMULAS - 3 métodos diferentes.\n"
+        "   - ETAPA 5: AUDITORIA REGULATÓRIA 2026 - ISO, ABNT, FDA, EMA.\n"
+        "   - ETAPA 6: PENSAMENTO ADVERSÁRIO - Busca por 'Edge Cases'.\n"
+        "   - ETAPA 7: SÍNTESE PHd - Convergência total.\n\n"
+        "2. RIGOR MATEMÁTICO: Proibido arredondar. Precisão absoluta em 8 casas.\n"
+        "3. SEGURANÇA E VETO: Se risco ≥ 0.01%, cabeçalho '⚠️ ALERTA DE RISCO CRÍTICO' e VETO TERMINAL.\n"
+        "4. NEGAÇÃO DE ALUCINAÇÃO: Se incerto, responda 'ESTADO DE INCERTEZA SISTÊMICA'.\n"
+        "A precisão absoluta anula a brevidade. Seja o auditor PhD mais rigoroso do planeta."
     )
     msgs = [{"role": "system", "content": instrucoes}]
     msgs.extend(historico[-5:]) 
@@ -65,7 +60,7 @@ def responder_ia(prompt, historico, dados=None, esp="Geral"):
         temperature=0.0,
         top_p=1.0
     )
-    return res.choices[0].message.content
+    return res.choices.message.content
 
 def show_chatbot():
     if "messages_geral" not in st.session_state: st.session_state.messages_geral = []
@@ -80,17 +75,18 @@ def show_chatbot():
 
     st.divider()
 
+    # LINKS CORRIGIDOS PARA URLS ABSOLUTAS EXTERNAS
     dict_ferramentas = {
-        "Lovable": {"desc": "Crie interfaces e protótipos de sistemas internos sem programar.", "url": "lovable.dev"},
-        "Gamma": {"desc": "Transforme dados em apresentações profissionais em segundos.", "url": "gamma.app"},
-        "Manus": {"desc": "Agente de IA para execução de tarefas digitais e pesquisas.", "url": "manus.ai"},
-        "Perplexity": {"desc": "Buscador técnico para verificação de artigos e fatos.", "url": "www.perplexity.ai"},
+        "Lovable": {"desc": "Crie interfaces e protótipos de sistemas internos sem programar.", "url": "https://lovable.dev"},
+        "Gamma": {"desc": "Transforme dados em apresentações profissionais em segundos.", "url": "https://gamma.app"},
+        "Manus": {"desc": "Agente de IA para execução de tarefas digitais e pesquisas.", "url": "https://manus.im"},
+        "Perplexity": {"desc": "Buscador técnico para verificação de artigos e fatos.", "url": "https://www.perplexity.ai"},
         "AlphaFold": {
             "desc": "Inteligência Artificial para predição de estruturas de proteínas.",
             "sub": {
-                "AlphaFold Protein Structure Database": {"desc": "Acesso a mais de 200 milhões de estruturas de proteínas já preditas.", "url": "alphafold.ebi.ac.uk"},
-                "AlphaFold Server (Previsão)": {"desc": "Ferramenta para prever novas estruturas de proteínas e interações.", "url": "alphafoldserver.com"},
-                "AlphaFold no Google Colab": {"desc": "Execução do modelo via código para pesquisas personalizadas.", "url": "colab.research.google.com"}
+                "AlphaFold Protein Structure Database": {"desc": "Acesso a estruturas já preditas.", "url": "https://alphafold.ebi.ac.uk"},
+                "AlphaFold Server (Previsão)": {"desc": "Ferramenta para prever novas estruturas.", "url": "https://alphafoldserver.com"},
+                "AlphaFold no Google Colab": {"desc": "Execução via código no Colab.", "url": "colab.research.google.com"}
             }
         }
     }
@@ -113,12 +109,14 @@ def show_chatbot():
             if ft_sel == "AlphaFold":
                 sub_sel = st.selectbox("Tipo de AlphaFold:", list(dict_ferramentas["AlphaFold"]["sub"].keys()), key="sub_geral")
                 info = dict_ferramentas["AlphaFold"]["sub"][sub_sel]
+                btn_label = sub_sel
             else:
                 info = dict_ferramentas[ft_sel]
+                btn_label = ft_sel
 
             with st.popover("Ver Detalhes", use_container_width=True):
                 st.write(info["desc"])
-                st.link_button(f"Abrir {sub_sel if ft_sel == 'AlphaFold' else ft_sel}", info["url"], use_container_width=True)
+                st.link_button(f"Abrir {btn_label}", info["url"], use_container_width=True)
 
         with col_c1:
             chat_container = st.container(height=500, border=False)
@@ -142,12 +140,14 @@ def show_chatbot():
             if ft_sel_ag == "AlphaFold":
                 sub_sel_ag = st.selectbox("Tipo de AlphaFold:", list(dict_ferramentas["AlphaFold"]["sub"].keys()), key="sub_agente")
                 info_ag = dict_ferramentas["AlphaFold"]["sub"][sub_sel_ag]
+                btn_label_ag = sub_sel_ag
             else:
                 info_ag = dict_ferramentas[ft_sel_ag]
+                btn_label_ag = ft_sel_ag
 
             with st.popover("Ver Detalhes", use_container_width=True):
                 st.write(info_ag["desc"])
-                st.link_button(f"Abrir {sub_sel_ag if ft_sel_ag == 'AlphaFold' else ft_sel_ag}", info_ag["url"], use_container_width=True)
+                st.link_button(f"Abrir {btn_label_ag}", info_ag["url"], use_container_width=True)
 
         with col_c2:
             chat_container = st.container(height=500, border=False)
