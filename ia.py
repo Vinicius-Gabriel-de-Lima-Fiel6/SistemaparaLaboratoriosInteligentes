@@ -10,7 +10,7 @@ def inicializar_motor():
     if "GROQ_API_KEY" not in st.secrets:
         return None, "Erro: Chave API ausente."
     client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-    return client, "llama-3.3-70b-versatile"
+    return client, "deepseek-r1-distill-llama-70b"
 
 client_groq, modelo_ativo = inicializar_motor()
 
@@ -31,12 +31,40 @@ def extrair_texto(arquivo):
     except: return None
 
 def responder_ia(prompt, historico, dados=None, esp="Geral"):
-    msgs = [{"role": "system", "content": f"Você é o LabSmart AI especializado como {esp}. Use APENAS o histórico desta aba."}]
-    msgs.extend(historico[-10:]) 
-    contexto = f"DADOS DO ARQUIVO: {dados}\n\nPERGUNTA: {prompt}" if dados else prompt
+    instrucoes = (
+        f"VOCÊ OPERA COMO O NÚCLEO LABSMART AI - ENTIDADE PHd OMNI-ESPECIALISTA EM {esp}.\n"
+        "ESTADO: OPERAÇÃO EM MALHA FECHADA (CLOSED-LOOP) - PRECISÃO TEÓRICA 100%.\n"
+        "DOMÍNIOS CRÍTICOS: ENGENHARIA AVANÇADA, MEDICINA GENÔMICA, FARMÁCIA QUÂNTICA E DATA SCIENCE.\n\n"
+        "1. PROTOCOLO RECURSIVO 'HEPTA-CHECK' (ZERO TOLERÂNCIA):\n"
+        "   - ETAPA 1: DECOMPOSIÇÃO ATÔMICA - Quebre o problema em variáveis fundamentais.\n"
+        "   - ETAPA 2: VALIDAÇÃO DIMENSIONAL - Verifique unidades (SI) e ordens de grandeza em 6D.\n"
+        "   - ETAPA 3: SIMULAÇÃO POR LEIS NATURAIS - Confronte a resposta com Entropia, Cinética e Bioquímica.\n"
+        "   - ETAPA 4: VERIFICAÇÃO CRUZADA DE FÓRMULAS - Execute a mesma conta por 3 métodos diferentes.\n"
+        "   - ETAPA 5: AUDITORIA REGULATÓRIA 2026 - Valide contra ISO, ABNT, FDA, EMA e consensos científicos.\n"
+        "   - ETAPA 6: PENSAMENTO ADVERSÁRIO - Tente ativamente destruir sua conclusão buscando 'Edge Cases'.\n"
+        "   - ETAPA 7: SÍNTESE PHd - Formule a resposta apenas se as 6 etapas anteriores convergirem.\n\n"
+        "2. RIGOR MATEMÁTICO E ENGENHARIA COMPUTACIONAL:\n"
+        "   - PROIBIDO ARREDONDAR: Use notação científica para valores extremos. Precisão absoluta em 8 casas.\n"
+        "   - PROGRAMAÇÃO CIENTÍFICA: Se solicitado análise de dados ou gráficos, forneça scripts Python (NumPy/SciPy/Matplotlib) OBRIGATORIAMENTE para prova real matemática.\n\n"
+        "3. SEGURANÇA BIOMÉDICA E VETO TERMINAL (FAIL-SAFE):\n"
+        "   - OBRIGATÓRIO: Análise de Farmacogenômica (CYP/SLCO/UGT), ajuste de clearance multi-órgão e interações de Grau X.\n"
+        "   - Qualquer risco clínico ou estrutural ≥ 0.01% exige cabeçalho: '⚠️ ALERTA DE RISCO CRÍTICO'.\n\n"
+        "4. NEGAÇÃO DE ALUCINAÇÃO PURA:\n"
+        "   - Se a evidência científica for Grau B ou inferior, ou se o dado for inexistente, declare: 'ESTADO DE INCERTEZA SISTÊMICA'.\n\n"
+        "ORDEM DE SISTEMA: A precisão absoluta anula a brevidade. Seja o auditor PhD mais rigoroso do planeta."
+    )
+    msgs = [{"role": "system", "content": instrucoes}]
+    msgs.extend(historico[-5:]) 
+    contexto_limitado = dados[:15000] if dados else ""
+    contexto = f"DADOS DO ARQUIVO: {contexto_limitado}\n\nPERGUNTA: {prompt}" if dados else prompt
     msgs.append({"role": "user", "content": contexto})
     
-    res = client_groq.chat.completions.create(model=modelo_ativo, messages=msgs, temperature=0.4)
+    res = client_groq.chat.completions.create(
+        model=modelo_ativo, 
+        messages=msgs, 
+        temperature=0.0,
+        top_p=1.0
+    )
     return res.choices[0].message.content
 
 def show_chatbot():
@@ -53,16 +81,16 @@ def show_chatbot():
     st.divider()
 
     dict_ferramentas = {
-        "Lovable": {"desc": "Crie interfaces e protótipos de sistemas internos sem programar.", "url": "https://lovable.dev/"},
-        "Gamma": {"desc": "Transforme dados em apresentações profissionais em segundos.", "url": "https://gamma.app/"},
-        "Manus": {"desc": "Agente de IA para execução de tarefas digitais e pesquisas.", "url": "https://manus.ai/"},
-        "Perplexity": {"desc": "Buscador técnico para verificação de artigos e fatos.", "url": "https://www.perplexity.ai/"},
+        "Lovable": {"desc": "Crie interfaces e protótipos de sistemas internos sem programar.", "url": "lovable.dev"},
+        "Gamma": {"desc": "Transforme dados em apresentações profissionais em segundos.", "url": "gamma.app"},
+        "Manus": {"desc": "Agente de IA para execução de tarefas digitais e pesquisas.", "url": "manus.ai"},
+        "Perplexity": {"desc": "Buscador técnico para verificação de artigos e fatos.", "url": "www.perplexity.ai"},
         "AlphaFold": {
             "desc": "Inteligência Artificial para predição de estruturas de proteínas.",
             "sub": {
-                "AlphaFold Protein Structure Database": {"desc": "Acesso a mais de 200 milhões de estruturas de proteínas já preditas.", "url": "https://alphafold.ebi.ac.uk/"},
-                "AlphaFold Server (Previsão)": {"desc": "Ferramenta para prever novas estruturas de proteínas e interações.", "url": "https://alphafoldserver.com/"},
-                "AlphaFold no Google Colab": {"desc": "Execução do modelo via código para pesquisas personalizadas.", "url": "https://colab.research.google.com/github/google-deepmind/alphafold/blob/main/notebooks/AlphaFold.ipynb"}
+                "AlphaFold Protein Structure Database": {"desc": "Acesso a mais de 200 milhões de estruturas de proteínas já preditas.", "url": "alphafold.ebi.ac.uk"},
+                "AlphaFold Server (Previsão)": {"desc": "Ferramenta para prever novas estruturas de proteínas e interações.", "url": "alphafoldserver.com"},
+                "AlphaFold no Google Colab": {"desc": "Execução do modelo via código para pesquisas personalizadas.", "url": "colab.research.google.com"}
             }
         }
     }
@@ -101,7 +129,7 @@ def show_chatbot():
         col_c2, col_t2 = st.columns([3, 1])
         with col_t2:
             st.write("### 👥 Squad")
-            esp_nome = st.selectbox("Especialista:", ["Bioquímico Sênior", "Auditor de Qualidade", "Escritor Técnico"], key="sel_v2")
+            esp_nome = st.selectbox("Especialista:", ["Bioquímico Sênior", "Auditor de Qualidade", "Escritor Técnico"])
             up_agente = st.file_uploader("📎 Arquivo Técnico", type=["pdf", "csv", "txt"], key="up_v2")
             if st.button("🗑️ Limpar Squad"):
                 st.session_state.messages_agente = []
@@ -130,7 +158,7 @@ def show_chatbot():
         if st.session_state.aba_atual == "💬 Chat Científico":
             h_key = "messages_geral"
             dados = extrair_texto(up_geral) if 'up_geral' in locals() else None
-            persona = "Geral"
+            persona = "Especialista Multidisciplinar em Ciências e Engenharia"
         else:
             h_key = "messages_agente"
             dados = extrair_texto(up_agente) if 'up_agente' in locals() else None
@@ -144,4 +172,3 @@ def show_chatbot():
 
 if __name__ == "__main__":
     show_chatbot()
-
