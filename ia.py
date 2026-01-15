@@ -19,7 +19,7 @@ class VideoProcessor(VideoTransformerBase):
         self.model = model
     def transform(self, frame):
         img = frame.to_ndarray(format="bgr24")
-        return self.model(img)[0].plot()
+        return self.model(img).plot()
 
 def extrair_texto(arquivo):
     if not arquivo: return None
