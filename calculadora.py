@@ -261,21 +261,7 @@ def show_calculadora():
                                     st.session_state.ia_res = {"lim": lim, "fat": fat, "pb": pb, "eq": eq}
                 except Exception:
                     st.error("🧪 Erro nas formulas. Verifique maiusculas (Ex: H2O).")
-        with cr:
-            st.markdown("### 🔍 Dados Moleculares")
-            if ri and pi:
-                try:
-  
-                    reagentes_lista = ri.replace(" ", "").split("+")
-                    dados = []
-                    for sub in reagentes_lista:
-                        massa = Substance.from_formula(sub).mass
-                        dados.append({"Substância": sub, "Massa Molar": f"{massa:.2f} g/mol"})
-                    st.dataframe(pd.DataFrame(dados), hide_index=True, use_container_width=True)
-                except:
-                    st.info("Aguardando fórmulas válidas para exibir dados moleculares.")
-            else:
-                st.caption("Insira uma reação para visualizar as propriedades das moléculas.")    
+            
 
        
             st.markdown("### 3. Resultado e PDF")
