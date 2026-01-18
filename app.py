@@ -20,32 +20,13 @@ st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
     
-    /* MALHA DE FUNDO ADICIONADA AQUI */
-    .stApp::before {
-        content: "";
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        background-image: 
-            linear-gradient(rgba(0, 0, 0, 0.1) 1px, transparent 1px), 
-            linear-gradient(90deg, rgba(0, 0, 0, 0.1) 1px, transparent 1px);
-        background-size: 50px 50px;
-        transform: perspective(500px) rotateX(60deg) scale(2.5);
-        transform-origin: top;
-        z-index: -1;
-        pointer-events: none;
-        animation: move-grid 20s linear infinite;
-    }
-
-    @keyframes move-grid {
-        0% { background-position: 0 0; }
-        100% { background-position: 0 50px; }
-    }
-
+    /* MALHA PRETA MINIMALISTA (CORRIGIDA) */
     .stApp {
         background-color: #E2E8F0;
+        background-image: 
+            linear-gradient(rgba(0, 0, 0, 0.05) 1px, transparent 1px), 
+            linear-gradient(90deg, rgba(0, 0, 0, 0.05) 1px, transparent 1px);
+        background-size: 30px 30px; /* Tamanho do quadrado da malha */
         color: #1A202C;
     }
 
@@ -256,5 +237,6 @@ else:
 
     st.sidebar.markdown("---")
     st.sidebar.caption("LabSmartAI • v1.0")
+
 
 
