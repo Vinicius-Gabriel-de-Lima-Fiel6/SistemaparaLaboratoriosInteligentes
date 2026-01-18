@@ -1,0 +1,93 @@
+:root {
+    --primary: #00f2fe;
+    --secondary: #4facfe;
+    --dark-bg: #0a0e17;
+    --card-bg: rgba(16, 22, 34, 0.85);
+    --text: #ffffff;
+}
+
+.stApp {
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background: var(--dark-bg);
+    background-image: 
+        radial-gradient(circle at 20% 30%, rgba(79, 172, 254, 0.15) 0%, transparent 40%),
+        radial-gradient(circle at 80% 70%, rgba(0, 242, 254, 0.1) 0%, transparent 40%);
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+
+.stApp::before {
+    content: "";
+    position: absolute;
+    width: 200%;
+    height: 200%;
+    background-image: linear-gradient(rgba(0, 242, 254, 0.05) 1px, transparent 1px), 
+                      linear-gradient(90deg, rgba(0, 242, 254, 0.05) 1px, transparent 1px);
+    background-size: 50px 50px;
+    transform: perspective(500px) rotateX(60deg);
+    top: -50%;
+    z-index: -1;
+    animation: move-grid 20s linear infinite;
+}
+
+@keyframes move-grid {
+    0% { transform: perspective(500px) rotateX(60deg) translateY(0); }
+    100% { transform: perspective(500px) rotateX(60deg) translateY(50px); }
+}
+
+[data-testid="stSidebar"] {
+    background-color: var(--dark-bg) !important;
+    border-right: 1px solid rgba(0, 242, 254, 0.2);
+}
+
+.stTextInput input {
+    width: 100%;
+    padding: 12px 15px;
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 10px !important;
+    color: white !important;
+    outline: none;
+    transition: 0.3s;
+}
+
+.stTextInput input:focus {
+    border-color: var(--primary) !important;
+    box-shadow: 0 0 15px rgba(0, 242, 254, 0.2) !important;
+}
+
+.stButton>button {
+    width: 100%;
+    padding: 14px;
+    border: none !important;
+    border-radius: 10px !important;
+    background: linear-gradient(to right, var(--secondary), var(--primary)) !important;
+    color: var(--dark-bg) !important;
+    font-weight: bold !important;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: 0.3s;
+    margin-top: 10px;
+}
+
+.stButton>button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(79, 172, 254, 0.4);
+}
+
+h1, h2, h3, p, span, label {
+    color: var(--text) !important;
+}
+
+div[data-testid="metric-container"], .user-card {
+    background: var(--card-bg) !important;
+    padding: 15px;
+    border-radius: 12px !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    backdrop-filter: blur(15px);
+}
