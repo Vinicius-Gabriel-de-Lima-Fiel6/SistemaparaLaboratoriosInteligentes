@@ -50,6 +50,7 @@ def responder_ia(prompt, historico, dados=None, esp="Geral"):
     return res.choices[0].message.content
 
 def show_chatbot():
+    aplicar_estilo() 
     if "messages_geral" not in st.session_state: st.session_state.messages_geral = []
     if "messages_agente" not in st.session_state: st.session_state.messages_agente = []
     if "aba_atual" not in st.session_state: st.session_state.aba_atual = "Chat Científico"
@@ -154,5 +155,6 @@ def show_chatbot():
 
 if __name__ == "__main__":
     show_chatbot()
+
 
 
