@@ -4,7 +4,9 @@ import sys
 import auth_db as db 
 from supabase import create_client
 
+
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 
 st.set_page_config(
     page_title="LabSmartAI", 
@@ -13,28 +15,19 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- ESTILO GERAL ATUALIZADO (Clean & Modern) ---
+
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
     
-    /* Fundo Acetinado */
     .stApp {
-        background: radial-gradient(circle at top right, #f8fafc, #E2E8F0) !important;
+        background-color: #E2E8F0;
         color: #1A202C;
     }
 
-    /* Posicionamento do Menu Superior */
-    .menu-superior {
-        display: flex;
-        justify-content: flex-end;
-        padding: 0;
-        margin-top: -50px; /* Ajuste para subir ao nível do topo */
-    }
-
     [data-testid="stSidebar"] {
-        background-color: #f1f5f9;
-        border-right: 1px solid #e2e8f0;
+        background-color: #CBD5E0;
+        border-right: 2px solid #A0AEC0;
     }
 
     h1, h2, h3, p, span, label {
@@ -47,32 +40,37 @@ st.markdown("""
         border-radius: 8px;
         background-color: #FFFFFF;
         color: #1A202C;
-        border: 1px solid #e2e8f0;
+        border: 1px solid #A0AEC0;
         padding: 0.5rem;
         font-weight: 700;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         transition: all 0.2s ease;
     }
     
     .stButton>button:hover {
-        background-color: #f8fafc;
-        border-color: #94a3b8;
+        background-color: #EDF2F7;
+        border-color: #718096;
+        transform: translateY(-1px);
     }
 
-    /* Estilo para os botões brancos das fotos (Texto Preto) */
-    [data-testid="stBaseButton-secondary"] {
-        color: #000000 !important;
+    div[data-testid="metric-container"] {
+        background-color: #F7FAFC;
+        border: 1px solid #A0AEC0;
+        padding: 15px;
+        border-radius: 10px;
     }
 
     .user-card {
-        background: #FFFFFF;
+        background: #F7FAFC;
         padding: 15px;
         border-radius: 12px;
-        border: 1px solid #e2e8f0;
+        border: 1px solid #A0AEC0;
         margin-bottom: 20px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
     }
     </style>
     """, unsafe_allow_html=True)
+
 
 if 'logado' not in st.session_state:
     st.session_state.logado = False
@@ -104,26 +102,16 @@ def tela_acesso():
             else:
                 st.error("Dados incorretos.")
         
+     
         st.markdown("---")
+        st.markdown("<p style='text-align: center; color: #4A5568 !important;'>Se não tiver uma conta, clique abaixo:</p>", unsafe_allow_html=True)
+        
+        # Altere o link "https://seulink.com" conforme sua necessidade
         st.link_button("Cadastro Empresarial","https://cadastro-de-empresas-e7bkusdk4tsdchmx89fh8c.streamlit.app/", use_container_width=True)
 
 if not st.session_state.logado:
     tela_acesso()
 else:
-    # --- MENU SUPERIOR (POP-OVER) ---
-    # Criamos uma linha no topo apenas para o menu de opções
-    top_col1, top_col2 = st.columns([12, 1])
-    with top_col2:
-        with st.popover("⋮"):
-            st.markdown("### 🛠️ Extras")
-            if st.button("📁 Arquivos", use_container_width=True):
-                st.toast("Abrindo Gerenciador de Arquivos...")
-            if st.button("🏷️ Etiquetas", use_container_width=True):
-                st.toast("Gerando etiquetas...")
-            st.divider()
-            if st.button("⚙️ Perfil", use_container_width=True):
-                st.toast("Configurações de conta")
-
     # --- IMPORTAÇÃO DOS MÓDULOS ---
     try:
         from substancias import show_substances
@@ -145,11 +133,11 @@ else:
     # --- SIDEBAR E NAVEGAÇÃO ---
     st.sidebar.markdown(f"""
         <div class="user-card">
-            <small style="font-weight: 800; font-size: 0.7rem; color: #64748b;">ORGANIZAÇÃO</small><br>
+            <small style="font-weight: 800; font-size: 0.7rem;">ORGANIZAÇÃO</small><br>
             <span style="font-size: 1rem; font-weight: 700;">{org_atual}</span><br>
-            <div style="margin-top: 10px; border-top: 1px solid #f1f5f9; padding-top: 5px;">
+            <div style="margin-top: 10px; border-top: 1px solid #CBD5E0; padding-top: 5px;">
                 <span style="font-size: 0.9rem;">{user['username']}</span><br>
-                <span style="background: #e2e8f0; font-size: 0.7rem; padding: 2px 8px; border-radius: 10px;">{role}</span>
+                <span style="background: #E2E8F0; font-size: 0.7rem; padding: 2px 8px; border-radius: 10px;">{role}</span>
             </div>
         </div>
     """, unsafe_allow_html=True)
@@ -169,6 +157,7 @@ else:
 
     clean_selection = selection.split(" ", 1)[-1]
 
+
     if clean_selection == "Dashboard":
         st.title(f"🚀 Painel de Controle - {org_atual}")
         
@@ -181,9 +170,14 @@ else:
         except:
             total_itens, total_equip, total_analises = 0, 0, 0
 
+        # --- LÓGICA DE COR PARA ESTOQUE BAIXO ---
         limite_alerta = 100 
-        cor_estoque = "inverse" if total_itens < limite_alerta else "normal"
-        delta_label = f"-{limite_alerta - total_itens} un. (Crítico)" if total_itens < limite_alerta else "Operacional"
+        if total_itens < limite_alerta:
+            cor_estoque = "inverse" # Vermelho no Streamlit para deltas negativos
+            delta_label = f"-{limite_alerta - total_itens} un. (Crítico)"
+        else:
+            cor_estoque = "normal" # Verde/Padrão
+            delta_label = "Estoque Operacional"
 
         m1, m2, m3, m4 = st.columns(4)
         m1.metric("Itens no Estoque", f"{total_itens:,}".replace(",", "."), delta=delta_label, delta_color=cor_estoque)
@@ -194,6 +188,7 @@ else:
         st.markdown("---")
         st.subheader("Atalhos do Sistema")
         
+        # Linha 1 de Atalhos
         c1, c2, c3 = st.columns(3)
         with c1:
             if st.button("🤖 Central de IA"):
@@ -205,6 +200,21 @@ else:
             if st.button("🧮 Calculadora de Soluções"):
                 st.session_state.selection = "🧮 Calculadora Química"; st.rerun()
 
+       
+        c4, c5, c6 = st.columns(3)
+        with c4:
+            if st.button("📊 Painel de Gráficos"):
+                st.session_state.selection = "📊 Gráficos"; st.rerun()
+        with c5:
+            if role in ["Tecnico", "ADM"]:
+                if st.button("📦 Gestão de Estoque"):
+                    st.session_state.selection = "📦 Estoque"; st.rerun()
+        with c6:
+            if role == "ADM":
+                if st.button("📄 Gerador de Relatórios"):
+                    st.session_state.selection = "📄 Relatórios"; st.rerun()
+
+    # --- NAVEGAÇÃO PARA OUTROS MÓDULOS ---
     elif clean_selection == "IA & Visão":
         ia.show_chatbot()
     elif clean_selection == "Tabelas Químicas":
