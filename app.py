@@ -16,60 +16,9 @@ st.set_page_config(
 )
 
 
-st.markdown("""
-    <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-    
-    .stApp {
-        background-color: #E2E8F0;
-        color: #1A202C;
-    }
-
-    [data-testid="stSidebar"] {
-        background-color: #CBD5E0;
-        border-right: 2px solid #A0AEC0;
-    }
-
-    h1, h2, h3, p, span, label {
-        font-family: 'Inter', sans-serif;
-        color: #1A202C !important;
-    }
-
-    .stButton>button {
-        width: 100%;
-        border-radius: 8px;
-        background-color: #FFFFFF;
-        color: #1A202C;
-        border: 1px solid #A0AEC0;
-        padding: 0.5rem;
-        font-weight: 700;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        transition: all 0.2s ease;
-    }
-    
-    .stButton>button:hover {
-        background-color: #EDF2F7;
-        border-color: #718096;
-        transform: translateY(-1px);
-    }
-
-    div[data-testid="metric-container"] {
-        background-color: #F7FAFC;
-        border: 1px solid #A0AEC0;
-        padding: 15px;
-        border-radius: 10px;
-    }
-
-    .user-card {
-        background: #F7FAFC;
-        padding: 15px;
-        border-radius: 12px;
-        border: 1px solid #A0AEC0;
-        margin-bottom: 20px;
-        box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
-    }
-    </style>
-    """, unsafe_allow_html=True)
+if os.path.exists("style.css"):
+    with open("style.css") as f:
+        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
 
 if 'logado' not in st.session_state:
@@ -79,7 +28,7 @@ if 'user_data' not in st.session_state:
 if 'selection' not in st.session_state:
     st.session_state.selection = "🏠 Dashboard"
 
-# --- CONEXÃO SUPABASE ---
+
 supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 
 def tela_acesso():
@@ -87,7 +36,7 @@ def tela_acesso():
     with col2:
         st.write("")
         st.markdown("<h1 style='text-align: center; font-size: 3.5rem;'>🧪</h1>", unsafe_allow_html=True)
-        st.markdown("<h1 style='text-align: center; color: #2D3748 !important;'>LabSmartAI</h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align: center;'>LabSmartAI</h1>", unsafe_allow_html=True)
         
         st.subheader("Login Administrativo")
         email_input = st.text_input("E-mail Profissional", key="l_email")
@@ -104,15 +53,13 @@ def tela_acesso():
         
      
         st.markdown("---")
-        st.markdown("<p style='text-align: center; color: #4A5568 !important;'>Se não tiver uma conta, clique abaixo:</p>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center;'>Se não tiver uma conta, clique abaixo:</p>", unsafe_allow_html=True)
         
-        # Altere o link "https://seulink.com" conforme sua necessidade
         st.link_button("Cadastro Empresarial","https://cadastro-de-empresas-e7bkusdk4tsdchmx89fh8c.streamlit.app/", use_container_width=True)
 
 if not st.session_state.logado:
     tela_acesso()
 else:
-    # --- IMPORTAÇÃO DOS MÓDULOS ---
     try:
         from substancias import show_substances
         from ControleEstoque import show_estoque
@@ -130,14 +77,13 @@ else:
     role = user.get('role', 'Visualizador')
     org_atual = user.get('org_name')
     
-    # --- SIDEBAR E NAVEGAÇÃO ---
     st.sidebar.markdown(f"""
         <div class="user-card">
             <small style="font-weight: 800; font-size: 0.7rem;">ORGANIZAÇÃO</small><br>
             <span style="font-size: 1rem; font-weight: 700;">{org_atual}</span><br>
-            <div style="margin-top: 10px; border-top: 1px solid #CBD5E0; padding-top: 5px;">
+            <div style="margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 5px;">
                 <span style="font-size: 0.9rem;">{user['username']}</span><br>
-                <span style="background: #E2E8F0; font-size: 0.7rem; padding: 2px 8px; border-radius: 10px;">{role}</span>
+                <span style="background: rgba(0, 242, 254, 0.2); color: #00f2fe; font-size: 0.7rem; padding: 2px 8px; border-radius: 10px;">{role}</span>
             </div>
         </div>
     """, unsafe_allow_html=True)
@@ -170,13 +116,12 @@ else:
         except:
             total_itens, total_equip, total_analises = 0, 0, 0
 
-        # --- LÓGICA DE COR PARA ESTOQUE BAIXO ---
         limite_alerta = 100 
         if total_itens < limite_alerta:
-            cor_estoque = "inverse" # Vermelho no Streamlit para deltas negativos
+            cor_estoque = "inverse" 
             delta_label = f"-{limite_alerta - total_itens} un. (Crítico)"
         else:
-            cor_estoque = "normal" # Verde/Padrão
+            cor_estoque = "normal" 
             delta_label = "Estoque Operacional"
 
         m1, m2, m3, m4 = st.columns(4)
@@ -188,7 +133,6 @@ else:
         st.markdown("---")
         st.subheader("Atalhos do Sistema")
         
-        # Linha 1 de Atalhos
         c1, c2, c3 = st.columns(3)
         with c1:
             if st.button("🤖 Central de IA"):
@@ -214,7 +158,6 @@ else:
                 if st.button("📄 Gerador de Relatórios"):
                     st.session_state.selection = "📄 Relatórios"; st.rerun()
 
-    # --- NAVEGAÇÃO PARA OUTROS MÓDULOS ---
     elif clean_selection == "IA & Visão":
         ia.show_chatbot()
     elif clean_selection == "Tabelas Químicas":
