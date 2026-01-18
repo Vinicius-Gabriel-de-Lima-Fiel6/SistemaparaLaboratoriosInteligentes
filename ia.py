@@ -5,7 +5,7 @@ from ultralytics import YOLO
 from streamlit_webrtc import webrtc_streamer, VideoTransformerBase
 import PyPDF2
 import io
-from utils import aplicar_estilo
+
 
 def inicializar_motor():
     if "GROQ_API_KEY" not in st.secrets:
@@ -50,7 +50,7 @@ def responder_ia(prompt, historico, dados=None, esp="Geral"):
     return res.choices[0].message.content
 
 def show_chatbot():
-    aplicar_estilo() 
+
     if "messages_geral" not in st.session_state: st.session_state.messages_geral = []
     if "messages_agente" not in st.session_state: st.session_state.messages_agente = []
     if "aba_atual" not in st.session_state: st.session_state.aba_atual = "Chat Científico"
@@ -155,6 +155,7 @@ def show_chatbot():
 
 if __name__ == "__main__":
     show_chatbot()
+
 
 
 
