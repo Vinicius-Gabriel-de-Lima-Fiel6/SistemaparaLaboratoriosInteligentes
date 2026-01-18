@@ -5,6 +5,7 @@ from ultralytics import YOLO
 from streamlit_webrtc import webrtc_streamer, VideoTransformerBase
 import PyPDF2
 import io
+from utils import aplicar_estilo
 
 def inicializar_motor():
     if "GROQ_API_KEY" not in st.secrets:
@@ -153,4 +154,5 @@ def show_chatbot():
 
 if __name__ == "__main__":
     show_chatbot()
+
 
