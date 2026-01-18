@@ -29,8 +29,8 @@ st.markdown("""
         width: 100vw;
         height: 100vh;
         background-image: 
-            linear-gradient(rgba(0, 0, 0, 0.3) 1px, transparent 1px), 
-            linear-gradient(90deg, rgba(0, 242, 254, 0.1) 1px, transparent 1px);
+            linear-gradient(rgba(0, 0, 0, 0.1) 1px, transparent 1px), 
+            linear-gradient(90deg, rgba(0, 0, 0, 0.1) 1px, transparent 1px);
         background-size: 50px 50px;
         transform: perspective(500px) rotateX(60deg) scale(2.5);
         transform-origin: top;
@@ -256,4 +256,5 @@ else:
 
     st.sidebar.markdown("---")
     st.sidebar.caption("LabSmartAI • v1.0")
+
 
