@@ -20,6 +20,30 @@ st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
     
+    /* MALHA DE FUNDO ADICIONADA AQUI */
+    .stApp::before {
+        content: "";
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background-image: 
+            linear-gradient(rgba(0, 242, 254, 0.1) 1px, transparent 1px), 
+            linear-gradient(90deg, rgba(0, 242, 254, 0.1) 1px, transparent 1px);
+        background-size: 50px 50px;
+        transform: perspective(500px) rotateX(60deg) scale(2.5);
+        transform-origin: top;
+        z-index: -1;
+        pointer-events: none;
+        animation: move-grid 20s linear infinite;
+    }
+
+    @keyframes move-grid {
+        0% { background-position: 0 0; }
+        100% { background-position: 0 50px; }
+    }
+
     .stApp {
         background-color: #E2E8F0;
         color: #1A202C;
@@ -106,7 +130,6 @@ def tela_acesso():
         st.markdown("---")
         st.markdown("<p style='text-align: center; color: #4A5568 !important;'>Se não tiver uma conta, clique abaixo:</p>", unsafe_allow_html=True)
         
-        # Altere o link "https://seulink.com" conforme sua necessidade
         st.link_button("Cadastro Empresarial","https://cadastro-de-empresas-e7bkusdk4tsdchmx89fh8c.streamlit.app/", use_container_width=True)
 
 if not st.session_state.logado:
@@ -170,13 +193,12 @@ else:
         except:
             total_itens, total_equip, total_analises = 0, 0, 0
 
-        # --- LÓGICA DE COR PARA ESTOQUE BAIXO ---
         limite_alerta = 100 
         if total_itens < limite_alerta:
-            cor_estoque = "inverse" # Vermelho no Streamlit para deltas negativos
+            cor_estoque = "inverse" 
             delta_label = f"-{limite_alerta - total_itens} un. (Crítico)"
         else:
-            cor_estoque = "normal" # Verde/Padrão
+            cor_estoque = "normal" 
             delta_label = "Estoque Operacional"
 
         m1, m2, m3, m4 = st.columns(4)
@@ -188,7 +210,6 @@ else:
         st.markdown("---")
         st.subheader("Atalhos do Sistema")
         
-        # Linha 1 de Atalhos
         c1, c2, c3 = st.columns(3)
         with c1:
             if st.button("🤖 Central de IA"):
@@ -214,7 +235,6 @@ else:
                 if st.button("📄 Gerador de Relatórios"):
                     st.session_state.selection = "📄 Relatórios"; st.rerun()
 
-    # --- NAVEGAÇÃO PARA OUTROS MÓDULOS ---
     elif clean_selection == "IA & Visão":
         ia.show_chatbot()
     elif clean_selection == "Tabelas Químicas":
