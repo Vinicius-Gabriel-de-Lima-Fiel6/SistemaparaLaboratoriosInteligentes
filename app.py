@@ -20,19 +20,17 @@ st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
     
-    /* MALHA PRETA MINIMALISTA (CORRIGIDA) */
+    /* FUNDO MODERNO ACETINADO (SEM MALHA DATADA) */
     .stApp {
-        background-color: #E2E8F0;
-        background-image: 
-            linear-gradient(rgba(0, 0, 0, 0.05) 1px, transparent 1px), 
-            linear-gradient(90deg, rgba(0, 0, 0, 0.05) 1px, transparent 1px);
-        background-size: 30px 30px; /* Tamanho do quadrado da malha */
+        background: radial-gradient(circle at top right, #f8fafc, #E2E8F0) !important;
         color: #1A202C;
     }
 
+    /* SIDEBAR COM EFEITO DE PROFUNDIDADE SUAVE */
     [data-testid="stSidebar"] {
-        background-color: #CBD5E0;
-        border-right: 2px solid #A0AEC0;
+        background-color: #f1f5f9;
+        border-right: 1px solid #e2e8f0;
+        box-shadow: 2px 0 10px rgba(0,0,0,0.02);
     }
 
     h1, h2, h3, p, span, label {
@@ -40,38 +38,43 @@ st.markdown("""
         color: #1A202C !important;
     }
 
+    /* BOTÕES COM DESIGN FLAT MODERNO */
     .stButton>button {
         width: 100%;
-        border-radius: 8px;
+        border-radius: 10px;
         background-color: #FFFFFF;
-        color: #1A202C;
-        border: 1px solid #A0AEC0;
-        padding: 0.5rem;
-        font-weight: 700;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        transition: all 0.2s ease;
+        color: #1e293b;
+        border: 1px solid #e2e8f0;
+        padding: 0.6rem;
+        font-weight: 600;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     }
     
     .stButton>button:hover {
-        background-color: #EDF2F7;
-        border-color: #718096;
+        border-color: #94a3b8;
+        background-color: #f8fafc;
         transform: translateY(-1px);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     }
 
+    /* CARDS DE MÉTRICAS LIMPOS */
     div[data-testid="metric-container"] {
-        background-color: #F7FAFC;
-        border: 1px solid #A0AEC0;
-        padding: 15px;
-        border-radius: 10px;
+        background-color: #FFFFFF;
+        border: 1px solid #e2e8f0;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.02);
     }
 
+    /* CARD DO USUÁRIO NA SIDEBAR */
     .user-card {
-        background: #F7FAFC;
-        padding: 15px;
+        background: #FFFFFF;
+        padding: 16px;
         border-radius: 12px;
-        border: 1px solid #A0AEC0;
-        margin-bottom: 20px;
-        box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+        border: 1px solid #e2e8f0;
+        margin-bottom: 24px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
     }
     </style>
     """, unsafe_allow_html=True)
@@ -237,6 +240,7 @@ else:
 
     st.sidebar.markdown("---")
     st.sidebar.caption("LabSmartAI • v1.0")
+
 
 
 
