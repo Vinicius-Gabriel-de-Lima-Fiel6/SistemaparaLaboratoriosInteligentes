@@ -1,14 +1,52 @@
-<div style="font-family: sans-serif; padding: 30px;">
-    <h1 style="color: #1e3a8a;">Relatório Master de Auditoria Laboratorial</h1>
-    <hr>
-    <h3>1. Inventário e Segurança (NFPA 704)</h3>
-    <p>Análise baseada nos níveis de Fogo, Saúde e Reatividade das substâncias cadastradas.</p>
-    
-    <h3>2. Status da Infraestrutura</h3>
-    <p>Histórico de manutenções e disponibilidade de equipamentos críticos.</p>
-    
-    <div style="background: #f3f4f6; padding: 15px; border-radius: 10px;">
-        <h3>🤖 Diagnóstico Predictivo da IA</h3>
-        <p>{{PROMPT_IA}}</p>
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; color: #333; line-height: 1.6; }
+        .header { text-align: center; border-bottom: 3px solid #1E3A8A; padding-bottom: 20px; }
+        .section { margin-top: 30px; }
+        .section-title { color: #1E3A8A; background: #F1F5F9; padding: 10px; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th { background-color: #1E3A8A; color: white; padding: 10px; font-size: 12px; }
+        td { border: 1px solid #DDD; padding: 8px; font-size: 11px; }
+        .chart-box { text-align: center; margin-top: 20px; }
+        .ai-footer { background: #F8FAFC; border: 1px solid #CBD5E0; padding: 15px; border-radius: 10px; margin-top: 30px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Relatório de Auditoria Inteligente</h1>
+        <p>Empresa: {{ org_name }} | Data: {{ data_atual }}</p>
     </div>
-</div>
+
+    <div class="section">
+        <div class="section-title">📊 Visão Geral do Inventário</div>
+        <table>
+            <tr>
+                <th>Total Substâncias</th>
+                <th>Equipamentos Ativos</th>
+                <th>Alertas de Estoque</th>
+                <th>Nível de Risco IA</th>
+            </tr>
+            <tr>
+                <td>{{ total_sub }}</td>
+                <td>{{ total_equ }}</td>
+                <td>{{ total_alertas }}</td>
+                <td>{{ nivel_risco }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="section">
+        <div class="section-title">📈 Análise Gráfica de Consumo</div>
+        <div class="chart-box">
+            <img src="data:image/png;base64,{{ grafico_base64 }}" style="width: 100%; max-width: 600px;">
+        </div>
+    </div>
+
+    <div class="ai-footer">
+        <h3>🤖 Parecer Técnico do Bot (IA 2026)</h3>
+        <p>{{ insight_ia }}</p>
+    </div>
+</body>
+</html>
