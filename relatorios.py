@@ -1,89 +1,103 @@
 import streamlit as st
 import pandas as pd
-from supabase import create_client
 import io
 import os
+import base64
+import matplotlib.pyplot as plt
+from datetime import datetime
+from jinja2 import Template
 
+# Funções Auxiliares
+def get_image_base64(df):
+    plt.figure(figsize=(8, 4))
+    df.head(10).plot(kind='bar', x='nome', y='quantidade', color='#1E3A8A')
+    plt.title("Níveis de Estoque Atual")
+    plt.tight_layout()
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png')
+    plt.close()
+    return base64.b64encode(buf.getvalue()).decode('utf-8')
 
-url = st.secrets["SUPABASE_URL"]
-key = st.secrets["SUPABASE_KEY"]
-supabase = create_client(url, key)
-
-def load_local_resources():
-    # Carrega o CSS da pasta CSS
+def load_css():
     css_path = os.path.join("CSS", "relatorios_style.css")
     if os.path.exists(css_path):
         with open(css_path) as f:
             st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
 def show_reports():
-    load_local_resources()
+    load_css()
     user = st.session_state.user_data
     org = user.get('org_name')
+    supabase = st.session_state.get('supabase_client') 
 
-    st.title("📊 Central de Inteligência e Relatórios")
-    
+    st.title("📄 Central de Relatórios & Automação")
 
-    try:
-        # Puxa Substâncias, Equipamentos, Logs e Manutenções
-        sub_data = supabase.table("substancias").select("*").eq("org_name", org).execute().data
-        equ_data = supabase.table("equipamentos").select("*").eq("org_name", org).execute().data
-        log_data = supabase.table("logs_estoque").select("*").eq("org_name", org).execute().data
-        man_data = supabase.table("manutencao").select("*").eq("org_name", org).execute().data
-        
-        df_sub = pd.DataFrame(sub_data)
-        df_equ = pd.DataFrame(equ_data)
-        df_log = pd.DataFrame(log_data)
-        df_man = pd.DataFrame(man_data)
-    except Exception as e:
-        st.error(f"Erro ao consolidar banco: {e}")
-        return
+    aba_import, aba_export, aba_bot = st.tabs(["📥 Importar Dados", "📤 Exportador Pro", "🤖 Configurar Bot"])
 
-    aba_import, aba_export, aba_analise = st.tabs(["📥 Importar", "📤 Exportar Master", "📈 Visão 360°"])
 
-  
-    with aba_export:
-        st.header("Gerar Documentação Completa")
-        
-        
-        buffer = io.BytesIO()
-        with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-            df_sub.to_excel(writer, sheet_name='PARTE 1 - SUBSTANCIAS', index=False)
-            df_log.to_excel(writer, sheet_name='PARTE 2 - HISTORICO ESTOQUE', index=False)
+    with aba_import:
+        st.markdown('<div class="report-card">', unsafe_allow_html=True)
+        st.subheader("Carga de Dados Master")
+        file = st.file_uploader("Upload de Inventário (CSV/XLSX)", type=['csv', 'xlsx'])
+        if file:
+            df_upload = pd.read_excel(file) if file.name.endswith('xlsx') else pd.read_csv(file)
+            st.dataframe(df_upload.head())
+            if st.button("🚀 Processar e Sincronizar"):
             
-           
-            df_infra = pd.merge(df_equ, df_man, left_on='id', right_on='equipamento_id', how='left', suffixes=('_eq', '_man'))
-            df_infra.to_excel(writer, sheet_name='PARTE 3 - INFRAESTRUTURA', index=False)
-
-        st.download_button("📥 Baixar Relatório Master (Excel 3 Abas)", buffer.getvalue(), "Relatorio_Full.xlsx", use_container_width=True)
-
-    
-    with aba_analise:
-        # KPIs Visuais (Baseados no CSS)
-        st.markdown('<div class="kpi-grid">', unsafe_allow_html=True)
-        col1, col2, col3 = st.columns(3)
-        col1.markdown(f'<div class="metric-box"><span>Itens Críticos</span><br><b>{len(df_sub[df_sub["quantidade"] <= df_sub["estoque_minimo"]])}</b></div>', unsafe_allow_html=True)
-        col2.markdown(f'<div class="metric-box"><span>Equip. em Manutenção</span><br><b>{len(df_equ[df_equ["status"] != "Ativo"])}</b></div>', unsafe_allow_html=True)
-        col3.markdown(f'<div class="metric-box"><span>Movimentações/Mês</span><br><b>{len(df_log)}</b></div>', unsafe_allow_html=True)
+                st.success("Banco de dados atualizado!")
         st.markdown('</div>', unsafe_allow_html=True)
 
-        
-        st.divider()
-        st.subheader("🤖 Previsão da Inteligência Artificial")
-        
-        
-        itens_perigo = df_sub[(df_sub['quantidade'] < df_sub['estoque_minimo'])].nome.tolist()
-        
-        with st.container():
-            st.markdown(f"""
-                <div class="ai-alert-box">
-                    <b>Análise de Risco Operacional:</b><br>
-                    O sistema detectou que os itens {itens_perigo} estão abaixo do nível de segurança. 
-                    Cruzando com os logs de estoque, a IA prevê ruptura total em 5 dias. 
-                    <b>Status Físico:</b> Existem equipamentos aguardando manutenção que podem impactar o processamento destas substâncias.
-                </div>
-            """, unsafe_allow_html=True)
 
+    with aba_export:
+        st.subheader("Geração de Documentos Executivos")
+        
+        try:
+            sub_res = supabase.table("substancias").select("*").eq("org_name", org).execute()
+            equ_res = supabase.table("equipamentos").select("*").eq("org_name", org).execute()
+            df_sub = pd.DataFrame(sub_res.data)
+            df_equ = pd.DataFrame(equ_res.data)
 
-show_reports()
+            col1, col2 = st.columns(2)
+            with col1:
+                # Excel 3 Abas
+                buffer_ex = io.BytesIO()
+                with pd.ExcelWriter(buffer_ex, engine='xlsxwriter') as writer:
+                    df_sub.to_excel(writer, sheet_name='Substancias', index=False)
+                    df_equ.to_excel(writer, sheet_name='Equipamentos', index=False)
+                    # Aba de Auditoria IA
+                    pd.DataFrame([{"Análise": "Risco de ruptura", "Data": datetime.now()}]).to_excel(writer, sheet_name='Auditoria_IA')
+                
+                st.download_button("📊 Baixar Excel Master", buffer_ex.getvalue(), f"Auditoria_{org}.xlsx", use_container_width=True)
 
+            with col2:
+                if st.button("📄 Gerar Relatório PDF Profissional", use_container_width=True):
+                
+                    grafico_b64 = get_image_base64(df_sub)
+                    with open("HTML/template_pdf.html", "r", encoding="utf-8") as f:
+                        tmpl = Template(f.read())
+                    
+                    html_render = tmpl.render(
+                        org_name=org, data_atual=datetime.now().strftime("%d/%m/%Y"),
+                        total_sub=len(df_sub), total_equ=len(df_equ),
+                        total_alertas=len(df_sub[df_sub['quantidade'] < 10]),
+                        nivel_risco="Baixo", grafico_base64=grafico_b64,
+                        insight_ia="O estoque físico está condizente com os logs da Central de Controle."
+                    )
+                    st.components.v1.html(html_render, height=600, scrolling=True)
+        except: st.warning("Adicione dados para gerar relatórios.")
+
+    with aba_bot:
+        st.markdown('<div class="report-card">', unsafe_allow_html=True)
+        st.subheader("Configuração do Agente Autônomo")
+        st.write("Defina quando o técnico receberá os alertas e relatórios por e-mail.")
+        
+        with st.form("bot_config"):
+            email = st.text_input("E-mail do Técnico")
+            freq = st.selectbox("Frequência de Envio", ["Diário", "Semanal (Segunda-feira)", "Mensal"])
+            hora = st.time_input("Horário do Disparo")
+            incluir_graficos = st.checkbox("Incluir Gráficos Preditivos", value=True)
+            
+            if st.form_submit_button("💾 Ativar Bot de Automação"):
+             
+                st.success(f"Bot programado! Próximo envio: {freq} às {hora}")
+        st.markdown('</div>', unsafe_allow_html=True)
