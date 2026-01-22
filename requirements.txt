@@ -16,7 +16,10 @@ streamlit-webrtc
 pyserial
 pyPDF2
 numexpr
+xlsxwriter
+jinja2
 fpdf
 openpyxl
 chempy
 plotly
+
