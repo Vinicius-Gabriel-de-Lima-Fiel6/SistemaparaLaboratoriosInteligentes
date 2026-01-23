@@ -103,11 +103,10 @@ def show_reports(supabase): # Recebe a conexão do app.py
         with st.form("config_bot_form"):
             email_dest = st.text_input("E-mail de Destino", value=default_data.get('email_destino', ""))
             
-            # Lista de dias para o Selectbox
+    
             dias_lista = ["Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado", "Domingo"]
             
-            # PROTEÇÃO CONTRA VALUE ERROR:
-            # Se o dia no banco não estiver na lista, usamos o índice 0 (Segunda-feira)
+     
             dia_no_banco = default_data.get('dia_semana', "Segunda-feira")
             try:
                 idx_dia = dias_lista.index(dia_no_banco)
@@ -116,7 +115,7 @@ def show_reports(supabase): # Recebe a conexão do app.py
 
             dia_sem = st.selectbox("Dia da Semana", dias_lista, index=idx_dia)
             
-            # Tratamento do Horário (evita erro de string/time)
+         
             hora_str = default_data.get('horario', "08:00:00")
             try:
                 # Se vier do banco como "08:00:00", converte para objeto time
@@ -141,5 +140,6 @@ def show_reports(supabase): # Recebe a conexão do app.py
                     "smtp_pass": s_pass
                 }
                 # Upsert usando o org_name como chave de conflito
-                supabase.table("config_automacao").upsert(payload).execute()
+                supabase.table("config_automacao").upsert(payload, on_conflict="org_name").execute()
                 st.success("✅ Automação salva! O Bot verificará este agendamento.")
+
