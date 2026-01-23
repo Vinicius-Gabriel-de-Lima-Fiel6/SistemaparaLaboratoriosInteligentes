@@ -1,29 +1,44 @@
-.hommel-container {
+/* Estilo do Diamante de Hommel */
+.nfpa-container {
     display: flex;
     justify-content: center;
-    padding: 15px;
+    align-items: center;
     background: #1e1e1e;
-    border-radius: 10px;
+    padding: 20px;
+    border-radius: 12px;
+    border: 1px solid #444;
 }
-.hommel-box {
+
+.nfpa-diamond {
     position: relative;
-    width: 80px;
-    height: 80px;
+    width: 100px;
+    height: 100px;
     transform: rotate(45deg);
-    border: 1px solid #555;
+    border: 2px solid #333;
 }
-.hommel-box div {
+
+.nfpa-box {
     position: absolute;
-    width: 40px;
-    height: 40px;
+    width: 50px;
+    height: 50px;
     display: flex;
     align-items: center;
     justify-content: center;
     transform: rotate(-45deg);
     font-weight: bold;
+    font-size: 1.2em;
     color: white;
 }
-.f_vermelho { top: 0; left: 0; background: #ff4b4b; }
-.r_amarelo { top: 0; left: 40px; background: #f1c40f; color: black !important; }
-.s_azul { top: 40px; left: 0; background: #3498db; }
-.e_branco { top: 40px; left: 40px; background: #fff; color: black !important; font-size: 0.7em; }
+
+.fogo { top: 0; left: 0; background: #ff4b4b; }
+.reat { top: 0; left: 50px; background: #f1c40f; color: black; }
+.saude { top: 50px; left: 0; background: #3498db; }
+.esp { top: 50px; left: 50px; background: #ffffff; color: black; font-size: 0.8em; }
+
+.emergency-box {
+    background-color: #4b1a1a;
+    color: #ffcaca;
+    padding: 15px;
+    border-left: 5px solid #ff4b4b;
+    border-radius: 5px;
+}
