@@ -232,7 +232,8 @@ else:
     elif clean_selection == "Gestão de Equipe":
         show_config_empresa()
     elif clean_selection == "Relatórios":
-        relatorios.show_reports()
+        relatorios.show_reports(supabase)
 
     st.sidebar.markdown("---")
     st.sidebar.caption("LabSmartAI • v1.0")
+
