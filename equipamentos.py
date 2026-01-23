@@ -16,6 +16,7 @@ def show_equipamentos():
     user_data = st.session_state.get('user_data', {})
     org_usuario = user_data.get('org_name', 'Default')
     role_usuario = user_data.get('role', 'Visualizador')
+    username_atual = user_data.get('username', 'Usuário')
 
     # --- 1. CADASTRO DE EQUIPAMENTOS ---
     with st.expander("➕ Adicionar Novo Equipamento", expanded=False):
@@ -42,13 +43,22 @@ def show_equipamentos():
                         "responsavel": resp, "categoria": cat, "org_name": org_usuario
                     }
                     supabase.table("equipamentos").insert(data_insert).execute()
+                    
+                    # --- NOVO: LOG DE CADASTRO ---
+                    supabase.table("logs_estoque").insert({
+                        "usuario": username_atual,
+                        "substancia": f"CADASTRO EQUIP.: {nome}",
+                        "quantidade_antiga": 0.0,
+                        "quantidade_nova": 1.0,
+                        "org_name": org_usuario
+                    }).execute()
+                    
                     st.success(f"Equipamento {nome} cadastrado!")
                     st.rerun()
 
     # --- 2. REGISTRO DE MANUTENÇÃO ---
     st.divider()
     with st.expander("🛠️ Registrar Nova Manutenção"):
-        # Busca equipamentos apenas da empresa logada
         resp_eq = supabase.table("equipamentos").select("id, nome").eq("org_name", org_usuario).execute()
         df_eq = pd.DataFrame(resp_eq.data)
 
@@ -64,7 +74,6 @@ def show_equipamentos():
 
             if st.button("Confirmar Manutenção"):
                 if role_usuario != "Visualizador":
-                    # Salva na tabela de manutenção
                     manut_data = {
                         "equipamento_id": int(eq_id),
                         "data_manutencao": data_m,
@@ -72,8 +81,17 @@ def show_equipamentos():
                         "org_name": org_usuario
                     }
                     supabase.table("manutencao").insert(manut_data).execute()
-                    # Atualiza a data no equipamento
                     supabase.table("equipamentos").update({"ultima_manutencao": data_m}).eq("id", int(eq_id)).execute()
+                    
+                    # --- NOVO: LOG DE MANUTENÇÃO ---
+                    supabase.table("logs_estoque").insert({
+                        "usuario": username_atual,
+                        "substancia": f"MANUTENÇÃO: {eq_escolhido}",
+                        "quantidade_antiga": 1.0,
+                        "quantidade_nova": 1.0,
+                        "org_name": org_usuario
+                    }).execute()
+                    
                     st.success("Manutenção registrada!")
                     st.rerun()
                 else:
@@ -85,7 +103,6 @@ def show_equipamentos():
     st.divider()
     tab1, tab2, tab3 = st.tabs(["📋 Inventário", "📜 Histórico", "📊 Gráficos"])
 
-    # Busca dados globais da empresa para as abas
     resp_full = supabase.table("equipamentos").select("*").eq("org_name", org_usuario).execute()
     df_view = pd.DataFrame(resp_full.data)
     
@@ -105,14 +122,24 @@ def show_equipamentos():
                         "localizacao": row['localizacao'], "responsavel": row['responsavel'],
                         "categoria": row['categoria']
                     }).eq("id", row['id']).execute()
-                st.success("Dados atualizados na nuvem!")
+                    
+                    # --- NOVO: LOG DE ALTERAÇÃO DE DADOS ---
+                    supabase.table("logs_estoque").insert({
+                        "usuario": username_atual,
+                        "substancia": f"EDITOU EQUIP.: {row['nome']}",
+                        "quantidade_antiga": 1.0,
+                        "quantidade_nova": 1.0,
+                        "org_name": org_usuario
+                    }).execute()
+                    
+                st.success("Dados atualizados e log registrado!")
+                st.rerun()
         else:
             st.write("Nenhum equipamento cadastrado.")
 
     with tab2:
         resp_hist = supabase.table("manutencao").select("id, data_manutencao, descricao, equipamentos(nome)").eq("org_name", org_usuario).execute()
         if resp_hist.data:
-            # Tratamento para achatar o JSON das relações do Supabase
             hist_data = []
             for m in resp_hist.data:
                 hist_data.append({
@@ -142,3 +169,6 @@ def show_equipamentos():
         if not df_view.empty:
             csv = df_view.to_csv(index=False).encode('utf-8-sig')
             st.sidebar.download_button("Clique para Baixar CSV", csv, "equipamentos.csv", "text/csv")
+
+if __name__ == "__main__":
+    show_equipamentos()
