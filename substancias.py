@@ -13,44 +13,24 @@ key = st.secrets["SUPABASE_KEY"]
 supabase = create_client(url, key)
 
 def registrar_historico(acao, item, detalhes, user_data):
-    """
-    Melhoria: Registro detalhado na tabela 'historico_atividades' 
-    mantendo compatibilidade com seu código original.
-    """
     log = {
-        "usuario_email": user_data.get('email') or user_data.get('username') or "Sistema",
-        "org_name": user_data.get('org_name', 'Default'),
-        "acao": acao.upper(),
-        "substancia_nome": item,
-        "quantidade": "N/A",  # Mantendo estrutura para evitar erros de tipo
+        "usuario_nome": user_data.get('username', 'Sistema'),
+        "acao": acao,
+        "item_afetado": item,
         "detalhes": detalhes,
+        "org_name": user_data.get('org_name', 'Default'),
         "created_at": datetime.now().isoformat()
     }
     try:
-        supabase.table("historico_atividades").insert(log).execute()
+        supabase.table("historico").insert(log).execute()
     except:
-        # Fallback para sua tabela 'historico' original caso a nova falhe
-        try:
-            log_old = {
-                "usuario_nome": user_data.get('username', 'Sistema'),
-                "acao": acao,
-                "item_afetado": item,
-                "detalhes": detalhes,
-                "org_name": user_data.get('org_name', 'Default'),
-                "created_at": datetime.now().isoformat()
-            }
-            supabase.table("historico").insert(log_old).execute()
-        except:
-            pass
+        pass
 
 def show_substances():
-    # --- MELHORIA: CARREGAMENTO DE ESTILO EXTERNO (style_subst.css) ---
-    try:
-        if os.path.exists("CSS/style_subst.css"):
-            with open("CSS/style_subst.css", "r") as f:
-                st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-    except Exception as e:
-        st.error(f"Erro ao carregar CSS: {e}")
+    # --- CARREGAMENTO DO CSS EXTERNO ---
+    if os.path.exists("CSS/style_subst.css"):
+        with open("CSS/style_subst.css", "r") as f:
+            st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
     st.header("🔬 Cadastro e Gerenciamento de Substâncias")
     
@@ -96,7 +76,7 @@ def show_substances():
                         "especial": s_esp, "instrucoes": instrucoes
                     }
                     supabase.table("substancias").insert(data_insert).execute()
-                    registrar_historico("CADASTRO", nome, f"Inserção de {quantidade} unidades via sistema", user_data)
+                    registrar_historico("Cadastro", nome, "Inserção via sistema", user_data)
                     st.success(f"'{nome}' cadastrado!")
                     st.rerun()
 
@@ -110,7 +90,7 @@ def show_substances():
         if not df.empty:
             st.dataframe(df[['id', 'nome', 'cas', 'quantidade', 'validade']], use_container_width=True, hide_index=True)
 
-            # --- CONSULTA E QR CODE ---
+            # --- MELHORIA TI: CONSULTA E QR CODE ---
             st.subheader("🛡️ Consulta de Segurança e QR Code")
             substancia_alvo = st.selectbox("Selecione um item:", options=df['nome'].tolist())
             detalhes = df[df['nome'] == substancia_alvo].iloc[0]
@@ -118,11 +98,10 @@ def show_substances():
             col_vis, col_txt, col_qr = st.columns([1.5, 2.5, 1.5])
             
             with col_vis:
-                # Renderização do Diamante com fallback de CSS conforme seu código
-                css_inline = ""
+                css_content = ""
                 if os.path.exists("CSS/substancias.css"):
                     with open("CSS/substancias.css", "r") as f:
-                        css_inline = f.read()
+                        css_content = f.read()
                 
                 html_template = """
                 <style>__CSS__</style>
@@ -135,7 +114,7 @@ def show_substances():
                     </div>
                 </div>
                 """
-                render = html_template.replace("__CSS__", css_inline)
+                render = html_template.replace("__CSS__", css_content)
                 render = render.replace("__FOGO__", str(detalhes.get('fogo', 0)))
                 render = render.replace("__REAT__", str(detalhes.get('reatividade', 0)))
                 render = render.replace("__SAUDE__", str(detalhes.get('saude', 0)))
@@ -147,19 +126,17 @@ def show_substances():
                 st.caption(f"CAS: {detalhes.get('cas', 'N/A')}")
 
             with col_qr:
-                # Melhoria: Campo para URL do Portal Online que você vai criar
-                url_portal_online = st.text_input("Portal Online (Ficha Digital):", "https://portal-seguranca.streamlit.app")
-                
-                # Link dinâmico conforme aprovado: ID + Empresa
-                qr_link = f"{url_portal_online}?id={detalhes['id']}&org={org_usuario.replace(' ', '%20')}"
+                # Link para o seu Portal Online que abrirá a ficha
+                url_portal = st.text_input("Link do Portal Online:", "https://portal-ficha.streamlit.app")
+                qr_link = f"{url_portal}?id={detalhes['id']}&org={org_usuario.replace(' ', '%20')}"
                 
                 img_qr = qrcode.make(qr_link)
                 buf = BytesIO()
                 img_qr.save(buf, format="PNG")
-                st.image(buf.getvalue(), width=130, caption="Scan para Ficha Digital")
+                st.image(buf.getvalue(), width=130, caption="QR Ficha Digital")
                 st.download_button("📥 Baixar QR", buf.getvalue(), f"qr_{substancia_alvo}.png", use_container_width=True)
 
-            # --- FERRAMENTAS DE ADM (Massa) ---
+            # --- FERRAMENTAS DE ADM TI ---
             if role_usuario in ["ADM", "Tecnico"]:
                 with st.expander("⚙️ Ferramentas de Administrador (Massa)"):
                     if st.button("📦 Gerar Tudo (ZIP de HTML e QR Codes)"):
@@ -170,20 +147,15 @@ def show_substances():
                                     tmpl = f.read()
                                 for _, r in df.iterrows():
                                     h = tmpl
-                                    # Trata None/NaN para evitar "None" no HTML
-                                    for col in r.index: 
-                                        val = str(r[col]) if pd.notnull(r[col]) else "Sem informação"
-                                        h = h.replace(f"{{{{{col}}}}}", val)
+                                    for col in r.index: h = h.replace(f"{{{{{col}}}}}", str(r[col]))
                                     z.writestr(f"fichas/{r['id']}.html", h)
                                     
-                                    # Gera o QR Code para o ZIP também apontando para o portal online
-                                    lnk_lote = f"{url_portal_online}?id={r['id']}&org={org_usuario.replace(' ', '%20')}"
-                                    q = qrcode.make(lnk_lote)
+                                    # QR codes em massa também apontam para o portal
+                                    q = qrcode.make(f"{url_portal}?id={r['id']}&org={org_usuario.replace(' ', '%20')}")
                                     b = BytesIO()
                                     q.save(b, format="PNG")
                                     z.writestr(f"qrcodes/qr_{r['nome']}.png", b.getvalue())
                         st.download_button("📥 Baixar Projeto Completo", zip_buf.getvalue(), "estoque_digital.zip")
-                        registrar_historico("EXPORTAÇÃO", "Lote Completo", f"Gerado ZIP de {len(df)} itens", user_data)
 
     except Exception as e:
         st.error(f"Erro: {e}")
