@@ -21,7 +21,8 @@ jobs:
 
       - name: Instalando Bibliotecas
         run: |
-           pip install pandas supabase xlsxwriter fpdf2
+           python -m pip install --upgrade pip
+            pip install pandas supabase xlsxwriter xhtml2pdf scikit-learn numpy jinja2 matplotlib
 
       - name: Executando o Worker
         env:
