@@ -29,3 +29,6 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: python worker_envio.py
+      - name: Instalando Bibliotecas
+        run: |
+          pip install pandas supabase xlsxwriter
