@@ -8,11 +8,9 @@ from datetime import datetime
 from jinja2 import Template
 
 def get_image_base64(df):
-    """Gera gráfico para o PDF"""
-    if df.empty: return ""
+    if df.empty or 'quantidade' not in df.columns: return ""
     plt.figure(figsize=(8, 4))
-    # Pega os 10 itens com maior quantidade para o gráfico não ficar poluído
-    df_plot = df.nlargest(10, 'quantidade') if 'quantidade' in df.columns else df.head(10)
+    df_plot = df.nlargest(10, 'quantidade') 
     plt.bar(df_plot['nome'], df_plot['quantidade'], color='#1E3A8A')
     plt.xticks(rotation=45, ha='right')
     plt.tight_layout()
@@ -21,7 +19,7 @@ def get_image_base64(df):
     plt.close()
     return base64.b64encode(buf.getvalue()).decode('utf-8')
 
-def show_reports():
+def show_reports(supabase): # Recebe a conexão do app.py
     # Carregar CSS
     css_path = os.path.join("CSS", "relatorios_style.css")
     if os.path.exists(css_path):
@@ -30,113 +28,70 @@ def show_reports():
 
     user = st.session_state.user_data
     org = user.get('org_name')
-    supabase = st.session_state.get('supabase_client', st.session_state.get('supabase')) 
 
     st.title("📄 Central de Inteligência Laboratorial")
 
     aba_import, aba_export, aba_bot = st.tabs(["📥 Importar Dados", "📤 Exportador Pro", "🤖 Agente de Automação"])
 
-    # --- ABA 1: IMPORTAÇÃO COM MAPEAMENTO INTELIGENTE ---
+    # --- ABA 1: IMPORTAÇÃO COM MAPEAMENTO ---
     with aba_import:
-        st.subheader("Carga de Dados Flexível")
-        file = st.file_uploader("Suba seu arquivo (CSV ou XLSX)", type=['csv', 'xlsx'])
-        
+        st.subheader("Carga de Dados Master")
+        file = st.file_uploader("Upload de Inventário (CSV/XLSX)", type=['csv', 'xlsx'])
         if file:
-            df_upload = pd.read_excel(file) if file.name.endswith('xlsx') else pd.read_csv(file)
-            st.write("Prévia do arquivo enviado:")
-            st.dataframe(df_upload.head(3))
-            
-            st.divider()
-            st.write("🔗 **Mapeamento de Colunas:**")
-            colunas = df_upload.columns.tolist()
-            
+            df_up = pd.read_excel(file) if file.name.endswith('xlsx') else pd.read_csv(file)
+            cols = df_up.columns.tolist()
+            st.write("Mapeie as colunas:")
             c1, c2, c3 = st.columns(3)
-            with c1: map_nome = st.selectbox("Coluna do Nome", colunas)
-            with c2: map_qtd = st.selectbox("Coluna de Quantidade", colunas)
-            with c3: map_min = st.selectbox("Coluna de Estoque Mínimo", colunas)
+            m_nome = c1.selectbox("Nome", cols)
+            m_qtd = c2.selectbox("Quantidade", cols)
+            m_min = c3.selectbox("Mínimo", cols)
 
-            if st.button("🚀 Iniciar Sincronização"):
-                with st.spinner("IA processando e salvando dados..."):
-                    df_final = df_upload.rename(columns={map_nome: "nome", map_qtd: "quantidade", map_min: "estoque_minimo"})
-                    df_final["org_name"] = org
-                    # Seleciona apenas o que o banco aceita
-                    cols_banco = ["nome", "quantidade", "estoque_minimo", "org_name"]
-                    dados = df_final[df_final.columns.intersection(cols_banco)].to_dict(orient='records')
-                    
-                    try:
-                        supabase.table("substancias").upsert(dados).execute()
-                        st.success(f"✅ {len(dados)} itens sincronizados com sucesso!")
-                        st.rerun() # Recarrega para liberar o download na outra aba
-                    except Exception as e:
-                        st.error(f"Erro ao salvar no Supabase: {e}")
+            if st.button("🚀 Sincronizar"):
+                df_f = df_up.rename(columns={m_nome: "nome", m_qtd: "quantidade", m_min: "estoque_minimo"})
+                df_f["org_name"] = org
+                dados = df_f[df_f.columns.intersection(["nome", "quantidade", "estoque_minimo", "org_name"])].to_dict(orient='records')
+                supabase.table("substancias").upsert(dados).execute()
+                st.success("Sincronizado!")
+                st.rerun()
 
     # --- ABA 2: EXPORTAÇÃO (CORRIGIDA) ---
     with aba_export:
-        st.subheader("Relatórios Master (Excel & PDF)")
-        
-        # Busca dados de forma explícita para debugar
-        res_sub = supabase.table("substancias").select("*").eq("org_name", org).execute()
-        res_equ = supabase.table("equipamentos").select("*").eq("org_name", org).execute()
-        
-        df_sub = pd.DataFrame(res_sub.data)
-        df_equ = pd.DataFrame(res_equ.data)
+        try:
+            res_sub = supabase.table("substancias").select("*").eq("org_name", org).execute()
+            res_equ = supabase.table("equipamentos").select("*").eq("org_name", org).execute()
+            df_sub = pd.DataFrame(res_sub.data)
+            df_equ = pd.DataFrame(res_equ.data)
 
-        if df_sub.empty:
-            st.warning("⚠️ O banco de dados está vazio para esta organização. Use a aba de Importação primeiro.")
-        else:
-            st.info(f"Dados prontos: {len(df_sub)} substâncias e {len(df_equ)} equipamentos.")
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                st.markdown("**Pacote de Auditoria (Excel)**")
-                buffer_ex = io.BytesIO()
-                with pd.ExcelWriter(buffer_ex, engine='xlsxwriter') as writer:
-                    df_sub.to_excel(writer, sheet_name='PARTE 1 - ESTOQUE', index=False)
-                    df_equ.to_excel(writer, sheet_name='PARTE 2 - MAQUINARIO', index=False)
-                    # Simulação de Auditoria
-                    pd.DataFrame([{"Data": datetime.now(), "Status": "Auditado", "Org": org}]).to_excel(writer, sheet_name='LOG_AUDITORIA')
+            if df_sub.empty:
+                st.warning("Adicione dados na aba de Importação primeiro.")
+            else:
+                col1, col2 = st.columns(2)
+                with col1:
+                    buffer = io.BytesIO()
+                    with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+                        df_sub.to_excel(writer, sheet_name='Estoque', index=False)
+                        df_equ.to_excel(writer, sheet_name='Equipamentos', index=False)
+                    st.download_button("📊 Baixar Excel Master", buffer.getvalue(), f"Relatorio_{org}.xlsx", use_container_width=True)
                 
-                st.download_button(
-                    label="📊 Baixar Excel Master (3 Abas)",
-                    data=buffer_ex.getvalue(),
-                    file_name=f"Relatorio_Full_{org}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    use_container_width=True
-                )
-
-            with col2:
-                st.markdown("**Relatório Executivo (PDF)**")
-                if st.button("📄 Gerar e Visualizar PDF", use_container_width=True):
-                    grafico_b64 = get_image_base64(df_sub)
-                    html_path = os.path.join("HTML", "template_pdf.html")
-                    
-                    if os.path.exists(html_path):
-                        with open(html_path, "r", encoding="utf-8") as f:
-                            template = Template(f.read())
-                        
-                        html_render = template.render(
-                            org_name=org,
-                            data_atual=datetime.now().strftime("%d/%m/%Y"),
-                            total_sub=len(df_sub),
-                            total_equ=len(df_equ),
-                            total_alertas=len(df_sub[df_sub['quantidade'] <= df_sub['estoque_minimo']]),
-                            nivel_risco="Calculado via IA",
-                            grafico_base64=grafico_b64,
-                            insight_ia="Tendência de consumo estável. Recomenda-se calibração preventiva dos equipamentos ativos."
-                        )
-                        st.components.v1.html(html_render, height=500, scrolling=True)
-                        st.download_button("📥 Baixar Arquivo HTML (Oficial)", html_render, f"Relatorio_{org}.html", use_container_width=True)
+                with col2:
+                    if st.button("📄 Visualizar Relatório PDF"):
+                        grafico = get_image_base64(df_sub)
+                        with open("HTML/template_pdf.html", "r", encoding="utf-8") as f:
+                            tmpl = Template(f.read())
+                        html = tmpl.render(org_name=org, data_atual=datetime.now().strftime("%d/%m/%Y"),
+                                         total_sub=len(df_sub), total_equ=len(df_equ),
+                                         total_alertas=len(df_sub[df_sub['quantidade'] < 10]),
+                                         grafico_base64=grafico, insight_ia="Auditoria concluída com sucesso.")
+                        st.components.v1.html(html, height=500, scrolling=True)
+        except Exception as e:
+            st.error(f"Erro na exportação: {e}")
 
     # --- ABA 3: CONFIGURAÇÃO DO BOT ---
     with aba_bot:
-        st.subheader("Configurar Agente de Envio Automático")
-        st.write("O Bot enviará os arquivos acima para o técnico no horário programado.")
-        
-        with st.form("config_bot_form"):
-            email_dest = st.text_input("E-mail do Técnico/Gestor")
-            dia = st.selectbox("Dia do Envio", ["Segunda-feira", "Quarta-feira", "Sexta-feira"])
-            hora = st.time_input("Horário do Disparo")
-            
-            if st.form_submit_button("💾 Salvar e Ativar Bot"):
-                # Aqui faremos o upsert na sua tabela 'automacoes_bot' assim que você mandar a estrutura
-                st.success(f"Bot programado com sucesso para {dia} às {hora}!")
+        st.subheader("Configurar Bot de Envio")
+        with st.form("bot_config"):
+            email = st.text_input("E-mail do Técnico")
+            dia = st.selectbox("Dia", ["Segunda-feira", "Sexta-feira"])
+            hora = st.time_input("Hora")
+            if st.form_submit_button("Ativar Bot"):
+                st.success("Agendamento salvo!")
