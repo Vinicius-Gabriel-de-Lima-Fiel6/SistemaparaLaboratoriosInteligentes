@@ -13,10 +13,9 @@ key = st.secrets["SUPABASE_KEY"]
 supabase = create_client(url, key)
 
 def registrar_historico(acao, item, qtd, detalhes, user_data):
-    """Alimenta a tabela 'historico_atividades' conforme solicitado"""
-    email_usuario = user_data.get('email') or user_data.get('username') or "sistema@empresa.com"
+    """Grava na tabela historico_atividades com as colunas corretas"""
     log = {
-        "usuario_email": email_usuario,
+        "usuario_email": user_data.get('email') or user_data.get('username') or "sistema@empresa.com",
         "org_name": user_data.get('org_name', 'Default'),
         "acao": acao,
         "substancia_nome": item,
@@ -27,35 +26,23 @@ def registrar_historico(acao, item, qtd, detalhes, user_data):
     try:
         supabase.table("historico_atividades").insert(log).execute()
     except Exception as e:
-        st.error(f"Erro no Log Supabase: {e}")
+        st.error(f"Erro ao salvar histórico: {e}")
 
 def show_substances():
-    st.header("🔬 Gestão de Substâncias da Empresa")
+    st.header("🔬 Cadastro e Gerenciamento de Substâncias")
     
     user_data = st.session_state.get('user_data', {})
     org_usuario = user_data.get('org_name', 'Default')
     role_usuario = user_data.get('role', 'Visualizador')
+    username_atual = user_data.get('username', 'Usuário')
 
-    # --- LÓGICA DE DETECÇÃO DO QR CODE ---
-    # Se alguém escanear o QR Code, o sistema detecta o ID na URL e mostra a ficha
-    query_params = st.query_params
-    if "id" in query_params:
-        item_id = query_params["id"]
-        res_qr = supabase.table("substancias").select("*").eq("id", item_id).execute()
-        if res_qr.data:
-            item = res_qr.data[0]
-            st.success(f"📌 Ficha Digital: {item['nome']}")
-            st.info(f"**Instruções de Emergência:** {item.get('instrucoes', 'Não cadastradas')}")
-            # Botão para voltar ao sistema normal
-            if st.button("Voltar ao Inventário Completo"):
-                st.query_params.clear()
-                st.rerun()
-            return # Para a execução aqui para mostrar só a ficha
-
-    # --- 1. CADASTRO ORIGINAL ---
+    # --- 1. SEU CADASTRO ORIGINAL (LINHA POR LINHA) ---
     with st.container(border=True):
         st.subheader("Cadastrar Novo Item")
-        if role_usuario != "Visualizador":
+        
+        if role_usuario == "Visualizador":
+            st.warning("Seu perfil é apenas para visualização.")
+        else:
             col1, col2, col3 = st.columns(3)
             with col1:
                 nome = st.text_input("Nome da Substância")
@@ -64,11 +51,11 @@ def show_substances():
                 concentracao = st.text_input("Concentração")
                 quantidade = st.number_input("Quantidade Atual", min_value=0.0)
             with col3:
-                estoque_minimo = st.number_input("Estoque Mínimo", min_value=0.0)
+                estoque_minimo = st.number_input("Estoque Mínimo (Alerta)", min_value=0.0)
                 validade = st.text_input("Validade (MM/AAAA)")
-                cas = st.text_input("Número CAS")
+                cas = st.text_input("Número CAS (Opcional)")
 
-            with st.expander("🛡️ Segurança (NFPA 704)"):
+            with st.expander("🛡️ Informações de Segurança (FISPQ/MSDS)"):
                 c_s1, c_s2, c_s3, c_s4 = st.columns(4)
                 s_saude = c_s1.slider("Saúde", 0, 4, 0)
                 s_fogo = c_s2.slider("Fogo", 0, 4, 0)
@@ -77,7 +64,7 @@ def show_substances():
                 instrucoes = st.text_area("Instruções de Emergência")
                 
             if st.button("➕ Adicionar Substância", use_container_width=True):
-                if nome:
+                if nome and quantidade:
                     data_insert = {
                         "nome": nome, "finalidade": finalidade, "concentracao": concentracao,
                         "quantidade": quantidade, "estoque_minimo": estoque_minimo,
@@ -86,58 +73,81 @@ def show_substances():
                         "especial": s_esp, "instrucoes": instrucoes
                     }
                     supabase.table("substancias").insert(data_insert).execute()
-                    registrar_historico("CADASTRO", nome, quantidade, "Novo item na pasta da empresa", user_data)
+                    
+                    # REGISTRO NO HISTÓRICO CONFORME SOLICITADO
+                    registrar_historico("CADASTRO", nome, quantidade, "Novo item cadastrado", user_data)
+                    
                     st.success(f"'{nome}' cadastrado!")
                     st.rerun()
 
     st.divider()
 
-    # --- 2. INVENTÁRIO E SISTEMA AUTOMÁTICO DE QR CODE ---
+    # --- 2. SEU INVENTÁRIO ORIGINAL ---
     try:
         response = supabase.table("substancias").select("*").eq("org_name", org_usuario).execute()
         df = pd.DataFrame(response.data)
 
         if not df.empty:
-            st.dataframe(df[['id', 'nome', 'quantidade', 'validade']], use_container_width=True)
+            st.dataframe(df[['id', 'nome', 'cas', 'quantidade', 'validade']], use_container_width=True, hide_index=True)
 
-            st.subheader("🖼️ Gerador de Etiquetas QR (Pasta Empresa)")
+            # --- ACRESCIMO: SISTEMA DE QRCODE NO FINAL ---
+            st.subheader("🛡️ Geração de Etiquetas QR (Portal Online)")
             
-            # Pega a URL do seu app automaticamente ou pede para inserir
-            url_app = st.text_input("URL do Sistema (para o QR Code funcionar):", "https://seu-app.streamlit.app")
+            # URL do SEGUNDO site que você vai criar para consulta
+            url_portal = st.text_input("Link do Portal de Consulta:", "https://portal-consulta.streamlit.app")
             
-            aba_qr1, aba_qr2 = st.tabs(["Individual", "Lote (Download ZIP)"])
+            sel_item = st.selectbox("Selecione o item para o QR Code:", df['nome'].tolist())
+            detalhes = df[df['nome'] == sel_item].iloc[0]
+            
+            col_diamante, col_qr = st.columns([2, 1])
+            
+            with col_diamante:
+                # Diamante de Hommel em HTML Inline para visualização rápida
+                html_h = f"""
+                <div style="display: flex; background: #1e1e1e; padding: 10px; border-radius: 10px; border: 1px solid #333;">
+                    <div style="position: relative; width: 80px; height: 80px; transform: rotate(45deg); border: 1px solid #444; margin: auto;">
+                        <div style="position: absolute; top: 0; left: 0; width: 40px; height: 40px; background: #ff4b4b; display: flex; align-items: center; justify-content: center; transform: rotate(-45deg); color: white; font-weight: bold;">{detalhes.get('fogo', 0)}</div>
+                        <div style="position: absolute; top: 0; left: 40px; width: 40px; height: 40px; background: #f1c40f; display: flex; align-items: center; justify-content: center; transform: rotate(-45deg); color: black; font-weight: bold;">{detalhes.get('reatividade', 0)}</div>
+                        <div style="position: absolute; top: 40px; left: 0; width: 40px; height: 40px; background: #3498db; display: flex; align-items: center; justify-content: center; transform: rotate(-45deg); color: white; font-weight: bold;">{detalhes.get('saude', 0)}</div>
+                        <div style="position: absolute; top: 40px; left: 40px; width: 40px; height: 40px; background: #fff; display: flex; align-items: center; justify-content: center; transform: rotate(-45deg); color: black; font-weight: bold; font-size: 0.7em;">{detalhes.get('especial', '')}</div>
+                    </div>
+                </div>
+                """
+                st.markdown(html_h, unsafe_allow_html=True)
+                st.info(f"**Instruções de Emergência:** {detalhes.get('instrucoes', 'Não cadastradas')}")
 
-            with aba_qr1:
-                item_sel = st.selectbox("Escolha o produto para gerar QR:", df['nome'].tolist())
-                dados_item = df[df['nome'] == item_sel].iloc[0]
-                
-                # O LINK AGORA LEVA DIRETO PARA O ID DO PRODUTO
-                link_final = f"{url_app}?id={dados_item['id']}"
-                
-                img_qr = qrcode.make(link_final)
+            with col_qr:
+                # O Link Dinâmico para o Portal Online (com ID e Empresa)
+                link_qrcode = f"{url_portal}?id={detalhes['id']}&org={org_usuario.replace(' ', '%20')}"
+                img = qrcode.make(link_qrcode)
                 buf = BytesIO()
-                img_qr.save(buf, format="PNG")
+                img.save(buf, format="PNG")
                 
-                st.image(buf.getvalue(), width=200, caption=f"QR Code: {item_sel}")
-                st.download_button(f"📥 Baixar QR {item_sel}", buf.getvalue(), f"QR_{item_sel}.png")
+                st.image(buf.getvalue(), width=150)
+                st.download_button("📥 Baixar QR", buf.getvalue(), f"QR_{sel_item}.png", use_container_width=True)
                 
-            with aba_qr2:
-                st.write(f"Gerar etiquetas para os {len(df)} itens da empresa.")
-                if st.button("🚀 Gerar Todos em ZIP"):
-                    zip_buf = BytesIO()
-                    with zipfile.ZipFile(zip_buf, "w") as z:
-                        for _, r in df.iterrows():
-                            link_lote = f"{url_app}?id={r['id']}"
-                            img_l = qrcode.make(link_lote)
-                            b_l = BytesIO()
-                            img_l.save(b_l, format="PNG")
-                            z.writestr(f"etiquetas/QR_{r['nome']}.png", b_l.getvalue())
-                    
-                    st.download_button("📥 Baixar Arquivo ZIP", zip_buf.getvalue(), "etiquetas_empresa.zip")
-                    registrar_historico("EXPORTACAO", "Vários", 0, "Gerou lote de QR Codes", user_data)
+                if st.button("Registrar Consulta"):
+                    registrar_historico("GERAR QR", sel_item, detalhes['quantidade'], f"Link: {link_qrcode}", user_data)
+                    st.toast("Ação registrada no Supabase!")
+
+            st.divider()
+            
+            # Geração em Massa
+            if st.button("📦 Gerar ZIP de Todos os Itens da Empresa"):
+                zip_buffer = BytesIO()
+                with zipfile.ZipFile(zip_buffer, "w") as z:
+                    for _, row in df.iterrows():
+                        link_lote = f"{url_portal}?id={row['id']}&org={org_usuario.replace(' ', '%20')}"
+                        q = qrcode.make(link_lote)
+                        img_buffer = BytesIO()
+                        q.save(img_buffer, format="PNG")
+                        z.writestr(f"qrcodes/qr_{row['nome']}.png", img_buffer.getvalue())
+                
+                st.download_button("📥 Baixar ZIP Completo", zip_buffer.getvalue(), "etiquetas_empresa.zip", use_container_width=True)
+                registrar_historico("EXPORTAR LOTE", "Sistema", 0, "Gerou todos os QRs da empresa", user_data)
 
     except Exception as e:
-        st.error(f"Erro: {e}")
+        st.error(f"Erro ao carregar dados: {e}")
 
 if __name__ == "__main__":
     show_substances()
