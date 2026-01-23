@@ -139,7 +139,11 @@ def show_reports(supabase): # Recebe a conexão do app.py
                     "smtp_user": s_user,
                     "smtp_pass": s_pass
                 }
-                # Upsert usando o org_name como chave de conflito
-                supabase.table("config_automacao").upsert(payload, on_conflict="org_name").execute()
-                st.success("✅ Automação salva! O Bot verificará este agendamento.")
+                try:
+        # Adicionamos on_conflict para dizer que se o org_name já existir, ele deve atualizar
+                    supabase.table("config_automacao").upsert(payload, on_conflict="org_name").execute()
+                    st.success("✅ Automação salva com sucesso!")
+                except Exception as e:
+                    st.error(f"Erro na API do Banco: {e}")
+
 
