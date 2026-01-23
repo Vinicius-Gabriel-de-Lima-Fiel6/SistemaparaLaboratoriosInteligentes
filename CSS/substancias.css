@@ -1,0 +1,55 @@
+:root {
+    --primary: #003366;
+    --danger: #ff4b4b;
+    --warning: #f1c40f;
+    --info: #3498db;
+    --dark-bg: #1e1e1e;
+}
+
+.hommel-container {
+    display: flex; 
+    justify-content: center; 
+    align-items: center; 
+    background: var(--dark-bg); 
+    padding: 15px; 
+    border-radius: 10px; 
+    border: 1px solid #333;
+}
+
+.hommel-box {
+    position: relative; 
+    width: 80px; 
+    height: 80px; 
+    transform: rotate(45deg); 
+    border: 1px solid #555;
+}
+
+.hommel-box div {
+    position: absolute; 
+    width: 40px; 
+    height: 40px; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    transform: rotate(-45deg); 
+    color: white; 
+    font-weight: bold;
+}
+
+.fogo { top: 0; left: 0; background: var(--danger); }
+.reat { top: 0; left: 40px; background: var(--warning); color: black !important; }
+.saude { top: 40px; left: 0; background: var(--info); }
+.esp { top: 40px; left: 40px; background: #fff; color: black !important; font-size: 0.7em; }
+
+.card { 
+    background: white; 
+    max-width: 450px; 
+    margin: auto; 
+    border-radius: 15px; 
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
+    font-family: sans-serif;
+    overflow: hidden;
+}
+.card-header { background: var(--primary); color: white; padding: 20px; text-align: center; }
+.card-content { padding: 20px; color: #333; }
+.card-footer { text-align: center; padding: 10px; font-size: 0.8em; color: #888; }
