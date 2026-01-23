@@ -29,7 +29,7 @@ def registrar_historico(acao, item, detalhes, user_data):
         pass
 
 def render_hommel(saude, fogo, reat, esp):
-    with open("css/substancias.css", "r") as f:
+    with open("CSS/substancias.css", "r") as f:
         estilo = f"<style>{f.read()}</style>"
     
     st.markdown(estilo + f"""
@@ -126,9 +126,9 @@ def show_substances():
                 if st.button("Gerar Pacote ZIP"):
                     zip_buffer = BytesIO()
                     with zipfile.ZipFile(zip_buffer, "a", zipfile.ZIP_DEFLATED) as zip_f:
-                        with open("css/substancias.css", "r") as f:
+                        with open("CSS/substancias.css", "r") as f:
                             zip_f.writestr("substancias.css", f.read())
-                        with open("html/substancias.html", "r") as f:
+                        with open("HTML/substancias.html", "r") as f:
                             tmpl = f.read()
                         for _, r in df.iterrows():
                             html_i = tmpl
