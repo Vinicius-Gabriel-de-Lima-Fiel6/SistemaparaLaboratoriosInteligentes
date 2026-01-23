@@ -24,4 +24,6 @@ chempy
 plotly
 st-gsheets-connection
 postgrest
+pillow 
+qrcode
 
