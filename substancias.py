@@ -9,7 +9,139 @@ import zipfile
 
 # CONFIGURAÇÃO DO CLIENTE
 url = st.secrets["SUPABASE_URL"]
+key = st.secrets["SUPABASE_KEY"]import streamlit as st
+import pandas as pd
+from supabase import create_client
+from datetime import datetime
+import qrcode
+from io import BytesIO
+import os
+import zipfile
+
+# Conexão
+url = st.secrets["SUPABASE_URL"]
 key = st.secrets["SUPABASE_KEY"]
+supabase = create_client(url, key)
+
+def registrar_historico(acao, item, detalhes, user_data):
+    log = {
+        "usuario_nome": user_data.get('username', 'Sistema'),
+        "acao": acao,
+        "item_afetado": item,
+        "detalhes": detalhes,
+        "org_name": user_data.get('org_name', 'Default'),
+        "created_at": datetime.now().isoformat()
+    }
+    try:
+        supabase.table("historico").insert(log).execute()
+    except: pass
+
+def show_substances():
+    user_data = st.session_state.get('user_data', {})
+    org_usuario = user_data.get('org_name', 'Default')
+    role_usuario = user_data.get('role', 'Visualizador')
+
+    st.title(f"🧪 Gestão de Substâncias - {org_usuario}")
+
+    # CADASTRO ORIGINAL
+    with st.expander("➕ Novo Cadastro"):
+        if role_usuario == "Visualizador":
+            st.warning("Acesso restrito.")
+        else:
+            with st.form("form_sub", clear_on_submit=True):
+                c1, c2 = st.columns(2)
+                nome = c1.text_input("Nome")
+                cas = c1.text_input("CAS")
+                conc = c2.text_input("Concentração")
+                qtd = c2.number_input("Quantidade", min_value=0.0)
+                
+                st.write("**NFPA 704**")
+                s1, s2, s3, s4 = st.columns(4)
+                f = s1.slider("Fogo", 0, 4, 0)
+                s = s2.slider("Saúde", 0, 4, 0)
+                r = s3.slider("Reat.", 0, 4, 0)
+                e = s4.selectbox("Esp.", ["", "W", "OX", "SA", "BIO"])
+                inst = st.text_area("Emergência")
+                val = st.text_input("Validade (MM/AAAA)")
+
+                if st.form_submit_button("Salvar"):
+                    if nome:
+                        payload = {
+                            "nome": nome, "cas": cas, "concentracao": conc, "quantidade": qtd,
+                            "fogo": f, "saude": s, "reatividade": r, "especial": e,
+                            "instrucoes": inst, "validade": val, "org_name": org_usuario
+                        }
+                        supabase.table("substancias").insert(payload).execute()
+                        registrar_historico("Cadastro", nome, "Item adicionado", user_data)
+                        st.success("Salvo!")
+                        st.rerun()
+
+    # LISTAGEM E SEGURANÇA
+    res = supabase.table("substancias").select("*").eq("org_name", org_usuario).execute()
+    df = pd.DataFrame(res.data)
+
+    if not df.empty:
+        st.divider()
+        st.dataframe(df[['nome', 'quantidade', 'validade']], use_container_width=True, hide_index=True)
+
+        st.subheader("🛡️ Ficha e Identificação")
+        c_ficha, c_qr = st.columns([2, 1])
+
+        with c_ficha:
+            sel = st.selectbox("Substância:", df['nome'].tolist())
+            det = df[df['nome'] == sel].iloc[0]
+
+            # CARREGAR CSS DA PASTA
+            css_content = ""
+            if os.path.exists("CSS/substancias.css"):
+                with open("CSS/substancias.css", "r") as file:
+                    css_content = file.read()
+
+            # RENDERIZAÇÃO LIMPA (Sem vazar código na tela)
+            st.markdown(f"""
+                <style>{css_content}</style>
+                <div class="hommel-container">
+                    <div class="hommel-box">
+                        <div class="f_vermelho">{det['fogo']}</div>
+                        <div class="r_amarelo">{det['reatividade']}</div>
+                        <div class="s_azul">{det['saude']}</div>
+                        <div class="e_branco">{det['especial'] if det['especial'] else ''}</div>
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
+            st.warning(f"**Instruções:** {det['instrucoes']}")
+
+        with c_qr:
+            url_serv = st.text_input("URL Base (TI):", f"https://{org_usuario.lower().replace(' ','')}.lab.com/")
+            qr_link = f"{url_serv}{det['id']}.html"
+            
+            img_qr = qrcode.make(qr_link)
+            buf = BytesIO()
+            img_qr.save(buf, format="PNG")
+            st.image(buf.getvalue(), width=180)
+            st.download_button("📥 Baixar QR", buf.getvalue(), f"qr_{sel}.png")
+
+        # FERRAMENTAS TI
+        with st.expander("⚙️ Console Admin TI"):
+            if st.button("Gerar Pacote ZIP (HTML + QRs)"):
+                z_buf = BytesIO()
+                with zipfile.ZipFile(z_buf, "a") as z:
+                    if os.path.exists("HTML/substancias.html"):
+                        with open("HTML/substancias.html", "r") as f:
+                            tmpl = f.read()
+                        for _, r in df.iterrows():
+                            h = tmpl
+                            for col in r.index: h = h.replace(f"{{{{{col}}}}}", str(r[col]))
+                            z.writestr(f"fichas/{r['id']}.html", h)
+                            
+                            qr_all = qrcode.make(f"{url_serv}{r['id']}.html")
+                            b_all = BytesIO()
+                            qr_all.save(b_all, format="PNG")
+                            z.writestr(f"qrcodes/qr_{r['nome']}.png", b_all.getvalue())
+                st.download_button("📥 Baixar Projeto", z_buf.getvalue(), "projeto_lab.zip")
+
+if __name__ == "__main__":
+    show_substances()
 supabase = create_client(url, key)
 
 def registrar_historico(acao, item, detalhes, user_data):
@@ -157,3 +289,4 @@ def show_substances():
 
 if __name__ == "__main__":
     show_substances()
+
