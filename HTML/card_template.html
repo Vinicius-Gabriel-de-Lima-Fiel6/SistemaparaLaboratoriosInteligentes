@@ -1,6 +1,7 @@
 <div class="card-digital">
-    <h2>Substância: {{nome}}</h2>
-    <p><strong>CAS:</strong> {{cas}}</p>
+    <h2 style="margin-top:0;">{{nome}}</h2>
+    <p><strong>CAS:</strong> {{cas}} | <strong>Quantidade:</strong> {{quantidade}}</p>
+    
     <div class="nfpa-container">
         <div class="nfpa-diamond">
             <div class="nfpa-box fogo">{{fogo}}</div>
@@ -9,6 +10,7 @@
             <div class="nfpa-box esp">{{especial}}</div>
         </div>
     </div>
+
     <div class="emergency-box">
         <strong>⚠️ INSTRUÇÕES DE EMERGÊNCIA:</strong><br>
         {{instrucoes}}
