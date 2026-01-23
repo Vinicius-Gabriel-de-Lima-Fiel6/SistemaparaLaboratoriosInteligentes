@@ -1,29 +1,29 @@
-name: Bot_Auditoria_Agendada
+name: Execucao_Bot_Auditoria
 
 on:
   schedule:
-    - cron: '45 23 * * *' # 20:45 Brasília
-  workflow_dispatch: 
+    - cron: '45 23 * * *' # Roda às 23:45 UTC
+  workflow_dispatch: # Permite rodar manualmente para testar
 
 jobs:
-  disparo_agendado:
+  rodar_bot:
     runs-on: ubuntu-latest
     steps:
-      - name: Baixando o Código
+      - name: Checkout do Codigo
         uses: actions/checkout@v3
 
-      - name: Instalando Python
+      - name: Configurar Python 3.9
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
-          cache: 'pip'
 
-      - name: Instalando Bibliotecas
+      - name: Instalar Dependencias do Motor
         run: |
           python -m pip install --upgrade pip
-          pip install pandas supabase xlsxwriter xhtml2pdf scikit-learn numpy jinja2 matplotlib
+          # Instalando apenas o essencial para o bot rodar sem erros
+          pip install pandas supabase xlsxwriter fpdf scikit-learn numpy matplotlib
 
-      - name: Executando o Worker
+      - name: Executar Worker
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
