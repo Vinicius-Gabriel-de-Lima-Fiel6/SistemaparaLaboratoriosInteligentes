@@ -7,6 +7,7 @@ from io import BytesIO
 import os
 import zipfile
 
+# CONFIGURAÇÃO DO CLIENTE
 url = st.secrets["SUPABASE_URL"]
 key = st.secrets["SUPABASE_KEY"]
 supabase = create_client(url, key)
@@ -70,16 +71,16 @@ def show_substances():
                         st.success("Cadastrado com sucesso!")
                         st.rerun()
 
-    # --- SUA LÓGICA DE VISUALIZAÇÃO ORIGINAL ---
+    # --- VISUALIZAÇÃO DO ESTOQUE ---
     res = supabase.table("substancias").select("*").eq("org_name", org_usuario).execute()
     df = pd.DataFrame(res.data)
 
     if not df.empty:
         st.divider()
         st.subheader("Estoque Atual")
-        st.dataframe(df[['nome', 'cas', 'quantidade', 'validade']], use_container_width=True)
+        st.dataframe(df[['nome', 'cas', 'quantidade', 'validade']], use_container_width=True, hide_index=True)
 
-        # --- ABA DE SEGURANÇA E QR CODE (O QUE VOCÊ PEDIU) ---
+        # --- SEÇÃO DE SEGURANÇA E QR CODE (CORRIGIDA) ---
         st.divider()
         st.subheader("🛡️ Ficha de Segurança e QR Code")
         
@@ -89,59 +90,70 @@ def show_substances():
             item_nome = st.selectbox("Selecione para ver a Ficha:", df['nome'].tolist())
             det = df[df['nome'] == item_nome].iloc[0]
             
-            # Carregar CSS da pasta CSS/
-            estilo = ""
+            # Carregar CSS externo (Pasta CSS)
+            estilo_css = ""
             if os.path.exists("CSS/substancias.css"):
                 with open("CSS/substancias.css", "r") as f:
-                    estilo = f"<style>{f.read()}</style>"
+                    estilo_css = f"<style>{f.read()}</style>"
             
-            # Renderizar Diamante (Sem vazar código)
-            st.markdown(estilo + f"""
+            # Renderização forçada como HTML (Isso remove os códigos da tela)
+            html_hommel = f"""
             <div class="hommel-container">
                 <div class="hommel-box">
                     <div class="f_vermelho">{det['fogo']}</div>
                     <div class="r_amarelo">{det['reatividade']}</div>
                     <div class="s_azul">{det['saude']}</div>
-                    <div class="e_branco">{det['especial']}</div>
+                    <div class="e_branco">{det['especial'] if det['especial'] else ''}</div>
                 </div>
             </div>
-            """, unsafe_allow_html=True)
+            """
+            st.markdown(estilo_css + html_hommel, unsafe_allow_html=True)
             
-            st.warning(f"**Procedimentos:** {det['instrucoes']}")
+            st.warning(f"**Procedimentos de Emergência:**\n\n{det['instrucoes']}")
 
         with col_qr:
-            url_servidor = st.text_input("URL do Servidor:", f"https://{org_usuario.lower()}.lab.com/")
-            link_qr = f"{url_servidor}{det['id']}.html"
+            # Lógica de TI: URL dinâmica por Organização
+            url_servidor = st.text_input("Link do Servidor (TI):", f"https://{org_usuario.lower().replace(' ','')}.lab.com/")
+            link_final = f"{url_servidor}{det['id']}.html"
             
-            qr = qrcode.make(link_qr)
-            buf = BytesIO()
-            qr.save(buf, format="PNG")
-            st.image(buf.getvalue(), width=200, caption=f"QR Code: {item_nome}")
-            st.download_button("📥 Baixar QR Code", buf.getvalue(), f"qr_{item_nome}.png", "image/png")
+            qr = qrcode.make(link_final)
+            img_buf = BytesIO()
+            qr.save(img_buf, format="PNG")
+            
+            st.image(img_buf.getvalue(), width=200, caption=f"QR Code: {item_nome}")
+            st.download_button("📥 Baixar Imagem QR", img_buf.getvalue(), f"qr_{item_nome}.png", "image/png")
 
-        # --- FERRAMENTAS DE TI (ZIP) ---
-        with st.expander("🛠️ Ferramentas de TI - Gerar Tudo"):
-            if st.button("Gerar ZIP com todos os HTMLs e QRs"):
-                zip_buffer = BytesIO()
-                with zipfile.ZipFile(zip_buffer, "a") as z:
-                    # Inclui CSS
+        # --- FERRAMENTAS EXCLUSIVAS DE TI ---
+        st.divider()
+        with st.expander("🛠️ Console de Administração (TI)"):
+            c1, c2 = st.columns(2)
+            
+            if c1.button("📦 Gerar ZIP de QR Codes"):
+                buf_zip = BytesIO()
+                with zipfile.ZipFile(buf_zip, "a") as z:
+                    for _, r in df.iterrows():
+                        img_qr = qrcode.make(f"{url_servidor}{r['id']}.html")
+                        b = BytesIO()
+                        img_qr.save(b, format="PNG")
+                        z.writestr(f"qrcodes/qr_{r['nome']}.png", b.getvalue())
+                st.download_button("Baixar Todos QRs", buf_zip.getvalue(), "qrcodes.zip")
+
+            if c2.button("🌐 Exportar HTMLs para Servidor"):
+                buf_html = BytesIO()
+                with zipfile.ZipFile(buf_html, "a") as z:
                     if os.path.exists("CSS/substancias.css"):
                         with open("CSS/substancias.css", "r") as f:
                             z.writestr("substancias.css", f.read())
-                    
-                    # Inclui HTMLs e QRs
-                    with open("HTML/substancias.html", "r") as f:
-                        template = f.read()
-                        
-                    for _, r in df.iterrows():
-                        # HTML
-                        h = template
-                        for k in r.index: h = h.replace(f"{{{{{k}}}}}", str(r[k]))
-                        z.writestr(f"fichas/{r['id']}.html", h)
-                        # QR
-                        img = qrcode.make(f"{url_servidor}{r['id']}.html")
-                        img_b = BytesIO()
-                        img.save(img_b, format="PNG")
-                        z.writestr(f"qrcodes/qr_{r['nome']}.png", img_b.getvalue())
-                
-                st.download_button("📥 Baixar Pacote Completo", zip_buffer.getvalue(), "projeto_ti.zip")
+                    if os.path.exists("HTML/substancias.html"):
+                        with open("HTML/substancias.html", "r") as f:
+                            tmpl = f.read()
+                        for _, r in df.iterrows():
+                            # Substitui os marcadores {{campo}} pelos dados do banco
+                            pag = tmpl
+                            for col in r.index:
+                                pag = pag.replace(f"{{{{{col}}}}}", str(r[col]))
+                            z.writestr(f"fichas/{r['id']}.html", pag)
+                st.download_button("Baixar Site Estático", buf_html.getvalue(), "site_fichas.zip")
+
+if __name__ == "__main__":
+    show_substances()
