@@ -7,8 +7,11 @@ import PyPDF2
 import io
 import logging
 
-# Silencia avisos de rede para manter o console limpo
+# 1. BLINDAGEM DE REDE E LOGS
+# Silencia erros de transporte para evitar logs de 'NoneType' ou 'Connection longer'
+logging.basicConfig(level=logging.WARNING)
 logging.getLogger("aioice").setLevel(logging.ERROR)
+logging.getLogger("aiortc").setLevel(logging.ERROR)
 
 def inicializar_motor():
     if "GROQ_API_KEY" not in st.secrets:
@@ -21,6 +24,7 @@ def inicializar_motor():
 
 client_groq, modelo_ativo = inicializar_motor()
 
+# 2. CLASSE DE PROCESSAMENTO (RESILIENTE)
 class VideoProcessor(VideoTransformerBase):
     def __init__(self, model):
         self.model = model
@@ -28,9 +32,11 @@ class VideoProcessor(VideoTransformerBase):
         try:
             img = frame.to_ndarray(format="bgr24")
             if img is not None and self.model is not None:
-                return self.model(img)[0].plot()
+                # Processamento YOLO estável
+                results = self.model(img, verbose=False)
+                return results[0].plot()
             return img
-        except:
+        except Exception:
             return None
 
 def extrair_texto(arquivo):
@@ -64,7 +70,7 @@ def responder_ia(prompt, historico, dados=None, esp="Geral"):
         return f"Erro na IA: {e}"
 
 def show_chatbot():
-    # Inicialização do modelo
+    # Carregamento global do modelo YOLO
     if "yolo_model" not in st.session_state: 
         st.session_state.yolo_model = YOLO("yolov8n.pt")
 
@@ -97,16 +103,20 @@ def show_chatbot():
         with col_t1:
             st.write("### ⚙️ Ferramentas")
             if st.toggle("🎥 Visão YOLO", key="tgl_v1"):
+                # CONFIGURAÇÃO DE REDE PARA EVITAR O ERRO DE CONEXÃO
                 webrtc_streamer(
-                    key="vision_mobile",
+                    key="vision_stable",
                     mode=WebRtcMode.SENDRECV,
                     video_processor_factory=lambda: VideoProcessor(st.session_state.yolo_model),
                     rtc_configuration={
-                        "iceServers": [{"urls": ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"]}]
+                        "iceServers": [
+                            {"urls": ["stun:stun.l.google.com:19302"]},
+                            {"urls": ["stun:stun1.l.google.com:19302"]},
+                            {"urls": ["stun:stun2.l.google.com:19302"]}
+                        ]
                     },
-                    # Essencial para funcionar em Celulares:
                     media_stream_constraints={
-                        "video": {"facingMode": "environment"}, # Tenta usar a câmera traseira
+                        "video": {"facingMode": "environment"}, # Ideal para celular (câmera traseira)
                         "audio": False
                     },
                     async_processing=True
@@ -127,7 +137,8 @@ def show_chatbot():
             
             with st.popover("Ver Detalhes"):
                 st.write(info["desc"])
-                st.link_button("Abrir", info["url"])
+                btn_name = sub_sel if ft_sel == "AlphaFold" else ft_sel
+                st.link_button(f"Abrir {btn_name}", info["url"])
 
         with col_c1:
             chat_box = st.container(height=500)
@@ -135,6 +146,7 @@ def show_chatbot():
                 chat_box.chat_message(m["role"]).write(m["content"])
             
     else:
+        # ABA DE AGENTES (PRESIDÊNCIA DE SQUAD)
         col_c2, col_t2 = st.columns([3, 1])
         with col_t2:
             st.write("### 👥 Squad")
@@ -154,8 +166,9 @@ def show_chatbot():
         persona = "Consultor Sênior PhD" if escolha_aba == "💬 Chat Científico" else esp_nome
         
         st.session_state[h_key].append({"role": "user", "content": prompt})
-        with st.spinner("Analisando..."):
-            dados_doc = extrair_texto(up_geral if escolha_aba == "💬 Chat Científico" else up_agente)
+        with st.spinner("Analisando evidências..."):
+            doc_ativa = up_geral if escolha_aba == "💬 Chat Científico" else up_agente
+            dados_doc = extrair_texto(doc_ativa)
             resposta = responder_ia(prompt, st.session_state[h_key], dados_doc, persona)
             st.session_state[h_key].append({"role": "assistant", "content": resposta})
         st.rerun()
