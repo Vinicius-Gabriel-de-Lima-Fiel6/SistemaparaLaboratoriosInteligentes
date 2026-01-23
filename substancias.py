@@ -12,26 +12,25 @@ url = st.secrets["SUPABASE_URL"]
 key = st.secrets["SUPABASE_KEY"]
 supabase = create_client(url, key)
 
-def registrar_historico(acao, item, detalhes, user_data):
+# --- AJUSTE: Conectando à tabela historico_atividades conforme a foto ---
+def registrar_historico(acao, substancia_nome, quantidade, detalhes, user_data):
     log = {
-        "usuario_nome": user_data.get('username', 'Sistema'),
-        "acao": acao,
-        "item_afetado": item,
-        "detalhes": detalhes,
+        "usuario_email": user_data.get('email', 'sistema@lab.com'), # Ajustado para bater com a coluna da foto
         "org_name": user_data.get('org_name', 'Default'),
+        "acao": acao,
+        "substancia_nome": substancia_nome,
+        "quantidade": str(quantidade), # A foto indica tipo 'text' para quantidade
+        "detalhes": detalhes,
         "created_at": datetime.now().isoformat()
     }
     try:
-        supabase.table("historico").insert(log).execute()
-    except:
+        # Nome da tabela alterado para historico_atividades conforme imagem
+        supabase.table("historico_atividades").insert(log).execute()
+    except Exception as e:
+        print(f"Erro ao logar: {e}")
         pass
 
 def show_substances():
-    # --- CARREGAMENTO DO ESTILO EXTERNO ---
-    if os.path.exists("CSS/style_subst.css"):
-        with open("CSS/style_subst.css", "r") as f:
-            st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-
     st.header("🔬 Cadastro e Gerenciamento de Substâncias")
     
     user_data = st.session_state.get('user_data', {})
@@ -39,7 +38,7 @@ def show_substances():
     role_usuario = user_data.get('role', 'Visualizador')
     username_atual = user_data.get('username', 'Usuário')
 
-    # --- 1. CADASTRO ---
+    # --- 1. SEU CADASTRO ORIGINAL ---
     with st.container(border=True):
         st.subheader("Cadastrar Novo Item")
         
@@ -76,13 +75,16 @@ def show_substances():
                         "especial": s_esp, "instrucoes": instrucoes
                     }
                     supabase.table("substancias").insert(data_insert).execute()
-                    registrar_historico("Cadastro", nome, "Inserção via sistema", user_data)
+                    
+                    # Chamada de log atualizada para a nova estrutura
+                    registrar_historico("Cadastro", nome, quantidade, "Inserção via sistema", user_data)
+                    
                     st.success(f"'{nome}' cadastrado!")
                     st.rerun()
 
     st.divider()
 
-    # --- 2. INVENTÁRIO ---
+    # --- 2. SEU INVENTÁRIO ORIGINAL ---
     try:
         response = supabase.table("substancias").select("*").eq("org_name", org_usuario).execute()
         df = pd.DataFrame(response.data)
@@ -90,6 +92,7 @@ def show_substances():
         if not df.empty:
             st.dataframe(df[['id', 'nome', 'cas', 'quantidade', 'validade']], use_container_width=True, hide_index=True)
 
+            # --- MELHORIA TI: CONSULTA E QR CODE (Conectado ao novo domínio) ---
             st.subheader("🛡️ Consulta de Segurança e QR Code")
             substancia_alvo = st.selectbox("Selecione um item:", options=df['nome'].tolist())
             detalhes = df[df['nome'] == substancia_alvo].iloc[0]
@@ -102,7 +105,6 @@ def show_substances():
                     with open("CSS/substancias.css", "r") as f:
                         css_content = f.read()
                 
-                # MANTIDO: Sua estrutura original de replace
                 html_template = """
                 <style>__CSS__</style>
                 <div style="display: flex; justify-content: center; align-items: center; background: #1e1e1e; padding: 15px; border-radius: 10px; border: 1px solid #333;">
@@ -126,21 +128,25 @@ def show_substances():
                 st.caption(f"CAS: {detalhes.get('cas', 'N/A')}")
 
             with col_qr:
-                # O Link agora aponta para o portal online que receberá o ID
-                url_portal = st.text_input("Link do Portal Online:", "https://portal-online.streamlit.app")
-                qr_link = f"{url_portal}?id={detalhes['id']}&org={org_usuario.replace(' ', '%20')}"
+                # Alterado para o novo domínio solicitado
+                url_base = "https://sistemadeqrcodes.streamlit.app/"
+                qr_link = f"{url_base}?id={detalhes['id']}" 
                 
                 img_qr = qrcode.make(qr_link)
                 buf = BytesIO()
                 img_qr.save(buf, format="PNG")
                 st.image(buf.getvalue(), width=130, caption="QR Ficha Digital")
-                st.download_button("📥 Baixar QR", buf.getvalue(), f"qr_{substancia_alvo}.png", use_container_width=True)
+                
+                if st.download_button("📥 Baixar QR", buf.getvalue(), f"qr_{substancia_alvo}.png", use_container_width=True):
+                    registrar_historico("Gerar QR", substancia_alvo, detalhes['quantidade'], "Download de QR Code individual", user_data)
 
+            # --- FERRAMENTAS DE ADM TI ---
             if role_usuario in ["ADM", "Tecnico"]:
                 with st.expander("⚙️ Ferramentas de Administrador (Massa)"):
                     if st.button("📦 Gerar Tudo (ZIP de HTML e QR Codes)"):
                         zip_buf = BytesIO()
                         with zipfile.ZipFile(zip_buf, "a") as z:
+                            # Adicionando HTMLs (se o template existir)
                             if os.path.exists("HTML/substancias.html"):
                                 with open("HTML/substancias.html", "r") as f:
                                     tmpl = f.read()
@@ -148,12 +154,17 @@ def show_substances():
                                     h = tmpl
                                     for col in r.index: h = h.replace(f"{{{{{col}}}}}", str(r[col]))
                                     z.writestr(f"fichas/{r['id']}.html", h)
-                                    
-                                    q = qrcode.make(f"{url_portal}?id={r['id']}&org={org_usuario.replace(' ', '%20')}")
-                                    b = BytesIO()
-                                    q.save(b, format="PNG")
-                                    z.writestr(f"qrcodes/qr_{r['nome']}.png", b.getvalue())
+                            
+                            # Gerando QR Codes apontando para o novo sistema para cada item
+                            for _, r in df.iterrows():
+                                link_item = f"https://sistemadeqrcodes.streamlit.app/?id={r['id']}"
+                                q = qrcode.make(link_item)
+                                b = BytesIO()
+                                q.save(b, format="PNG")
+                                z.writestr(f"qrcodes/qr_{r['nome']}.png", b.getvalue())
+                        
                         st.download_button("📥 Baixar Projeto Completo", zip_buf.getvalue(), "estoque_digital.zip")
+                        registrar_historico("Gerar ZIP", "Múltiplos", "N/A", "Geração de pacote completo de QR Codes", user_data)
 
     except Exception as e:
         st.error(f"Erro: {e}")
