@@ -23,3 +23,5 @@ openpyxl
 chempy
 plotly
 st-gsheets-connection
+postgrest
+
