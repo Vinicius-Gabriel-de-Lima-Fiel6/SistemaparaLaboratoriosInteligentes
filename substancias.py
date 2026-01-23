@@ -7,7 +7,6 @@ from io import BytesIO
 import os
 import zipfile
 
-# Conexão com Supabase
 url = st.secrets["SUPABASE_URL"]
 key = st.secrets["SUPABASE_KEY"]
 supabase = create_client(url, key)
@@ -33,7 +32,7 @@ def show_substances():
 
     st.title(f"🧪 Estoque - {org_usuario}")
 
-    # Form de Cadastro
+  
     with st.expander("➕ Cadastrar Substância"):
         if role_usuario == "Visualizador":
             st.warning("Acesso restrito.")
@@ -64,7 +63,7 @@ def show_substances():
                         registrar_historico("Cadastro", nome, "Adicionado", user_data)
                         st.rerun()
 
-    # Listagem
+ 
     res = supabase.table("substancias").select("*").eq("org_name", org_usuario).execute()
     df = pd.DataFrame(res.data)
 
@@ -79,13 +78,12 @@ def show_substances():
             sel = st.selectbox("Selecione:", df['nome'].tolist())
             det = df[df['nome'] == sel].iloc[0]
 
-            # Carrega o CSS
+            
             css_txt = ""
             if os.path.exists("CSS/substancias.css"):
                 with open("CSS/substancias.css", "r") as f_css:
                     css_txt = f_css.read()
 
-            # RENDERIZAÇÃO SEM VAZAR CÓDIGO
             html_hommel = f"""
             <style>{css_txt}</style>
             <div class="hommel-container">
@@ -108,3 +106,4 @@ def show_substances():
             qr_img.save(buf, format="PNG")
             st.image(buf.getvalue(), width=150)
             st.download_button("Baixar QR", buf.getvalue(), f"qr_{sel}.png")
+
