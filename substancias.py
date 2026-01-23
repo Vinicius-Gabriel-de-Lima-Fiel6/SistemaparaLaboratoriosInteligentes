@@ -4,6 +4,7 @@ from supabase import create_client
 from datetime import datetime
 import qrcode
 from io import BytesIO
+import os
 import zipfile
 
 # Conexão com o Banco de Dados
@@ -11,40 +12,56 @@ url = st.secrets["SUPABASE_URL"]
 key = st.secrets["SUPABASE_KEY"]
 supabase = create_client(url, key)
 
-def registrar_historico(acao, item, qtd, detalhes, user_data):
-    """Grava na tabela historico_atividades conforme as colunas do seu banco"""
+def registrar_historico(acao, item, detalhes, user_data):
+    """
+    Melhoria: Registro detalhado na tabela 'historico_atividades' 
+    mantendo compatibilidade com seu código original.
+    """
     log = {
-        "usuario_email": user_data.get('email') or user_data.get('username') or "sistema@empresa.com",
+        "usuario_email": user_data.get('email') or user_data.get('username') or "Sistema",
         "org_name": user_data.get('org_name', 'Default'),
-        "acao": acao,
+        "acao": acao.upper(),
         "substancia_nome": item,
-        "quantidade": str(qtd),
+        "quantidade": "N/A",  # Mantendo estrutura para evitar erros de tipo
         "detalhes": detalhes,
         "created_at": datetime.now().isoformat()
     }
     try:
         supabase.table("historico_atividades").insert(log).execute()
     except:
-        pass
+        # Fallback para sua tabela 'historico' original caso a nova falhe
+        try:
+            log_old = {
+                "usuario_nome": user_data.get('username', 'Sistema'),
+                "acao": acao,
+                "item_afetado": item,
+                "detalhes": detalhes,
+                "org_name": user_data.get('org_name', 'Default'),
+                "created_at": datetime.now().isoformat()
+            }
+            supabase.table("historico").insert(log_old).execute()
+        except:
+            pass
 
 def show_substances():
-    # --- CARREGA O CSS DA PASTA CSS ---
+    # --- MELHORIA: CARREGAMENTO DE ESTILO EXTERNO (style_subst.css) ---
     try:
-        with open("CSS/style_subst.css") as f:
-            st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-    except FileNotFoundError:
-        pass
+        if os.path.exists("CSS/style_subst.css"):
+            with open("CSS/style_subst.css", "r") as f:
+                st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+    except Exception as e:
+        st.error(f"Erro ao carregar CSS: {e}")
 
-    # Título com ícone conforme sua imagem
-    st.markdown("<h1>🔬 Cadastro e Gerenciamento de Substâncias</h1>", unsafe_allow_html=True)
+    st.header("🔬 Cadastro e Gerenciamento de Substâncias")
     
     user_data = st.session_state.get('user_data', {})
     org_usuario = user_data.get('org_name', 'Default')
     role_usuario = user_data.get('role', 'Visualizador')
+    username_atual = user_data.get('username', 'Usuário')
 
-    # --- 1. SEU CADASTRO ORIGINAL (IGUAL À CAPTURA DE TELA) ---
+    # --- 1. SEU CADASTRO ORIGINAL ---
     with st.container(border=True):
-        st.markdown("<h2 class='sub-header'>Cadastrar Novo Item</h2>", unsafe_allow_html=True)
+        st.subheader("Cadastrar Novo Item")
         
         if role_usuario == "Visualizador":
             st.warning("Seu perfil é apenas para visualização.")
@@ -79,13 +96,13 @@ def show_substances():
                         "especial": s_esp, "instrucoes": instrucoes
                     }
                     supabase.table("substancias").insert(data_insert).execute()
-                    registrar_historico("CADASTRO", nome, quantidade, "Sucesso", user_data)
+                    registrar_historico("CADASTRO", nome, f"Inserção de {quantidade} unidades via sistema", user_data)
                     st.success(f"'{nome}' cadastrado!")
                     st.rerun()
 
     st.divider()
 
-    # --- 2. INVENTÁRIO E QR CODE ---
+    # --- 2. SEU INVENTÁRIO ORIGINAL ---
     try:
         response = supabase.table("substancias").select("*").eq("org_name", org_usuario).execute()
         df = pd.DataFrame(response.data)
@@ -93,33 +110,81 @@ def show_substances():
         if not df.empty:
             st.dataframe(df[['id', 'nome', 'cas', 'quantidade', 'validade']], use_container_width=True, hide_index=True)
 
-            st.markdown("<h3 style='color: white;'>🖼️ Gerador de Etiquetas QR</h3>", unsafe_allow_html=True)
-            url_portal = st.text_input("Link do Portal Online:", "https://seu-portal.streamlit.app")
+            # --- CONSULTA E QR CODE ---
+            st.subheader("🛡️ Consulta de Segurança e QR Code")
+            substancia_alvo = st.selectbox("Selecione um item:", options=df['nome'].tolist())
+            detalhes = df[df['nome'] == substancia_alvo].iloc[0]
             
-            sel_item = st.selectbox("Selecione o item:", df['nome'].tolist())
-            det = df[df['nome'] == sel_item].iloc[0]
+            col_vis, col_txt, col_qr = st.columns([1.5, 2.5, 1.5])
+            
+            with col_vis:
+                # Renderização do Diamante com fallback de CSS conforme seu código
+                css_inline = ""
+                if os.path.exists("CSS/substancias.css"):
+                    with open("CSS/substancias.css", "r") as f:
+                        css_inline = f.read()
+                
+                html_template = """
+                <style>__CSS__</style>
+                <div style="display: flex; justify-content: center; align-items: center; background: #1e1e1e; padding: 15px; border-radius: 10px; border: 1px solid #333;">
+                    <div style="position: relative; width: 80px; height: 80px; transform: rotate(45deg); border: 1px solid #555;">
+                        <div style="position: absolute; top: 0; left: 0; width: 40px; height: 40px; background: #ff4b4b; display: flex; align-items: center; justify-content: center; transform: rotate(-45deg); color: white; font-weight: bold;">__FOGO__</div>
+                        <div style="position: absolute; top: 0; left: 40px; width: 40px; height: 40px; background: #f1c40f; display: flex; align-items: center; justify-content: center; transform: rotate(-45deg); color: black; font-weight: bold;">__REAT__</div>
+                        <div style="position: absolute; top: 40px; left: 0; width: 40px; height: 40px; background: #3498db; display: flex; align-items: center; justify-content: center; transform: rotate(-45deg); color: white; font-weight: bold;">__SAUDE__</div>
+                        <div style="position: absolute; top: 40px; left: 40px; width: 40px; height: 40px; background: #fff; display: flex; align-items: center; justify-content: center; transform: rotate(-45deg); color: black; font-weight: bold; font-size: 0.7em;">__ESP__</div>
+                    </div>
+                </div>
+                """
+                render = html_template.replace("__CSS__", css_inline)
+                render = render.replace("__FOGO__", str(detalhes.get('fogo', 0)))
+                render = render.replace("__REAT__", str(detalhes.get('reatividade', 0)))
+                render = render.replace("__SAUDE__", str(detalhes.get('saude', 0)))
+                render = render.replace("__ESP__", str(detalhes.get('especial', '')))
+                st.markdown(render, unsafe_allow_html=True)
 
-            link_final = f"{url_portal}?id={det['id']}&org={org_usuario.replace(' ', '%20')}"
-            
-            qr_img = qrcode.make(link_final)
-            buf = BytesIO()
-            qr_img.save(buf, format="PNG")
-            
-            c1, c2 = st.columns([1, 2])
-            with c1:
-                st.image(buf.getvalue(), width=150)
-            with c2:
-                st.download_button("📥 Baixar QR Individual", buf.getvalue(), f"QR_{sel_item}.png")
-                if st.button("📦 Gerar ZIP da Empresa"):
-                    zip_buf = BytesIO()
-                    with zipfile.ZipFile(zip_buf, "w") as z:
-                        for _, r in df.iterrows():
-                            lnk = f"{url_portal}?id={r['id']}&org={org_usuario.replace(' ', '%20')}"
-                            q = qrcode.make(lnk)
-                            b = BytesIO()
-                            q.save(b, format="PNG")
-                            z.writestr(f"QR_{r['nome']}.png", b.getvalue())
-                    st.download_button("📥 Baixar ZIP", zip_buf.getvalue(), "etiquetas.zip")
+            with col_txt:
+                st.warning(f"**Emergência:**\n\n{detalhes.get('instrucoes', 'N/A')}")
+                st.caption(f"CAS: {detalhes.get('cas', 'N/A')}")
+
+            with col_qr:
+                # Melhoria: Campo para URL do Portal Online que você vai criar
+                url_portal_online = st.text_input("Portal Online (Ficha Digital):", "https://portal-seguranca.streamlit.app")
+                
+                # Link dinâmico conforme aprovado: ID + Empresa
+                qr_link = f"{url_portal_online}?id={detalhes['id']}&org={org_usuario.replace(' ', '%20')}"
+                
+                img_qr = qrcode.make(qr_link)
+                buf = BytesIO()
+                img_qr.save(buf, format="PNG")
+                st.image(buf.getvalue(), width=130, caption="Scan para Ficha Digital")
+                st.download_button("📥 Baixar QR", buf.getvalue(), f"qr_{substancia_alvo}.png", use_container_width=True)
+
+            # --- FERRAMENTAS DE ADM (Massa) ---
+            if role_usuario in ["ADM", "Tecnico"]:
+                with st.expander("⚙️ Ferramentas de Administrador (Massa)"):
+                    if st.button("📦 Gerar Tudo (ZIP de HTML e QR Codes)"):
+                        zip_buf = BytesIO()
+                        with zipfile.ZipFile(zip_buf, "a") as z:
+                            if os.path.exists("HTML/substancias.html"):
+                                with open("HTML/substancias.html", "r") as f:
+                                    tmpl = f.read()
+                                for _, r in df.iterrows():
+                                    h = tmpl
+                                    # Trata None/NaN para evitar "None" no HTML
+                                    for col in r.index: 
+                                        val = str(r[col]) if pd.notnull(r[col]) else "Sem informação"
+                                        h = h.replace(f"{{{{{col}}}}}", val)
+                                    z.writestr(f"fichas/{r['id']}.html", h)
+                                    
+                                    # Gera o QR Code para o ZIP também apontando para o portal online
+                                    lnk_lote = f"{url_portal_online}?id={r['id']}&org={org_usuario.replace(' ', '%20')}"
+                                    q = qrcode.make(lnk_lote)
+                                    b = BytesIO()
+                                    q.save(b, format="PNG")
+                                    z.writestr(f"qrcodes/qr_{r['nome']}.png", b.getvalue())
+                        st.download_button("📥 Baixar Projeto Completo", zip_buf.getvalue(), "estoque_digital.zip")
+                        registrar_historico("EXPORTAÇÃO", "Lote Completo", f"Gerado ZIP de {len(df)} itens", user_data)
+
     except Exception as e:
         st.error(f"Erro: {e}")
 
