@@ -1,0 +1,30 @@
+<!DOCTYPE HTML>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="substancias.css">
+</head>
+<body>
+    <div class="card">
+        <div class="card-header"><h1>{{nome}}</h1></div>
+        <div class="card-content">
+            <p><strong>Concentração:</strong> {{concentracao}}</p>
+            <p><strong>Validade:</strong> {{validade}}</p>
+            <div class="hommel-container">
+                <div class="hommel-box">
+                    <div class="fogo">{{saude}}</div>
+                    <div class="reat">{{fogo}}</div>
+                    <div class="saude">{{reatividade}}</div>
+                    <div class="esp">{{especial}}</div>
+                </div>
+            </div>
+            <div style="background: #fff4f4; padding: 10px; border-left: 4px solid #ff4b4b; margin-top: 15px;">
+                <strong>⚠️ Instruções de Emergência:</strong><br>
+                <p>{{instrucoes}}</p>
+            </div>
+        </div>
+        <div class="card-footer">Organização: {{org_name}}</div>
+    </div>
+</body>
+</html>
