@@ -7,16 +7,19 @@ import zipfile
 from io import BytesIO
 import os
 
-# Conexão Supabase
+# Conexão com Supabase
 url = st.secrets["SUPABASE_URL"]
 key = st.secrets["SUPABASE_KEY"]
 supabase = create_client(url, key)
 
-def registrar_historico(acao, substancia, qtd, detalhes):
-    """Alimenta a tabela 'historico_atividades' conforme o esquema oficial."""
+def registrar_log(acao, substancia, qtd, detalhes):
+    """
+    Registra toda e qualquer alteração na tabela historico_atividades.
+    Mantém o rastro de QUEM fez, O QUE fez e QUAL substância foi afetada.
+    """
     user_data = st.session_state.get('user_data', {})
-    log = {
-        "usuario_email": user_data.get('email', 'sistema@lab.com'),
+    log_data = {
+        "usuario_email": user_data.get('email', 'usuario_desconhecido@lab.com'),
         "org_name": user_data.get('org_name', 'Default'),
         "acao": acao,
         "substancia_nome": substancia,
@@ -25,59 +28,75 @@ def registrar_historico(acao, substancia, qtd, detalhes):
         "created_at": datetime.now().isoformat()
     }
     try:
-        supabase.table("historico_atividades").insert(log).execute()
+        supabase.table("historico_atividades").insert(log_data).execute() # Tabela conforme sua imagem
     except Exception as e:
-        st.error(f"Erro de Log: {e}")
+        st.error(f"Erro ao salvar histórico: {e}")
+
+def carregar_arquivo(caminho):
+    with open(caminho, "r", encoding="utf-8") as f:
+        return f.read()
 
 def show_substances():
-    st.header("🔬 Gestão de Inventário e Segurança")
+    st.header("🔬 Sistema de Gestão e Segurança")
     user_data = st.session_state.get('user_data', {})
     org = user_data.get('org_name', 'Default')
 
-    # --- CONSULTA DE DADOS ---
+    # 1. BUSCA DE DADOS
     res = supabase.table("substancias").select("*").eq("org_name", org).execute()
     df = pd.DataFrame(res.data)
 
     if not df.empty:
-        # --- SISTEMA DE QR CODE (LOTE E INDIVIDUAL) ---
-        st.subheader("🖼️ Geração de QR Codes")
-        url_base = st.text_input("URL das Fichas:", "https://seulab.com/item/")
+        # --- SEÇÃO DE QR CODES ---
+        st.subheader("🖼️ Gerador de QR Codes")
+        url_base = st.text_input("URL das Fichas:", f"https://{org.lower()}.lab.com/item/")
         
-        col_qr1, col_qr2 = st.columns(2)
-        with col_qr1:
-            if st.button("📦 Gerar Todos (ZIP)"):
+        c1, c2 = st.columns(2)
+        with c1:
+            item_qr = st.selectbox("QR Individual:", df['nome'].tolist())
+            if st.button("Gerar QR Selecionado"):
+                row = df[df['nome'] == item_qr].iloc[0]
+                qr = qrcode.make(f"{url_base}{row['id']}")
+                buf = BytesIO()
+                qr.save(buf, format="PNG")
+                st.image(buf.getvalue(), width=150)
+                registrar_log("QR_GERADO", item_qr, row['quantidade'], "Gerou QR Code individual.")
+
+        with c2:
+            st.write("Lote completo:")
+            if st.button("📦 Baixar Todos (ZIP)"):
                 zip_buf = BytesIO()
                 with zipfile.ZipFile(zip_buf, "w") as z:
                     for _, r in df.iterrows():
-                        img = qrcode.make(f"{url_base}{r['id']}")
+                        qr = qrcode.make(f"{url_base}{r['id']}")
                         b = BytesIO()
-                        img.save(b, format="PNG")
-                        z.writestr(f"qr_{r['nome']}.png", b.getvalue())
-                st.download_button("📥 Baixar ZIP", zip_buf.getvalue(), "qrcodes.zip")
-                registrar_historico("DOWNLOAD_LOTE", "Multiplos", 0, "Gerou ZIP com todos os QR Codes")
+                        qr.save(b, format="PNG")
+                        z.writestr(f"qrcodes/qr_{r['nome']}.png", b.getvalue())
+                
+                st.download_button("📥 Baixar ZIP", zip_buf.getvalue(), "todos_qrcodes.zip")
+                registrar_log("EXPORTACAO_ZIP", "Múltiplos", 0, f"Exportou {len(df)} itens em lote.")
 
-        # --- VISUALIZAÇÃO DE SEGURANÇA (HTML RENDERIZADO) ---
+        # --- SEÇÃO DE VISUALIZAÇÃO (HTML/CSS) ---
         st.divider()
         st.subheader("👁️ Visualização de Segurança")
-        substancia_alvo = st.selectbox("Ver detalhes de:", df['nome'].tolist())
-        detalhes = df[df['nome'] == substancia_alvo].iloc[0].to_dict()
-
-        # Carregar arquivos externos
-        with open("CSS/substancias.css", "r") as f:
-            css_content = f.read()
-        with open("HTML/card_template.html", "r") as f:
-            html_template = f.read()
-
-        # Substituir variáveis no HTML
-        for key, value in detalhes.items():
-            html_template = html_template.replace(f"{{{{{key}}}}}", str(value if value else "N/A"))
-
-        # RENDERIZAÇÃO FINAL (O segredo para não aparecer como texto)
-        render_final = f"<style>{css_content}</style>{html_template}"
-        st.markdown(render_final, unsafe_allow_html=True)
+        selecionado = st.selectbox("Escolha a substância:", df['nome'].tolist(), key="vis")
         
-        # Log de Visualização
-        registrar_historico("VISUALIZACAO", substancia_alvo, 0, f"Consultou ficha de segurança de {substancia_alvo}")
+        # Preparação do HTML
+        dados_item = df[df['nome'] == selecionado].iloc[0].to_dict()
+        css = carregar_arquivo("CSS/substancias.css")
+        html_template = carregar_arquivo("HTML/card_template.html")
+
+        # Substituição de tags no HTML
+        for campo, valor in dados_item.items():
+            html_template = html_template.replace(f"{{{{{campo}}}}}", str(valor if valor else "None"))
+
+        # RENDERIZAÇÃO CORRETA
+        st.markdown(f"<style>{css}</style>{html_template}", unsafe_allow_html=True)
+        
+        # Log de Consulta
+        registrar_log("CONSULTA_SEGURANÇA", selecionado, dados_item['quantidade'], "Visualizou ficha técnica.")
+
+    else:
+        st.warning("Nenhuma substância encontrada para esta organização.")
 
 if __name__ == "__main__":
     show_substances()
