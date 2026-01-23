@@ -4,10 +4,10 @@ from supabase import create_client
 from datetime import datetime
 import qrcode
 from io import BytesIO
+import zipfile
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 # Nota: Se este arquivo for importado em outro, o set_page_config deve estar no arquivo principal.
-# Caso contrário, mantenha como está.
 
 # Conexão com o Banco de Dados na Nuvem
 url = st.secrets["SUPABASE_URL"]
@@ -93,13 +93,36 @@ def show_substances():
             # --- SEÇÃO DE EXPORTAÇÃO ---
             with st.container(border=True):
                 st.markdown("### 📊 Exportação e Análise Externa")
-                col_exp1, col_exp2, col_exp3 = st.columns([1, 1, 1])
+                col_exp1, col_exp2, col_exp3, col_exp4 = st.columns([1, 1, 1, 1])
+                
+                # CSV
                 csv = df.to_csv(index=False).encode('utf-8')
                 col_exp1.download_button(label="📥 Baixar Dados (CSV)", data=csv, file_name=f"inventario_{org_usuario}.csv", mime='text/csv', use_container_width=True)
+                
+                # Excel
                 col_exp2.link_button("🌐 Abrir Excel Online", "https://excel.new", use_container_width=True)
-                with col_exp3:
-                    with st.popover("💡 Como analisar no Excel?", use_container_width=True):
-                        st.write("1. Clique em Baixar. 2. Abra o Excel Online. 3. Vá em Arquivo > Abrir e envie o CSV.")
+
+                # GERAR TODOS QR CODES (ZIP)
+                buf_zip = BytesIO()
+                with zipfile.ZipFile(buf_zip, 'w') as zf:
+                    for _, row in df.iterrows():
+                        qr_content = f"Item: {row['nome']}\nCAS: {row.get('cas', 'N/A')}\nEmergencia: {row.get('instrucoes', 'N/A')}"
+                        img_qr = qrcode.make(qr_content)
+                        img_buf = BytesIO()
+                        img_qr.save(img_buf, format="PNG")
+                        zf.writestr(f"qr_{row['nome'].replace(' ', '_')}.png", img_buf.getvalue())
+                
+                col_exp3.download_button(
+                    label="🖼️ Gerar Todos QR Codes",
+                    data=buf_zip.getvalue(),
+                    file_name=f"qrcodes_{org_usuario}.zip",
+                    mime="application/zip",
+                    use_container_width=True
+                )
+
+                with col_exp4:
+                    with st.popover("💡 Ajuda", use_container_width=True):
+                        st.write("Use os botões ao lado para exportar a planilha ou baixar todas as etiquetas de uma vez.")
 
             # --- ATUALIZAÇÃO RÁPIDA ---
             if role_usuario in ["ADM", "Tecnico"]:
@@ -123,7 +146,6 @@ def show_substances():
             substancia_alvo = st.selectbox("Selecione um item:", options=df['nome'].tolist())
             detalhes = df[df['nome'] == substancia_alvo].iloc[0]
             
-            # ADICIONADO: QR CODE NA CONSULTA
             col_visual, col_texto, col_qr = st.columns([1, 2, 1])
             with col_visual:
                 render_hommel(detalhes.get('saude', 0), detalhes.get('fogo', 0), detalhes.get('reatividade', 0), detalhes.get('especial', ''))
@@ -135,8 +157,8 @@ def show_substances():
                 qr = qrcode.make(qr_content)
                 buf = BytesIO()
                 qr.save(buf, format="PNG")
-                st.image(buf.getvalue(), caption="QR Code", width=120)
-                st.download_button("📥 Baixar QR", buf.getvalue(), f"qr_{detalhes['nome']}.png", "image/png")
+                st.image(buf.getvalue(), caption="QR Code Atual", width=120)
+                st.download_button("📥 Baixar Este QR", buf.getvalue(), f"qr_{detalhes['nome']}.png", "image/png", use_container_width=True)
             
             # --- HISTÓRICO DE MOVIMENTAÇÕES ---
             with st.expander("📜 Histórico Recente de Alterações"):
