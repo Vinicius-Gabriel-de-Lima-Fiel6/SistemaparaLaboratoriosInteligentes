@@ -1,40 +1,31 @@
-/* Fundo Geral */
-.stApp {
-    background-color: #000000;
-}
-
-/* Cor de todos os textos e títulos */
-h1, h2, h3, h4, p, span, label, .stMarkdown {
+/* Títulos Principais em Branco para destaque */
+h1 {
     color: #ffffff !important;
+    font-weight: 700 !important;
+    margin-bottom: 20px !important;
 }
 
-/* Ajuste das Labels dos Inputs (Nome, Concentração, etc) */
+.sub-header {
+    color: #ffffff !important;
+    font-size: 1.5rem !important;
+    margin-bottom: 15px !important;
+}
+
+/* Mantém as Labels (nomes dos campos) com a cor padrão do Streamlit ou levemente cinza */
 div[data-testid="stWidgetLabel"] p {
-    color: #e0e0e0 !important;
-    font-weight: 600 !important;
+    color: #f0f2f6 !important;
+    font-weight: 500 !important;
 }
 
-/* Estilização dos campos de input para não ficarem invisíveis */
-input, textarea {
-    background-color: #1a1a1a !important;
-    color: #ffffff !important;
-    border: 1px solid #333333 !important;
+/* Estilo do Container (Pasta da Empresa) conforme a imagem original */
+div[data-testid="stVerticalBlock"] > div[style*="border"] {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    padding: 20px;
 }
 
-/* Expander (Informações de Segurança) */
-div[data-testid="stExpander"] {
-    background-color: #111111;
-    border: 1px solid #222222;
-}
-
-/* Dataframe/Tabela */
-div[data-testid="stDataFrame"] {
-    background-color: #1a1a1a;
-}
-
-/* Botões */
-.stButton>button {
-    background-color: #ff4b4b;
-    color: white;
+/* Botão de Adicionar - Cor de Destaque */
+.stButton > button {
     border-radius: 5px;
+    border: 1px solid #4a4a4a;
 }
