@@ -54,7 +54,7 @@ def show_chatbot():
     if "messages_geral" not in st.session_state: st.session_state.messages_geral = []
     if "messages_agente" not in st.session_state: st.session_state.messages_agente = []
     if "aba_atual" not in st.session_state: st.session_state.aba_atual = "Chat Científico"
-    if "yolo_model" not in st.session_state: st.session_state.yolo_model = YOLO("yolov8n.pt")
+    if "yolo_model" not in st.session_state: st.session_state.yolo_model = YOLO("yolo11x.pt")
 
     st.subheader("🔬 LabSmart AI - Hub de Inteligência")
 
@@ -155,6 +155,7 @@ def show_chatbot():
 
 if __name__ == "__main__":
     show_chatbot()
+
 
 
 
