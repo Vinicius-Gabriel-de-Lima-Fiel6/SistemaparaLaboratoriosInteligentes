@@ -7,8 +7,6 @@ from io import BytesIO
 import os
 import qrcode
 
-st.set_page_config(page_title="Sistema de Substâncias", layout="wide")
-
 url = st.secrets["SUPABASE_URL"]
 key = st.secrets["SUPABASE_KEY"]
 supabase = create_client(url, key)
@@ -100,7 +98,7 @@ def show_substances():
                         "especial": s_esp, "instrucoes": instrucoes
                     }
                     supabase.table("substancias").insert(data_insert).execute()
-                    registrar_historico("Cadastro", nome, f"Adicionado ao sistema.", user_data)
+                    registrar_historico("Cadastro", nome, f"Adicionado ao estoque de {org_usuario}.", user_data)
                     st.success(f"'{nome}' cadastrado!")
                     st.rerun()
 
@@ -120,14 +118,14 @@ def show_substances():
                     nova_qtd = col_val.number_input("Nova Qtd", min_value=0.0)
                     if col_btn.button("Salvar Alteração"):
                         supabase.table("substancias").update({"quantidade": nova_qtd}).eq("nome", sub_edit).execute()
-                        registrar_historico("Movimentação", sub_edit, f"Estoque ajustado para {nova_qtd}", user_data)
+                        registrar_historico("Movimentação", sub_edit, f"Estoque ajustado por {org_usuario}", user_data)
                         st.rerun()
 
             st.subheader("🛡️ Ficha de Segurança e QR Code")
             col_f1, col_f2 = st.columns([2, 1])
             
             with col_f1:
-                sub_fispq = st.selectbox("Selecionar Substância para Detalhes:", options=df['nome'].tolist())
+                sub_fispq = st.selectbox("Selecionar Substância:", options=df['nome'].tolist())
                 det = df[df['nome'] == sub_fispq].iloc[0]
                 c_vis, c_txt = st.columns([1, 2])
                 with c_vis:
@@ -136,7 +134,7 @@ def show_substances():
                     st.info(f"**Instruções:** {det['instrucoes']}")
 
             with col_f2:
-                base_url = st.text_input("URL Base do Servidor:", "https://meulab.com/fichas/")
+                base_url = st.text_input("URL Base (Sua Infra):", f"https://{org_usuario.lower().replace(' ', '')}.lab.com/fichas/")
                 qr_link = f"{base_url}{det['id']}.html"
                 
                 qr = qrcode.QRCode(version=1, box_size=10, border=4)
@@ -151,20 +149,20 @@ def show_substances():
 
             st.divider()
             
-            with st.expander("⚙️ Ferramentas de Administrador (Gerar Tudo)"):
+            with st.expander("⚙️ Ferramentas de Administrador"):
                 col_gen1, col_gen2 = st.columns(2)
                 
-                if col_gen1.button("📑 Gerar QR Codes em Massa (ZIP)"):
+                if col_gen1.button(f"📑 Gerar Todos QR Codes ({org_usuario})"):
                     zip_qr = BytesIO()
                     with zipfile.ZipFile(zip_qr, "a", zipfile.ZIP_DEFLATED) as z:
                         for _, r in df.iterrows():
                             qr_m = qrcode.make(f"{base_url}{r['id']}.html")
                             b_m = BytesIO()
                             qr_m.save(b_m, format="PNG")
-                            z.writestr(f"qrcodes/qr_{r['nome']}.png", b_m.getvalue())
-                    st.download_button("📥 Baixar Todos QR Codes", zip_qr.getvalue(), "todos_qrcodes.zip", "application/zip")
+                            z.writestr(f"qrcodes_{org_usuario}/qr_{r['nome']}.png", b_m.getvalue())
+                    st.download_button("📥 Baixar ZIP de QRs", zip_qr.getvalue(), f"qrcodes_{org_usuario}.zip", "application/zip")
 
-                if col_gen2.button("🛠️ Gerar Arquivos HTML/CSS"):
+                if col_gen2.button("🛠️ Gerar HTML/CSS do Estoque"):
                     zip_sys = BytesIO()
                     with zipfile.ZipFile(zip_sys, "a", zipfile.ZIP_DEFLATED) as z:
                         if os.path.exists("CSS/substancias.css"):
@@ -178,10 +176,10 @@ def show_substances():
                                 for k in r.index:
                                     html_i = html_i.replace(f"{{{{{k}}}}}", str(r[k]))
                                 z.writestr(f"{r['id']}.html", html_i)
-                    st.download_button("📥 Baixar Arquivos de Servidor", zip_sys.getvalue(), "arquivos_servidor.zip", "application/zip")
+                    st.download_button("📥 Baixar ZIP de HTMLs", zip_sys.getvalue(), f"site_{org_usuario}.zip", "application/zip")
 
     except Exception as e:
-        st.error(f"Erro no processamento: {e}")
+        st.error(f"Erro: {e}")
 
 if __name__ == "__main__":
     show_substances()
