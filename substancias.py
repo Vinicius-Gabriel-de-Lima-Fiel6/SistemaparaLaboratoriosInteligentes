@@ -4,40 +4,17 @@ from supabase import create_client
 from datetime import datetime
 import qrcode
 from io import BytesIO
-import zipfile
 
 # --- CONEXÃO COM O BANCO DE DADOS ---
-# Certifique-se que estas chaves estão no seu secrets.toml
+# Utilizando as chaves configuradas nos Secrets do Streamlit
 try:
     url = st.secrets["SUPABASE_URL"]
     key = st.secrets["SUPABASE_KEY"]
     supabase = create_client(url, key)
 except Exception as e:
-    st.error(f"Erro de conexão com Supabase: {e}")
+    st.error(f"Erro ao conectar com o banco de dados: {e}")
 
-# --- FUNÇÃO: REGISTRAR NA TABELA HISTORICO_ATIVIDADES ---
-def registrar_log_atividades(acao, substancia, quantidade, detalhes, user_data):
-    """
-    Alimenta a tabela 'historico_atividades' conforme a estrutura da sua imagem.
-    Campos: usuario_email (text), org_name (text), acao (text), 
-    substancia_nome (text), quantidade (text), detalhes (text)
-    """
-    log = {
-        "usuario_email": user_data.get('email', 'usuario@lab.com'),
-        "org_name": user_data.get('org_name', 'Default'),
-        "acao": acao,
-        "substancia_nome": substancia,
-        "quantidade": str(quantidade),  # Convertido para TEXT conforme sua imagem
-        "detalhes": detalhes,
-        "created_at": datetime.now().isoformat()
-    }
-    try:
-        supabase.table("historico_atividades").insert(log).execute()
-    except Exception as e:
-        # Exibe o erro na tela caso o Supabase rejeite (ex: RLS ou coluna faltando)
-        st.error(f"Erro ao alimentar histórico: {e}")
-
-# --- FUNÇÃO AUXILIAR: RENDERIZAR DIAMANTE DE HOMMEL ---
+# --- FUNÇÃO AUXILIAR: DIAMANTE DE HOMMEL (NFPA 704) ---
 def render_hommel(saude, fogo, reat, esp):
     st.markdown(f"""
     <div style="display: flex; justify-content: center; align-items: center; background: #1e1e1e; padding: 15px; border-radius: 10px; border: 1px solid #333;">
@@ -45,135 +22,111 @@ def render_hommel(saude, fogo, reat, esp):
             <div style="position: absolute; top: 0; left: 0; width: 40px; height: 40px; background: #ff4b4b; display: flex; align-items: center; justify-content: center; transform: rotate(-45deg); color: white; font-weight: bold;">{fogo}</div>
             <div style="position: absolute; top: 0; left: 40px; width: 40px; height: 40px; background: #f1c40f; display: flex; align-items: center; justify-content: center; transform: rotate(-45deg); color: black; font-weight: bold;">{reat}</div>
             <div style="position: absolute; top: 40px; left: 0; width: 40px; height: 40px; background: #3498db; display: flex; align-items: center; justify-content: center; transform: rotate(-45deg); color: white; font-weight: bold;">{saude}</div>
-            <div style="position: absolute; top: 40px; left: 40px; width: 40px; height: 40px; background: #fff; display: flex; align-items: center; justify-content: center; transform: rotate(-45deg); color: black; font-weight: bold; font-size: 0.7em;">{esp if esp else ''}</div>
+            <div style="position: absolute; top: 40px; left: 40px; width: 40px; height: 40px; background: #fff; display: flex; align-items: center; justify-content: center; transform: rotate(-45deg); color: black; font-size: 0.7em;">{esp if esp else ''}</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
 def show_substances():
-    st.header("🔬 Gestão de Inventário e Segurança")
-    
+    # Recuperando dados do usuário e organização
     user_data = st.session_state.get('user_data', {})
     org_usuario = user_data.get('org_name', 'Default')
     role_usuario = user_data.get('role', 'Visualizador')
 
-    # --- 1. CADASTRO DE SUBSTÂNCIAS ---
-    with st.container(border=True):
-        st.subheader("Cadastrar Novo Item")
-        
-        if role_usuario == "Visualizador":
-            st.warning("Seu perfil permite apenas visualização.")
-        else:
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                nome = st.text_input("Nome da Substância")
-                finalidade = st.text_input("Finalidade")
-            with col2:
-                concentracao = st.text_input("Concentração")
-                quantidade = st.number_input("Quantidade Atual", min_value=0.0, step=0.1)
-            with col3:
-                estoque_minimo = st.number_input("Estoque Mínimo", min_value=0.0)
-                validade = st.text_input("Validade (MM/AAAA)")
-                cas = st.text_input("Número CAS")
-
-            with st.expander("🛡️ Informações de Segurança"):
-                c1, c2, c3, c4 = st.columns(4)
-                s_saude = c1.slider("Saúde", 0, 4, 0)
-                s_fogo = c2.slider("Fogo", 0, 4, 0)
-                s_reat = c3.slider("Reatividade", 0, 4, 0)
-                s_esp = c4.selectbox("Especial", ["", "W", "OX", "SA", "BIO"])
-                instrucoes = st.text_area("Instruções de Emergência")
-                
-            if st.button("➕ Adicionar ao Inventário", use_container_width=True):
-                if nome and quantidade:
-                    with st.spinner("Sincronizando com Supabase..."):
-                        # 1. Alimenta tabela 'substancias'
-                        dados_sub = {
-                            "nome": nome, "finalidade": finalidade, "concentracao": concentracao,
-                            "quantidade": float(quantidade), "estoque_minimo": float(estoque_minimo),
-                            "validade": validade, "org_name": org_usuario, "cas": cas,
-                            "saude": int(s_saude), "fogo": int(s_fogo), "reatividade": int(s_reat),
-                            "especial": s_esp, "instrucoes": instrucoes
-                        }
-                        supabase.table("substancias").insert(dados_sub).execute()
-                        
-                        # 2. Alimenta tabela 'historico_atividades' conforme sua imagem
-                        registrar_log_atividades(
-                            acao="CADASTRO",
-                            substancia=nome,
-                            quantidade=quantidade,
-                            detalhes=f"Novo item cadastrado por {user_data.get('username', 'usuário')}",
-                            user_data=user_data
-                        )
-                        
-                        st.success(f"'{nome}' registrado e histórico atualizado!")
-                        st.rerun()
-
-    st.divider()
-
-    # --- 2. EXIBIÇÃO E CONSULTA ---
+    # --- 1. SEÇÃO DE CONSULTA (ORIGINAL E NO TOPO) ---
+    st.header("🛡️ Consulta de Segurança (FISPQ Digital)")
+    
     try:
+        # Busca os dados atuais da organização
         res = supabase.table("substancias").select("*").eq("org_name", org_usuario).execute()
         df = pd.DataFrame(res.data)
 
         if not df.empty:
-            st.subheader("📋 Itens em Estoque")
-            st.dataframe(df[['id', 'nome', 'quantidade', 'validade', 'cas']], use_container_width=True, hide_index=True)
-
-            # --- SEÇÃO DE CONSULTA (MANTIDA ORIGINAL) ---
-            st.subheader("🛡️ Consulta de Segurança (FISPQ)")
-            selecionado = st.selectbox("Selecione para ver detalhes:", options=df['nome'].tolist())
-            detalhes = df[df['nome'] == selecionado].iloc[0]
+            # Menu de seleção para consulta
+            substancia_alvo = st.selectbox("Selecione um item para ver a ficha:", df['nome'].tolist(), key="consulta_fispq")
+            detalhes = df[df['nome'] == substancia_alvo].iloc[0]
             
-            c_vis, c_txt = st.columns([1, 3])
-            with c_vis:
+            col_v, col_t = st.columns([1, 3])
+            with col_v:
                 render_hommel(detalhes['saude'], detalhes['fogo'], detalhes['reatividade'], detalhes.get('especial', ''))
-            with c_txt:
-                st.warning(f"**Emergência:** {detalhes.get('instrucoes', 'Não informada.')}")
-                st.caption(f"CAS: {detalhes.get('cas', 'N/A')}")
-
-            st.divider()
-
-            # --- ABA DE QR CODES (Abaixo da consulta, como solicitado) ---
-            st.subheader("🏷️ Gerador de Etiquetas (QR Code)")
-            with st.container(border=True):
-                col_sel, col_qr = st.columns([2, 1])
-                with col_sel:
-                    st.write("Link mobile para o novo sistema:")
-                    item_qr = st.selectbox("Gerar QR para:", options=df['nome'].tolist(), key="qr_item")
-                    id_selecionado = df[df['nome'] == item_qr]['id'].values[0]
-                    url_dest = f"https://sistemadeqrcodes.streamlit.app/?id={id_selecionado}"
-                    
-                    if st.button("📦 Gerar ZIP de Etiquetas", use_container_width=True):
-                        zip_io = BytesIO()
-                        with zipfile.ZipFile(zip_io, "a") as z:
-                            for _, r in df.iterrows():
-                                link_z = f"https://sistemadeqrcodes.streamlit.app/?id={r['id']}"
-                                img_z = qrcode.make(link_z)
-                                b_z = BytesIO()
-                                img_z.save(b_z, format="PNG")
-                                z.writestr(f"qr_{r['nome']}.png", b_z.getvalue())
-                        
-                        st.download_button("📥 Baixar ZIP", zip_io.getvalue(), "etiquetas_laboratorio.zip")
-                        registrar_log_atividades("EXPORTAÇÃO", "Múltiplos", "0", "Gerado ZIP de etiquetas", user_data)
-
-                with col_qr:
-                    img = qrcode.make(url_dest)
-                    b_io = BytesIO()
-                    img.save(b_io, format="PNG")
-                    st.image(b_io.getvalue(), width=130)
-                    st.download_button("📥 Baixar Imagem", b_io.getvalue(), f"qr_{item_qr}.png")
-
-            # --- OPÇÕES ADM ---
-            if role_usuario in ["ADM", "Tecnico"]:
-                with st.expander("🗑️ Excluir Item"):
-                    if st.button(f"Confirmar Exclusão de {selecionado}", type="primary"):
-                        supabase.table("substancias").delete().eq("id", detalhes['id']).execute()
-                        registrar_log_atividades("EXCLUSÃO", selecionado, "0", "Item removido do estoque", user_data)
-                        st.rerun()
+            with col_t:
+                st.warning(f"**Instruções de Emergência:**\n\n{detalhes.get('instrucoes', 'Não informadas.')}")
+                st.caption(f"CAS: {detalhes.get('cas', 'N/A')} | Validade: {detalhes.get('validade', 'N/A')}")
+        else:
+            st.info("Nenhum item disponível para consulta. Cadastre uma substância abaixo.")
 
     except Exception as e:
-        st.error(f"Erro ao carregar banco: {e}")
+        st.error(f"Erro ao carregar dados de consulta: {e}")
+
+    st.divider()
+
+    # --- 2. CADASTRO DE SUBSTÂNCIAS ---
+    st.subheader("➕ Cadastro de Nova Substância")
+    
+    if role_usuario == "Visualizador":
+        st.warning("Você não tem permissão para adicionar novos itens.")
+    else:
+        with st.form("cadastro_form", clear_on_submit=True):
+            c1, c2, c3 = st.columns(3)
+            nome_cad = c1.text_input("Nome da Substância")
+            qtd_cad = c2.number_input("Quantidade Atual", min_value=0.0, step=0.1)
+            val_cad = c3.text_input("Validade (MM/AAAA)")
+            
+            with st.expander("Informações de Segurança (NFPA 704)"):
+                cs1, cs2, cs3, cs4 = st.columns(4)
+                s_val = cs1.slider("Saúde", 0, 4, 0)
+                f_val = cs2.slider("Fogo", 0, 4, 0)
+                r_val = cs3.slider("Reat.", 0, 4, 0)
+                e_val = cs4.selectbox("Especial", ["", "W", "OX", "SA", "BIO"])
+                inst_cad = st.text_area("Instruções de Emergência")
+
+            if st.form_submit_button("ADICIONAR AO INVENTÁRIO", use_container_width=True):
+                if nome_cad:
+                    # Alimenta apenas a tabela substancias (o log será via Trigger SQL no banco)
+                    novo_item = {
+                        "nome": nome_cad, "quantidade": qtd_cad, "validade": val_cad,
+                        "org_name": org_usuario, "saude": s_val, "fogo": f_val, 
+                        "reatividade": r_val, "especial": e_val, "instrucoes": inst_cad
+                    }
+                    supabase.table("substancias").insert(novo_item).execute()
+                    st.success(f"Item '{nome_cad}' cadastrado com sucesso!")
+                    st.rerun()
+                else:
+                    st.error("O campo 'Nome' é obrigatório.")
+
+    # --- 3. SEÇÃO DE QR CODE (ABA ABAIXO) ---
+    if not df.empty:
+        st.divider()
+        st.subheader("🏷️ Gerador de Etiquetas Inteligentes")
+        
+        col_sel_qr, col_img_qr = st.columns([2, 1])
+        
+        with col_sel_qr:
+            st.write("Selecione um item para gerar o QR Code de acesso mobile:")
+            item_p_qr = st.selectbox("Gerar QR para:", df['nome'].tolist(), key="qr_aba_inferior")
+            id_p_qr = df[df['nome'] == item_p_qr]['id'].values[0]
+            
+            # Link para o sistema externo de leitura
+            url_leitor = f"https://sistemadeqrcodes.streamlit.app/?id={id_p_qr}"
+            st.text_input("Link da Etiqueta:", value=url_leitor, disabled=True)
+
+        with col_img_qr:
+            qr = qrcode.make(url_leitor)
+            buf = BytesIO()
+            qr.save(buf, format="PNG")
+            st.image(buf.getvalue(), width=150, caption=f"Etiqueta: {item_p_qr}")
+            st.download_button("📥 Baixar QR Code", buf.getvalue(), f"qr_{item_p_qr}.png")
+
+    # --- 4. EXCLUSÃO DE ITENS ---
+    if not df.empty and role_usuario in ["ADM", "Tecnico"]:
+        st.divider()
+        with st.expander("🗑️ Área de Exclusão"):
+            item_del = st.selectbox("Selecione o item para remover:", df['nome'].tolist(), key="delete_item")
+            if st.button(f"CONFIRMAR EXCLUSÃO DE {item_del}", type="primary", use_container_width=True):
+                id_del = df[df['nome'] == item_del]['id'].values[0]
+                supabase.table("substancias").delete().eq("id", id_del).execute()
+                st.success(f"Item {item_del} removido.")
+                st.rerun()
 
 if __name__ == "__main__":
     show_substances()
