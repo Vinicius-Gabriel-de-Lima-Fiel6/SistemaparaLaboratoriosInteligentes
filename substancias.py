@@ -6,7 +6,7 @@ import qrcode
 from io import BytesIO
 import zipfile
 
-
+# --- CONFIGURAÇÃO DA PÁGINA ---
 url = st.secrets["SUPABASE_URL"]
 key = st.secrets["SUPABASE_KEY"]
 supabase = create_client(url, key)
@@ -31,7 +31,7 @@ def show_substances():
     role_usuario = user_data.get('role', 'Visualizador')
     username_atual = user_data.get('username', 'Usuário')
 
-  
+    # --- 1. CADASTRO DE SUBSTÂNCIAS ---
     with st.container(border=True):
         st.subheader("Cadastrar Novo Item")
         if role_usuario == "Visualizador":
@@ -69,7 +69,6 @@ def show_substances():
                         }
                         supabase.table("substancias").insert(data_insert).execute()
                         
-                        # --- GRAVANDO LOG DE CADASTRO ---
                         supabase.table("logs_estoque").insert({
                             "usuario": username_atual, "substancia": nome,
                             "quantidade_antiga": 0.0, "quantidade_nova": float(quantidade), "org_name": org_usuario
@@ -77,11 +76,10 @@ def show_substances():
                         
                         st.success(f"'{nome}' cadastrado com sucesso!")
                         st.rerun()
-                else:
-                    st.error("Preencha ao menos Nome e Quantidade.")
 
     st.divider()
 
+    # --- 2. EXIBIÇÃO DO INVENTÁRIO ---
     try:
         response = supabase.table("substancias").select("*").eq("org_name", org_usuario).execute()
         df = pd.DataFrame(response.data)
@@ -91,7 +89,6 @@ def show_substances():
             cols_ordem = ['id', 'nome', 'cas', 'quantidade', 'estoque_minimo', 'validade']
             st.dataframe(df[cols_ordem], use_container_width=True, hide_index=True)
 
-            # --- SEÇÃO DE EXPORTAÇÃO ---
             with st.container(border=True):
                 st.markdown("### 📊 Exportação e Análise Externa")
                 col_exp1, col_exp2, col_exp3, col_exp4 = st.columns([1, 1, 1, 1])
@@ -112,7 +109,6 @@ def show_substances():
                     with st.popover("💡 Como analisar no Excel?", use_container_width=True):
                         st.write("1. Clique em Baixar. 2. Abra o Excel Online. 3. Vá em Arquivo > Abrir e envie o CSV.")
 
-            # --- ATUALIZAÇÃO RÁPIDA ---
             if role_usuario in ["ADM", "Tecnico"]:
                 with st.expander("🔄 Atualizar Quantidade em Estoque"):
                     col_sel, col_val, col_btn = st.columns([2, 1, 1])
@@ -121,14 +117,12 @@ def show_substances():
                     if col_btn.button("Atualizar Estoque", use_container_width=True):
                         qtd_antiga = df[df['nome'] == sub_para_editar]['quantidade'].values[0]
                         supabase.table("substancias").update({"quantidade": nova_qtd}).eq("nome", sub_para_editar).execute()
-                        # LOG DE ALTERAÇÃO
                         supabase.table("logs_estoque").insert({
                             "usuario": username_atual, "substancia": sub_para_editar, 
                             "quantidade_antiga": float(qtd_antiga), "quantidade_nova": float(nova_qtd), "org_name": org_usuario
                         }).execute()
                         st.rerun()
 
-            # --- CONSULTA DE SEGURANÇA ---
             st.subheader("🛡️ Consulta de Segurança (FISPQ Digital)")
             substancia_alvo = st.selectbox("Selecione um item:", options=df['nome'].tolist())
             detalhes = df[df['nome'] == substancia_alvo].iloc[0]
@@ -144,28 +138,29 @@ def show_substances():
                 st.image(buf.getvalue(), caption="QR Code", width=120)
                 st.download_button("📥 Baixar QR", buf.getvalue(), f"qr_{detalhes['nome']}.png", "image/png")
             
-            # --- HISTÓRICO DE MOVIMENTAÇÕES ---
+            # --- HISTÓRICO RECENTE (COM FILTRO CORRIGIDO) ---
             with st.expander("📜 Histórico Recente de Alterações"):
-                logs_res = supabase.table("logs_estoque")\
-                    .select("*")\
-                    .eq("org_name", org_usuario)\
-                    .not.ilike("substancia", "CADASTRO EQUIP%")\
-                    .not.ilike("substancia", "MANUTENÇÃO%")\
-                    .not.ilike("substancia", "EDITOU EQUIP%")\
-                    .order("created_at", desc=True)\
-                    .limit(5).execute()
+                logs_res = (
+                    supabase.table("logs_estoque")
+                    .select("*")
+                    .eq("org_name", org_usuario)
+                    .not_.ilike("substancia", "CADASTRO EQUIP%")
+                    .not_.ilike("substancia", "MANUTENÇÃO%")
+                    .not_.ilike("substancia", "EDITOU EQUIP%")
+                    .order("created_at", desc=True)
+                    .limit(5)
+                    .execute()
+                )
                 if logs_res.data:
-                   log_df = pd.DataFrame(logs_res.data)
+                    log_df = pd.DataFrame(logs_res.data)
                     log_df['created_at'] = pd.to_datetime(log_df['created_at']).dt.strftime('%d/%m %H:%M')
                     st.table(log_df[['created_at', 'usuario', 'substancia', 'quantidade_antiga', 'quantidade_nova']])
 
-            # --- EXCLUSÃO ---
             if role_usuario in ["ADM", "Tecnico"]:
                 with st.expander("🗑️ Remover Substância"):
                     id_del = st.selectbox("ID para remover", options=df['id'].tolist())
                     item_del = df[df['id'] == id_del].iloc[0]
                     if st.button("Confirmar Exclusão", type="primary"):
-                        # --- GRAVANDO LOG DE EXCLUSÃO ---
                         supabase.table("logs_estoque").insert({
                             "usuario": username_atual, "substancia": f"(REMOVIDO) {item_del['nome']}",
                             "quantidade_antiga": float(item_del['quantidade']), "quantidade_nova": 0.0, "org_name": org_usuario
@@ -180,5 +175,3 @@ def show_substances():
 
 if __name__ == "__main__":
     show_substances()
-
-
