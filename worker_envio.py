@@ -41,10 +41,10 @@ def gerar_pdf_completo(logs, estoque, org_name):
     pdf.set_fill_color(230, 230, 230)
     pdf.set_font("Arial", 'B', 9)
     pdf.cell(35, 8, "Data/Hora", 1, 0, 'C', True)
-    pdf.cell(45, 8, "Usuário", 1, 0, 'C', True)
-    pdf.cell(50, 8, "Substância", 1, 0, 'C', True)
-    pdf.cell(30, 8, "Qtd Antiga", 1, 0, 'C', True)
-    pdf.cell(30, 8, "Qtd Nova", 1, 1, 'C', True)
+    pdf.cell(35, 8, "Usuário", 1, 0, 'C', True)
+    pdf.cell(30, 8, "Ação", 1, 0, 'C', True) # Mantido conforme seu original
+    pdf.cell(55, 8, "Substância", 1, 0, 'C', True)
+    pdf.cell(35, 8, "Qtd Alterada", 1, 1, 'C', True)
 
     # Dados dos Logs
     pdf.set_font("Arial", size=8)
@@ -54,10 +54,12 @@ def gerar_pdf_completo(logs, estoque, org_name):
         for log in logs:
             data = log['created_at'][:16].replace('T', ' ')
             pdf.cell(35, 8, data, 1)
-            pdf.cell(45, 8, str(log.get('usuario', 'N/A'))[:25], 1)
-            pdf.cell(50, 8, str(log.get('substancia', 'N/A'))[:25], 1)
-            pdf.cell(30, 8, str(log.get('quantidade_antiga', '0')), 1)
-            pdf.cell(30, 8, str(log.get('quantidade_nova', '0')), 1, 1)
+            # Ajustado apenas as chaves para a nova tabela logs_estoque
+            pdf.cell(35, 8, str(log.get('usuario', 'N/A'))[:18], 1)
+            pdf.cell(30, 8, "Alteração", 1) # Simplificado para manter o layout
+            pdf.cell(55, 8, str(log.get('substancia', 'N/A'))[:25], 1)
+            # Mostra a nova quantidade conforme a tabela nova
+            pdf.cell(35, 8, str(log.get('quantidade_nova', '0')), 1, 1)
 
     pdf.ln(10)
     pdf.set_font("Arial", 'I', 8)
@@ -78,7 +80,7 @@ def executar_robo():
         # Coleta dados do Supabase
         estoque_data = supabase.table("substancias").select("*").eq("org_name", org).execute().data
         
-        # ALTERADO PARA CONEXÃO COM LOGS_ESTOQUE
+        # CONEXÃO COM A NOVA TABELA
         logs_data = supabase.table("logs_estoque").select("*").eq("org_name", org).order('created_at', desc=True).limit(50).execute().data
 
         # Prepara os arquivos
@@ -89,7 +91,7 @@ def executar_robo():
         
         pdf_bytes = gerar_pdf_completo(logs_data, estoque_data, org)
 
-        # Montagem do E-mail HTML (Bonito)
+        # Montagem do E-mail HTML (Bonito - Exatamente seu original)
         msg = MIMEMultipart()
         msg['From'] = ag['smtp_user']
         msg['To'] = ag['email_destino']
@@ -128,3 +130,14 @@ def executar_robo():
             msg.attach(part)
 
         # Disparo
+        try:
+            with smtplib.SMTP('smtp.gmail.com', 587) as server:
+                server.starttls()
+                server.login(ag['smtp_user'], ag['smtp_pass'])
+                server.send_message(msg)
+                print(f"✅ Relatório Completo enviado para {org}!")
+        except Exception as e:
+            print(f"❌ Erro ao enviar para {org}: {e}")
+
+if __name__ == "__main__":
+    executar_robo()
