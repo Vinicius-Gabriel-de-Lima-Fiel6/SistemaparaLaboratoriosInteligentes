@@ -100,8 +100,8 @@ def show_reports(supabase): # Recebe a conexão do app.py
             
             c1, c2 = st.columns(2)
             dia_sem = c1.selectbox("Dia da Semana", 
-                                   ["Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado", "Domingo"],
-                                   index=["Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado", "Domingo"].index(default_data.get('dia_semana', "Segunda-feira")))
+                                   ["Segunda", "Terça-feira", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"],
+                                   index=["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"].index(default_data.get('dia_semana', "Segunda-feira")))
             
          
             hora_val = datetime.strptime(default_data.get('horario', "08:00:00"), "%H:%M:%S").time() if default_data.get('horario') else datetime.now().time()
@@ -128,4 +128,5 @@ def show_reports(supabase): # Recebe a conexão do app.py
                     st.success("✅ Automação configurada com sucesso!")
                 except Exception as e:
                     st.error(f"Erro ao salvar configuração: {e}")
+
 
