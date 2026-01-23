@@ -8,7 +8,7 @@ opencv-python-headless
 scikit-learn
 matplotlib
 scipy>=1.14.0
-xhtml2pdf
+
 supabase
 bcrypt
 groq
@@ -27,5 +27,6 @@ st-gsheets-connection
 postgrest
 pillow 
 qrcode
+
 
 
