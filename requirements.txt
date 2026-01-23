@@ -22,4 +22,4 @@ fpdf
 openpyxl
 chempy
 plotly
-
+st-gsheets-connection
