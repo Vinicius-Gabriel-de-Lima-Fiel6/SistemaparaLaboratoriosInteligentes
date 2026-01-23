@@ -191,7 +191,8 @@ def show_substances():
     except Exception as e:
         st.error(f"Erro ao carregar dados: {e}")
 
-# Execução da função (Streamlit requer chamada se não estiver no topo)
+
 if __name__ == "__main__":
-    show_substances()
+  show_substances()
+
 
