@@ -6,7 +6,7 @@ import qrcode
 from io import BytesIO
 import zipfile
 
-# --- CONFIGURAÇÃO DA PÁGINA ---
+
 url = st.secrets["SUPABASE_URL"]
 key = st.secrets["SUPABASE_KEY"]
 supabase = create_client(url, key)
@@ -31,7 +31,7 @@ def show_substances():
     role_usuario = user_data.get('role', 'Visualizador')
     username_atual = user_data.get('username', 'Usuário')
 
-    # --- 1. CADASTRO DE SUBSTÂNCIAS ---
+  
     with st.container(border=True):
         st.subheader("Cadastrar Novo Item")
         if role_usuario == "Visualizador":
@@ -82,7 +82,6 @@ def show_substances():
 
     st.divider()
 
-    # --- 2. EXIBIÇÃO DO INVENTÁRIO ---
     try:
         response = supabase.table("substancias").select("*").eq("org_name", org_usuario).execute()
         df = pd.DataFrame(response.data)
@@ -181,4 +180,5 @@ def show_substances():
 
 if __name__ == "__main__":
     show_substances()
+
 
