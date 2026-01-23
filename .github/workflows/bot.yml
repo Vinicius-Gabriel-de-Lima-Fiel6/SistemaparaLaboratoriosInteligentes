@@ -1,0 +1,31 @@
+name: Bot_Auditoria_Agendada
+
+on:
+  schedule:
+    # 20:45 de Brasília é 23:45 UTC. O GitHub usa o relógio UTC.
+    - cron: '45 23 * * *'
+  workflow_dispatch: # Isso aqui cria um botão "Play" no GitHub para você testar agora
+
+jobs:
+  disparo_agendado:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixando o Código
+        uses: actions/checkout@v3
+
+      - name: Instalando Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Instalando Bibliotecas
+        run: |
+          pip install pandas supabase
+
+      - name: Executando o Worker
+        env:
+          # É aqui que o robô pega as chaves do seu banco com segurança
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: python worker_envio.py
