@@ -6,12 +6,13 @@ import qrcode
 from io import BytesIO
 import zipfile
 
-
+# Conexão com o Banco de Dados
 url = st.secrets["SUPABASE_URL"]
 key = st.secrets["SUPABASE_KEY"]
 supabase = create_client(url, key)
 
 def registrar_historico(acao, item, qtd, detalhes, user_data):
+    """Grava na tabela historico_atividades conforme as colunas do seu banco"""
     log = {
         "usuario_email": user_data.get('email') or user_data.get('username') or "sistema@empresa.com",
         "org_name": user_data.get('org_name', 'Default'),
@@ -27,22 +28,23 @@ def registrar_historico(acao, item, qtd, detalhes, user_data):
         pass
 
 def show_substances():
-
+    # --- CARREGA O CSS DA PASTA CSS ---
     try:
         with open("CSS/style_subst.css") as f:
             st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
     except FileNotFoundError:
-        st.error("Erro: O arquivo CSS/style_subst.css não foi encontrado.")
+        pass
 
-    st.header("🔬 Cadastro e Gerenciamento de Substâncias")
+    # Título com ícone conforme sua imagem
+    st.markdown("<h1>🔬 Cadastro e Gerenciamento de Substâncias</h1>", unsafe_allow_html=True)
     
     user_data = st.session_state.get('user_data', {})
     org_usuario = user_data.get('org_name', 'Default')
     role_usuario = user_data.get('role', 'Visualizador')
 
-
+    # --- 1. SEU CADASTRO ORIGINAL (IGUAL À CAPTURA DE TELA) ---
     with st.container(border=True):
-        st.subheader("Cadastrar Novo Item")
+        st.markdown("<h2 class='sub-header'>Cadastrar Novo Item</h2>", unsafe_allow_html=True)
         
         if role_usuario == "Visualizador":
             st.warning("Seu perfil é apenas para visualização.")
@@ -83,7 +85,7 @@ def show_substances():
 
     st.divider()
 
-
+    # --- 2. INVENTÁRIO E QR CODE ---
     try:
         response = supabase.table("substancias").select("*").eq("org_name", org_usuario).execute()
         df = pd.DataFrame(response.data)
@@ -91,25 +93,24 @@ def show_substances():
         if not df.empty:
             st.dataframe(df[['id', 'nome', 'cas', 'quantidade', 'validade']], use_container_width=True, hide_index=True)
 
-            st.subheader("🛡️ Geração de Etiquetas QR")
-            url_portal = st.text_input("Link do seu Segundo Site (Portal):", "https://seu-portal.streamlit.app")
+            st.markdown("<h3 style='color: white;'>🖼️ Gerador de Etiquetas QR</h3>", unsafe_allow_html=True)
+            url_portal = st.text_input("Link do Portal Online:", "https://seu-portal.streamlit.app")
             
             sel_item = st.selectbox("Selecione o item:", df['nome'].tolist())
             det = df[df['nome'] == sel_item].iloc[0]
 
-            # QR Code Direcionando para o Portal Externo
             link_final = f"{url_portal}?id={det['id']}&org={org_usuario.replace(' ', '%20')}"
+            
             qr_img = qrcode.make(link_final)
             buf = BytesIO()
             qr_img.save(buf, format="PNG")
             
             c1, c2 = st.columns([1, 2])
             with c1:
-                st.image(buf.getvalue(), width=180, caption="Scan para Ficha Online")
+                st.image(buf.getvalue(), width=150)
             with c2:
-                st.write(f"**Item:** {sel_item}")
-                st.download_button("📥 Baixar QR", buf.getvalue(), f"QR_{sel_item}.png")
-                if st.button("📦 Gerar ZIP de Todos"):
+                st.download_button("📥 Baixar QR Individual", buf.getvalue(), f"QR_{sel_item}.png")
+                if st.button("📦 Gerar ZIP da Empresa"):
                     zip_buf = BytesIO()
                     with zipfile.ZipFile(zip_buf, "w") as z:
                         for _, r in df.iterrows():
