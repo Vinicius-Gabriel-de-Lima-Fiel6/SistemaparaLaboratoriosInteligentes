@@ -27,7 +27,7 @@ def registrar_historico(acao, item, detalhes, user_data):
         pass
 
 def show_substances():
-    # --- ACESSA O CSS EXTERNO PARA ESTILO ---
+    # --- CARREGAMENTO DO ESTILO EXTERNO ---
     if os.path.exists("CSS/style_subst.css"):
         with open("CSS/style_subst.css", "r") as f:
             st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
@@ -39,7 +39,7 @@ def show_substances():
     role_usuario = user_data.get('role', 'Visualizador')
     username_atual = user_data.get('username', 'Usuário')
 
-    # --- 1. SEU CADASTRO ORIGINAL ---
+    # --- 1. CADASTRO ---
     with st.container(border=True):
         st.subheader("Cadastrar Novo Item")
         
@@ -82,16 +82,14 @@ def show_substances():
 
     st.divider()
 
-    # --- 2. SEU INVENTÁRIO ORIGINAL ---
+    # --- 2. INVENTÁRIO ---
     try:
         response = supabase.table("substancias").select("*").eq("org_name", org_usuario).execute()
         df = pd.DataFrame(response.data)
 
         if not df.empty:
-            # CORRIGIDO: validade (estava escrito validative)
             st.dataframe(df[['id', 'nome', 'cas', 'quantidade', 'validade']], use_container_width=True, hide_index=True)
 
-            # --- MELHORIA TI: CONSULTA E QR CODE ---
             st.subheader("🛡️ Consulta de Segurança e QR Code")
             substancia_alvo = st.selectbox("Selecione um item:", options=df['nome'].tolist())
             detalhes = df[df['nome'] == substancia_alvo].iloc[0]
@@ -104,6 +102,7 @@ def show_substances():
                     with open("CSS/substancias.css", "r") as f:
                         css_content = f.read()
                 
+                # MANTIDO: Sua estrutura original de replace
                 html_template = """
                 <style>__CSS__</style>
                 <div style="display: flex; justify-content: center; align-items: center; background: #1e1e1e; padding: 15px; border-radius: 10px; border: 1px solid #333;">
@@ -127,7 +126,8 @@ def show_substances():
                 st.caption(f"CAS: {detalhes.get('cas', 'N/A')}")
 
             with col_qr:
-                url_portal = st.text_input("URL do Portal de Consulta:", "https://ficha-seguranca.streamlit.app")
+                # O Link agora aponta para o portal online que receberá o ID
+                url_portal = st.text_input("Link do Portal Online:", "https://portal-online.streamlit.app")
                 qr_link = f"{url_portal}?id={detalhes['id']}&org={org_usuario.replace(' ', '%20')}"
                 
                 img_qr = qrcode.make(qr_link)
@@ -136,7 +136,6 @@ def show_substances():
                 st.image(buf.getvalue(), width=130, caption="QR Ficha Digital")
                 st.download_button("📥 Baixar QR", buf.getvalue(), f"qr_{substancia_alvo}.png", use_container_width=True)
 
-            # --- FERRAMENTAS DE ADM TI ---
             if role_usuario in ["ADM", "Tecnico"]:
                 with st.expander("⚙️ Ferramentas de Administrador (Massa)"):
                     if st.button("📦 Gerar Tudo (ZIP de HTML e QR Codes)"):
