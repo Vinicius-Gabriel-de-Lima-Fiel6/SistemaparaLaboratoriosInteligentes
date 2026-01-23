@@ -2,30 +2,34 @@ import streamlit as st
 import pandas as pd
 from supabase import create_client
 from datetime import datetime
-import qrcode
-from io import BytesIO
-import zipfile
 
-# Conexão com o Banco de Dados
+# --- CONFIGURAÇÃO DA PÁGINA ---
+st.set_page_config(page_title="Sistema de Substâncias", layout="wide")
+
+# Conexão com o Banco de Dados na Nuvem
 url = st.secrets["SUPABASE_URL"]
 key = st.secrets["SUPABASE_KEY"]
 supabase = create_client(url, key)
 
-# --- FUNÇÃO: REGISTRAR NA TABELA DA FOTO (historico_atividades) ---
-def registrar_log_atividades(acao, substancia, quantidade, detalhes, user_data):
-    log = {
+# --- FUNÇÃO: ALIMENTAR A TABELA DE HISTÓRICO (DA FOTO) ---
+def salvar_no_historico(acao, substancia, quantidade, detalhes, user_data):
+    """
+    Garante que toda ação seja registrada na tabela 'historico_atividades'
+    conforme as colunas da sua imagem.
+    """
+    log_geral = {
         "usuario_email": user_data.get('email', 'usuario@lab.com'),
         "org_name": user_data.get('org_name', 'Default'),
         "acao": acao,
         "substancia_nome": substancia,
-        "quantidade": str(quantidade), 
+        "quantidade": str(quantidade), # Salva como texto conforme sua foto
         "detalhes": detalhes,
         "created_at": datetime.now().isoformat()
     }
     try:
-        supabase.table("historico_atividades").insert(log).execute()
-    except:
-        pass
+        supabase.table("historico_atividades").insert(log_geral).execute()
+    except Exception as e:
+        st.error(f"Erro ao salvar histórico central: {e}")
 
 # --- FUNÇÃO AUXILIAR: RENDERIZAR DIAMANTE DE HOMMEL ---
 def render_hommel(saude, fogo, reat, esp):
@@ -46,6 +50,7 @@ def show_substances():
     user_data = st.session_state.get('user_data', {})
     org_usuario = user_data.get('org_name', 'Default')
     role_usuario = user_data.get('role', 'Visualizador')
+    username_atual = user_data.get('username', 'Usuário')
 
     # --- 1. CADASTRO DE SUBSTÂNCIAS ---
     with st.container(border=True):
@@ -75,43 +80,52 @@ def show_substances():
                 instrucoes = st.text_area("Instruções de Emergência")
                 
             if st.button("➕ Adicionar Substância", use_container_width=True):
-                if nome:
-                    # AJUSTADO PARA OS NOMES DA SUA FOTO
-                    data_insert = {
-                        "nome": nome, 
-                        "finalidade": finalidade, 
-                        "concentracao": concentracao,
-                        "quantidade": quantidade, 
-                        "estoque_minimo": estoque_minimo,
-                        "validade": validade, 
-                        "org_name": org_usuario, 
-                        "cas": cas,
-                        "saude": s_saude, 
-                        "fogo": s_fogo, 
-                        "reatividade": s_reat, # nome exato da foto
-                        "especial": s_esp, 
-                        "instrucoes": instrucoes
-                    }
-                    try:
+                if nome and quantidade:
+                    with st.spinner("Salvando..."):
+                        data_insert = {
+                            "nome": nome, "finalidade": finalidade, "concentracao": concentracao,
+                            "quantidade": quantidade, "estoque_minimo": estoque_minimo,
+                            "validade": validade, "org_name": org_usuario, "cas": cas,
+                            "saude": s_saude, "fogo": s_fogo, "reatividade": s_reat,
+                            "especial": s_esp, "instrucoes": instrucoes
+                        }
                         supabase.table("substancias").insert(data_insert).execute()
-                        registrar_log_atividades("Cadastro", nome, quantidade, "Inserção via sistema", user_data)
+                        
+                        # ALIMENTA O HISTÓRICO DA FOTO
+                        salvar_no_historico("CADASTRO", nome, quantidade, f"Cadastrado por {username_atual}", user_data)
+                        
                         st.success(f"'{nome}' cadastrado!")
                         st.rerun()
-                    except Exception as e:
-                        st.error(f"Erro ao salvar: {e}")
 
     st.divider()
 
-    # --- 2. EXIBIÇÃO DO INVENTÁRIO ---
+    # --- 2. EXIBIÇÃO E HISTÓRICO ---
     try:
         response = supabase.table("substancias").select("*").eq("org_name", org_usuario).execute()
         df = pd.DataFrame(response.data)
 
         if not df.empty:
             st.subheader(f"📋 Inventário: {org_usuario}")
-            st.dataframe(df[['id', 'nome', 'cas', 'quantidade', 'validade']], use_container_width=True, hide_index=True)
+            st.dataframe(df[['id', 'nome', 'cas', 'quantidade', 'estoque_minimo', 'validade']], use_container_width=True, hide_index=True)
 
-            # --- CONSULTA DE SEGURANÇA (NO TOPO) ---
+            # --- ATUALIZAÇÃO COM LOG DUPLO ---
+            if role_usuario in ["ADM", "Tecnico"]:
+                with st.expander("🔄 Atualizar Quantidade em Estoque"):
+                    col_sel, col_val, col_btn = st.columns([2, 1, 1])
+                    sub_para_editar = col_sel.selectbox("Escolha a substância", options=df['nome'].tolist(), key="edit_qty")
+                    nova_qtd = col_val.number_input("Nova Quantidade", min_value=0.0)
+                    
+                    if col_btn.button("Atualizar Estoque", use_container_width=True):
+                        qtd_antiga = df[df['nome'] == sub_para_editar]['quantidade'].values[0]
+                        supabase.table("substancias").update({"quantidade": nova_qtd}).eq("nome", sub_para_editar).execute()
+                        
+                        # Log na sua tabela de historico_atividades
+                        salvar_no_historico("ATUALIZAÇÃO", sub_para_editar, nova_qtd, f"Alterado de {qtd_antiga} para {nova_qtd}", user_data)
+                        
+                        st.success(f"Estoque de {sub_para_editar} atualizado!")
+                        st.rerun()
+
+            # --- CONSULTA DE SEGURANÇA ---
             st.subheader("🛡️ Consulta de Segurança (FISPQ Digital)")
             substancia_alvo = st.selectbox("Selecione um item:", options=df['nome'].tolist())
             detalhes = df[df['nome'] == substancia_alvo].iloc[0]
@@ -120,35 +134,20 @@ def show_substances():
             with col_visual:
                 render_hommel(detalhes.get('saude', 0), detalhes.get('fogo', 0), detalhes.get('reatividade', 0), detalhes.get('especial', ''))
             with col_texto:
-                st.warning(f"**Instruções:**\n\n{detalhes.get('instrucoes', 'N/A')}")
-                st.caption(f"CAS: {detalhes.get('cas', 'N/A')}")
+                st.warning(f"**Instruções:** {detalhes.get('instrucoes', 'Não informadas.')}")
 
-            st.divider()
-
-            # --- ABA ABAIXO: QR CODE ---
-            st.subheader("🏷️ Gerador de Etiquetas (QR Code)")
-            url_final = f"https://sistemadeqrcodes.streamlit.app/?id={detalhes['id']}"
+            # --- EXCLUSÃO COM LOG ---
+            if role_usuario in ["ADM", "Tecnico"]:
+                with st.expander("🗑️ Remover Substância"):
+                    id_del = st.selectbox("ID para remover", options=df['id'].tolist())
+                    nome_del = df[df['id'] == id_del]['nome'].values[0]
+                    if st.button("Confirmar Exclusão", type="primary"):
+                        supabase.table("substancias").delete().eq("id", id_del).execute()
+                        salvar_no_historico("EXCLUSÃO", nome_del, 0, "Item removido do sistema", user_data)
+                        st.rerun()
+        else:
+            st.info("Nenhuma substância cadastrada.")
             
-            col_q1, col_q2 = st.columns([2, 1])
-            with col_q1:
-                st.write(f"QR Code para: **{substancia_alvo}**")
-                if st.button("📦 Gerar ZIP de QRs"):
-                    zip_buf = BytesIO()
-                    with zipfile.ZipFile(zip_buf, "a") as z:
-                        for _, r in df.iterrows():
-                            link_z = f"https://sistemadeqrcodes.streamlit.app/?id={r['id']}"
-                            q_z = qrcode.make(link_z)
-                            b_z = BytesIO()
-                            q_z.save(b_z, format="PNG")
-                            z.writestr(f"qr_{r['nome']}.png", b_z.getvalue())
-                    st.download_button("📥 Baixar ZIP", zip_buf.getvalue(), "etiquetas.zip")
-
-            with col_q2:
-                img_qr = qrcode.make(url_final)
-                buf = BytesIO()
-                img_qr.save(buf, format="PNG")
-                st.image(buf.getvalue(), width=150)
-
     except Exception as e:
         st.error(f"Erro: {e}")
 
