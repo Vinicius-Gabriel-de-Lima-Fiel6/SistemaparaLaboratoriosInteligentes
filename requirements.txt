@@ -28,4 +28,3 @@ postgrest
 pillow
 qrcode
 
-xhtml2pdf
