@@ -1,12 +1,17 @@
-/* Estilo do Diamante de Hommel */
+/* Estilo do Card Principal */
+.card-digital {
+    background-color: #1e1e1e;
+    padding: 20px;
+    border-radius: 10px;
+    border: 1px solid #333;
+    color: #ffffff;
+}
+
+/* Diamante NFPA 704 */
 .nfpa-container {
     display: flex;
     justify-content: center;
-    align-items: center;
-    background: #1e1e1e;
-    padding: 20px;
-    border-radius: 12px;
-    border: 1px solid #444;
+    margin: 20px 0;
 }
 
 .nfpa-diamond {
@@ -14,7 +19,7 @@
     width: 100px;
     height: 100px;
     transform: rotate(45deg);
-    border: 2px solid #333;
+    border: 2px solid #444;
 }
 
 .nfpa-box {
@@ -26,19 +31,19 @@
     justify-content: center;
     transform: rotate(-45deg);
     font-weight: bold;
-    font-size: 1.2em;
-    color: white;
+    font-size: 1.1rem;
 }
 
-.fogo { top: 0; left: 0; background: #ff4b4b; }
+.fogo { top: 0; left: 0; background: #ff4b4b; color: white; }
 .reat { top: 0; left: 50px; background: #f1c40f; color: black; }
-.saude { top: 50px; left: 0; background: #3498db; }
-.esp { top: 50px; left: 50px; background: #ffffff; color: black; font-size: 0.8em; }
+.saude { top: 50px; left: 0; background: #3498db; color: white; }
+.esp { top: 50px; left: 50px; background: #ffffff; color: black; font-size: 0.7rem; }
 
+/* Caixa de Emergência */
 .emergency-box {
-    background-color: #4b1a1a;
-    color: #ffcaca;
+    background: #4b1a1a;
     padding: 15px;
-    border-left: 5px solid #ff4b4b;
     border-radius: 5px;
+    border-left: 5px solid #ff4b4b;
+    margin-top: 15px;
 }
