@@ -6,9 +6,6 @@ import qrcode
 from io import BytesIO
 import zipfile
 
-# --- CONFIGURAÇÃO DA PÁGINA ---
-# st.set_page_config(page_title="Sistema de Substâncias", layout="wide")
-
 # Conexão com o Banco de Dados
 url = st.secrets["SUPABASE_URL"]
 key = st.secrets["SUPABASE_KEY"]
@@ -21,14 +18,14 @@ def registrar_log_atividades(acao, substancia, quantidade, detalhes, user_data):
         "org_name": user_data.get('org_name', 'Default'),
         "acao": acao,
         "substancia_nome": substancia,
-        "quantidade": str(quantidade), # Forçado para texto conforme sua imagem
+        "quantidade": str(quantidade), 
         "detalhes": detalhes,
         "created_at": datetime.now().isoformat()
     }
     try:
         supabase.table("historico_atividades").insert(log).execute()
     except:
-        pass # Mantido silencioso como no seu original
+        pass
 
 # --- FUNÇÃO AUXILIAR: RENDERIZAR DIAMANTE DE HOMMEL ---
 def render_hommel(saude, fogo, reat, esp):
@@ -75,24 +72,33 @@ def show_substances():
                 s_fogo = c_s2.slider("Fogo", 0, 4, 0)
                 s_reat = c_s3.slider("Reatividade", 0, 4, 0)
                 s_esp = c_s4.selectbox("Especial", ["", "W", "OX", "SA", "BIO"])
-                instrucoes = st.text_area("Instruções de Emergência / Primeiros Socorros")
+                instrucoes = st.text_area("Instruções de Emergência")
                 
             if st.button("➕ Adicionar Substância", use_container_width=True):
-                if nome and quantidade:
+                if nome:
+                    # AJUSTADO PARA OS NOMES DA SUA FOTO
                     data_insert = {
-                        "nome": nome, "finalidade": finalidade, "concentracao": concentracao,
-                        "quantidade": quantidade, "estoque_minimo": estoque_minimo,
-                        "validade": validade, "org_name": org_usuario, "cas": cas,
-                        "saude": s_saude, "fogo": s_fogo, "reatividade": s_reat,
-                        "especial": s_esp, "instrucoes": instrucoes
+                        "nome": nome, 
+                        "finalidade": finalidade, 
+                        "concentracao": concentracao,
+                        "quantidade": quantidade, 
+                        "estoque_minimo": estoque_minimo,
+                        "validade": validade, 
+                        "org_name": org_usuario, 
+                        "cas": cas,
+                        "saude": s_saude, 
+                        "fogo": s_fogo, 
+                        "reatividade": s_reat, # nome exato da foto
+                        "especial": s_esp, 
+                        "instrucoes": instrucoes
                     }
-                    supabase.table("substancias").insert(data_insert).execute()
-                    
-                    # ALIMENTAÇÃO DO HISTÓRICO
-                    registrar_log_atividades("Cadastro", nome, quantidade, "Inserção via sistema", user_data)
-                    
-                    st.success(f"'{nome}' cadastrado!")
-                    st.rerun()
+                    try:
+                        supabase.table("substancias").insert(data_insert).execute()
+                        registrar_log_atividades("Cadastro", nome, quantidade, "Inserção via sistema", user_data)
+                        st.success(f"'{nome}' cadastrado!")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Erro ao salvar: {e}")
 
     st.divider()
 
@@ -105,7 +111,7 @@ def show_substances():
             st.subheader(f"📋 Inventário: {org_usuario}")
             st.dataframe(df[['id', 'nome', 'cas', 'quantidade', 'validade']], use_container_width=True, hide_index=True)
 
-            # --- ABA DE CONSULTA DE SEGURANÇA (NO TOPO DA CONSULTA) ---
+            # --- CONSULTA DE SEGURANÇA (NO TOPO) ---
             st.subheader("🛡️ Consulta de Segurança (FISPQ Digital)")
             substancia_alvo = st.selectbox("Selecione um item:", options=df['nome'].tolist())
             detalhes = df[df['nome'] == substancia_alvo].iloc[0]
@@ -114,20 +120,19 @@ def show_substances():
             with col_visual:
                 render_hommel(detalhes.get('saude', 0), detalhes.get('fogo', 0), detalhes.get('reatividade', 0), detalhes.get('especial', ''))
             with col_texto:
-                st.warning(f"**Instruções de Emergência:**\n\n{detalhes.get('instrucoes', 'Não informadas.')}")
+                st.warning(f"**Instruções:**\n\n{detalhes.get('instrucoes', 'N/A')}")
                 st.caption(f"CAS: {detalhes.get('cas', 'N/A')}")
 
             st.divider()
 
             # --- ABA ABAIXO: QR CODE ---
             st.subheader("🏷️ Gerador de Etiquetas (QR Code)")
-            id_selecionado = detalhes['id']
-            url_final = f"https://sistemadeqrcodes.streamlit.app/?id={id_selecionado}"
+            url_final = f"https://sistemadeqrcodes.streamlit.app/?id={detalhes['id']}"
             
             col_q1, col_q2 = st.columns([2, 1])
             with col_q1:
-                st.write(f"Gerando QR Code para: **{substancia_alvo}**")
-                if st.button("📦 Gerar ZIP com Todos os QRs"):
+                st.write(f"QR Code para: **{substancia_alvo}**")
+                if st.button("📦 Gerar ZIP de QRs"):
                     zip_buf = BytesIO()
                     with zipfile.ZipFile(zip_buf, "a") as z:
                         for _, r in df.iterrows():
@@ -143,15 +148,6 @@ def show_substances():
                 buf = BytesIO()
                 img_qr.save(buf, format="PNG")
                 st.image(buf.getvalue(), width=150)
-
-            # --- REMOÇÃO ---
-            if role_usuario in ["ADM", "Tecnico"]:
-                with st.expander("🗑️ Remover Substância"):
-                    id_del = st.selectbox("ID para remover", options=df['id'].tolist())
-                    if st.button("Confirmar Exclusão"):
-                        supabase.table("substancias").delete().eq("id", id_del).execute()
-                        registrar_log_atividades("Exclusão", "ID: "+str(id_del), "0", "Remoção realizada", user_data)
-                        st.rerun()
 
     except Exception as e:
         st.error(f"Erro: {e}")
