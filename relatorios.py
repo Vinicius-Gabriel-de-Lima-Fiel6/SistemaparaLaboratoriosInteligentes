@@ -15,7 +15,6 @@ def get_image_base64(df):
         return ""
     try:
         plt.figure(figsize=(8, 4))
-        # Pega os 10 itens com maior volume para o gráfico
         df_plot = df.nlargest(10, 'quantidade') 
         plt.bar(df_plot['nome'], df_plot['quantidade'], color='#1E3A8A')
         plt.title("Níveis de Estoque (Top 10)")
@@ -30,22 +29,18 @@ def get_image_base64(df):
         return ""
 
 def load_css():
-    """Carrega o estilo visual profissional"""
+    """Estilização Profissional"""
     st.markdown("""
         <style>
-        .report-card {
-            background: #F8FAFC;
-            padding: 20px;
-            border-radius: 12px;
+        .main-card {
+            background: #FFFFFF;
+            padding: 25px;
+            border-radius: 15px;
             border: 1px solid #E2E8F0;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
             margin-bottom: 20px;
         }
-        .stTabs [data-baseweb="tab-list"] { gap: 10px; }
-        .stTabs [data-baseweb="tab"] {
-            background-color: #F1F5F9;
-            border-radius: 8px 8px 0px 0px;
-            padding: 10px 20px;
-        }
+        .stButton>button { width: 100%; border-radius: 8px; font-weight: bold; }
         </style>
     """, unsafe_allow_html=True)
 
@@ -56,148 +51,124 @@ def show_reports(supabase):
     user = st.session_state.user_data
     org = user.get('org_name')
 
-    st.title("📄 Central de Inteligência e Automação")
-    st.markdown(f"**Organização:** {org} | **Status do Bot:** Ativo")
-
+    st.title("📄 Central de Automação e Auditoria")
+    
     aba_import, aba_export, aba_bot = st.tabs([
-        "📥 Importação Inteligente", 
+        "📥 Importador Inteligente", 
         "📤 Exportador Master", 
-        "🤖 Configurar Bot"
+        "🤖 Configurar Bot (Scheduler)"
     ])
 
-    # --- ABA 1: IMPORTAÇÃO (MAPEADOR FLEXÍVEL) ---
+    # --- ABA 1: IMPORTAÇÃO ---
     with aba_import:
-        st.subheader("Carga de Dados em Lote")
-        arquivo = st.file_uploader("Suba seu inventário (Excel ou CSV)", type=['xlsx', 'csv'])
+        st.markdown('<div class="main-card">', unsafe_allow_html=True)
+        st.subheader("Importação de Dados em Lote")
+        arquivo = st.file_uploader("Upload de Inventário (Excel/CSV)", type=['xlsx', 'csv'])
         
         if arquivo:
             df_up = pd.read_excel(arquivo) if arquivo.name.endswith('xlsx') else pd.read_csv(arquivo)
             cols = df_up.columns.tolist()
             
-            st.info("Mapeie as colunas do seu arquivo para os campos do sistema:")
+            st.write("🔗 **Mapeamento de Colunas:**")
             c1, c2, c3 = st.columns(3)
-            m_nome = c1.selectbox("Coluna do Nome/Item", cols)
-            m_qtd = c2.selectbox("Coluna de Quantidade", cols)
-            m_min = c3.selectbox("Coluna de Estoque Mínimo", cols)
+            m_nome = c1.selectbox("Nome do Item", cols)
+            m_qtd = c2.selectbox("Quantidade", cols)
+            m_min = c3.selectbox("Estoque Mínimo", cols)
 
-            if st.button("🚀 Iniciar Sincronização"):
-                with st.spinner("IA processando dados..."):
-                    df_final = df_up.rename(columns={m_nome: "nome", m_qtd: "quantidade", m_min: "estoque_minimo"})
-                    df_final["org_name"] = org
-                    # Filtra apenas colunas válidas
-                    dados = df_final[df_final.columns.intersection(["nome", "quantidade", "estoque_minimo", "org_name"])].to_dict(orient='records')
-                    
-                    try:
-                        supabase.table("substancias").upsert(dados).execute()
-                        st.success(f"✅ {len(dados)} itens sincronizados com sucesso!")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Erro ao sincronizar: {e}")
+            if st.button("🚀 Sincronizar com Banco de Dados"):
+                df_f = df_up.rename(columns={m_nome: "nome", m_qtd: "quantidade", m_min: "estoque_minimo"})
+                df_f["org_name"] = org
+                dados = df_f[df_f.columns.intersection(["nome", "quantidade", "estoque_minimo", "org_name"])].to_dict(orient='records')
+                
+                try:
+                    supabase.table("substancias").upsert(dados).execute()
+                    st.success(f"✅ {len(dados)} itens atualizados!")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Erro ao salvar: {e}")
+        st.markdown('</div>', unsafe_allow_html=True)
 
-    # --- ABA 2: EXPORTADOR (PDF COM GRÁFICOS + EXCEL) ---
+    # --- ABA 2: EXPORTAÇÃO ---
     with aba_export:
-        st.subheader("Geração de Relatórios Oficiais")
-        
         try:
-            # Busca dados em tempo real
             res_sub = supabase.table("substancias").select("*").eq("org_name", org).execute()
             res_equ = supabase.table("equipamentos").select("*").eq("org_name", org).execute()
             df_sub = pd.DataFrame(res_sub.data)
             df_equ = pd.DataFrame(res_equ.data)
 
             if df_sub.empty:
-                st.warning("⚠️ Não há dados suficientes para gerar relatórios. Realize uma importação.")
+                st.warning("⚠️ Adicione dados para liberar a exportação.")
             else:
+                st.markdown('<div class="main-card">', unsafe_allow_html=True)
                 col1, col2 = st.columns(2)
-                
                 with col1:
-                    st.markdown("**Pacote de Auditoria (Excel)**")
+                    st.write("**Relatório de Dados (Excel)**")
                     buffer = io.BytesIO()
                     with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-                        df_sub.to_excel(writer, sheet_name='Inventário', index=False)
-                        df_equ.to_excel(writer, sheet_name='Equipamentos', index=False)
-                        # Aba de Log
-                        pd.DataFrame([{"Auditoria": datetime.now(), "Org": org}]).to_excel(writer, sheet_name='Log_Sistema')
-                    
-                    st.download_button(
-                        "📊 Baixar Excel Profissional", 
-                        buffer.getvalue(), 
-                        f"Relatorio_{org}.xlsx", 
-                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        use_container_width=True
-                    )
+                        df_sub.to_excel(writer, sheet_name='Estoque', index=False)
+                        df_equ.to_excel(writer, sheet_name='Maquinário', index=False)
+                    st.download_button("📊 Baixar Excel Master", buffer.getvalue(), f"Auditoria_{org}.xlsx", use_container_width=True)
                 
                 with col2:
-                    st.markdown("**Relatório Executivo (PDF)**")
-                    if st.button("📄 Visualizar Relatório Master", use_container_width=True):
-                        grafico_b64 = get_image_base64(df_sub)
-                        # Tenta ler o template HTML
-                        try:
-                            with open("HTML/template_pdf.html", "r", encoding="utf-8") as f:
-                                tmpl = Template(f.read())
-                            
-                            html_render = tmpl.render(
-                                org_name=org,
-                                data_atual=datetime.now().strftime("%d/%m/%Y"),
-                                total_sub=len(df_sub),
-                                total_equ=len(df_equ),
-                                total_alertas=len(df_sub[df_sub['quantidade'] < 10]) if 'quantidade' in df_sub else 0,
-                                grafico_base64=grafico_b64,
-                                insight_ia="Análise preditiva sugere estabilidade no consumo para os próximos 15 dias."
-                            )
-                            st.components.v1.html(html_render, height=500, scrolling=True)
-                            st.download_button("📥 Baixar PDF (HTML)", html_render, f"Relatorio_{org}.html", use_container_width=True)
-                        except Exception as e:
-                            st.error(f"Erro ao carregar template HTML: {e}")
+                    st.write("**Relatório Executivo (PDF)**")
+                    if st.button("📄 Gerar Visualização PDF"):
+                        grafico = get_image_base64(df_sub)
+                        with open("HTML/template_pdf.html", "r", encoding="utf-8") as f:
+                            tmpl = Template(f.read())
+                        html = tmpl.render(org_name=org, data_atual=datetime.now().strftime("%d/%m/%Y"),
+                                         total_sub=len(df_sub), total_equ=len(df_equ),
+                                         total_alertas=len(df_sub[df_sub['quantidade'] < 10]),
+                                         grafico_base64=grafico, insight_ia="Auditoria processada.")
+                        st.components.v1.html(html, height=500, scrolling=True)
+                st.markdown('</div>', unsafe_allow_html=True)
         except Exception as e:
-            st.error(f"Erro ao carregar dados do banco: {e}")
+            st.error(f"Erro ao carregar dados: {e}")
 
-    # --- ABA 3: CONFIGURAÇÃO DO BOT (POWER AUTOMATE) ---
+    # --- ABA 3: CONFIGURAÇÃO DO BOT (TABELA bot_scheduler) ---
     with aba_bot:
-        st.subheader("🤖 Configurar Agente de Envio Automático")
+        st.markdown('<div class="main-card">', unsafe_allow_html=True)
+        st.subheader("🤖 Configurar Bot Agendador")
+        st.write("Defina o envio automático de relatórios para o técnico responsável.")
         
-        # Busca configuração atual
+        # Tenta buscar config existente na nova tabela
         try:
-            res_c = supabase.table("config_automacao").select("*").eq("org_name", org).execute()
-            conf = res_c.data[0] if res_c.data else {}
+            res_bot = supabase.table("bot_scheduler").select("*").eq("org_name", org).execute()
+            b_conf = res_bot.data[0] if res_bot.data else {}
         except:
-            conf = {}
+            b_conf = {}
 
-        with st.form("bot_config_form"):
-            email_dest = st.text_input("E-mail de Destino (Técnico)", value=conf.get('email_destino', ""))
+        with st.form("form_bot_scheduler"):
+            email_tecnico = st.text_input("E-mail do Técnico Destinatário", value=b_conf.get('email_destino', ""))
             
-            dias_opcoes = ["Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado", "Domingo"]
-            dia_banco = conf.get('dia_semana', "Segunda-feira")
-            idx_dia = dias_opcoes.index(dia_banco) if dia_banco in dias_opcoes else 0
+            dias = ["Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado", "Domingo"]
+            dia_idx = dias.index(b_conf.get('dia_semana', "Segunda-feira")) if b_conf.get('dia_semana') in dias else 0
             
-            dia_sem = st.selectbox("Dia da Semana", dias_opcoes, index=idx_dia)
+            c1, c2 = st.columns(2)
+            dia_envio = c1.selectbox("Dia do Envio", dias, index=dia_idx)
             
-            # Tratamento de horário
-            hora_banco = conf.get('horario', "08:00:00")
-            try:
-                hora_val = datetime.strptime(hora_banco, "%H:%M:%S").time()
-            except:
-                hora_val = datetime.now().time()
-            
-            horario_envio = st.time_input("Horário do Disparo", value=hora_val)
+            hora_banco = b_conf.get('horario', "08:00:00")
+            hora_val = datetime.strptime(hora_banco, "%H:%M:%S").time() if isinstance(hora_banco, str) else datetime.now().time()
+            horario = c2.time_input("Horário do Disparo", value=hora_val)
             
             st.divider()
-            st.caption("Configurações SMTP (Para o Bot disparar e-mails)")
-            s_user = st.text_input("Usuário SMTP (E-mail do Bot)", value=conf.get('smtp_user', ""))
-            s_pass = st.text_input("Senha SMTP (Senha de App)", value=conf.get('smtp_pass', ""), type="password")
+            st.write("🔑 **Configuração de Disparo (SMTP)**")
+            smtp_user = st.text_input("E-mail de Envio (Bot)", value=b_conf.get('smtp_user', ""))
+            smtp_pass = st.text_input("Senha de App (SMTP)", value=b_conf.get('smtp_pass', ""), type="password")
             
-            if st.form_submit_button("💾 Salvar e Ativar Automação"):
+            if st.form_submit_button("💾 SALVAR E ATIVAR BOT"):
                 payload = {
                     "org_name": org,
-                    "email_destino": email_dest,
-                    "dia_semana": dia_sem,
-                    "horario": str(horario_envio),
-                    "smtp_user": s_user,
-                    "smtp_pass": s_pass
+                    "email_destino": email_tecnico,
+                    "dia_semana": dia_envio,
+                    "horario": str(horario),
+                    "smtp_user": smtp_user,
+                    "smtp_pass": smtp_pass,
+                    "ativo": True
                 }
                 try:
-                    # Upsert explícito com on_conflict para evitar erro de recursão/duplicate
-                    supabase.table("config_automacao").upsert(payload, on_conflict="org_name").execute()
-                    st.success("✅ Configuração salva! O Bot agora está monitorando seu laboratório.")
+                    # UPSERT na nova tabela (Independente de RLS de usuários)
+                    supabase.table("bot_scheduler").upsert(payload, on_conflict="org_name").execute()
+                    st.success("✅ Automação salva com sucesso na tabela bot_scheduler!")
                 except Exception as e:
-                    st.error(f"Erro ao salvar: {e}. Verifique as políticas de RLS no Supabase.")
+                    st.error(f"Erro ao salvar automação: {e}")
+        st.markdown('</div>', unsafe_allow_html=True)
