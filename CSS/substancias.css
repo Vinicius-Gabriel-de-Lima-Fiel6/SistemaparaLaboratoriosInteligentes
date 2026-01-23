@@ -1,55 +1,33 @@
-:root {
-    --primary: #003366;
-    --danger: #ff4b4b;
-    --warning: #f1c40f;
-    --info: #3498db;
-    --dark-bg: #1e1e1e;
-}
-
 .hommel-container {
-    display: flex; 
-    justify-content: center; 
-    align-items: center; 
-    background: var(--dark-bg); 
-    padding: 15px; 
-    border-radius: 10px; 
-    border: 1px solid #333;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    background: #1e1e1e;
+    border-radius: 12px;
+    margin: 10px 0;
 }
-
 .hommel-box {
-    position: relative; 
-    width: 80px; 
-    height: 80px; 
-    transform: rotate(45deg); 
-    border: 1px solid #555;
+    position: relative;
+    width: 100px;
+    height: 100px;
+    transform: rotate(45deg);
+    border: 2px solid #555;
 }
-
 .hommel-box div {
-    position: absolute; 
-    width: 40px; 
-    height: 40px; 
-    display: flex; 
-    align-items: center; 
-    justify-content: center; 
-    transform: rotate(-45deg); 
-    color: white; 
+    position: absolute;
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform: rotate(-45deg);
+    font-family: 'Arial', sans-serif;
     font-weight: bold;
+    font-size: 1.1rem;
+    color: white;
 }
-
-.fogo { top: 0; left: 0; background: var(--danger); }
-.reat { top: 0; left: 40px; background: var(--warning); color: black !important; }
-.saude { top: 40px; left: 0; background: var(--info); }
-.esp { top: 40px; left: 40px; background: #fff; color: black !important; font-size: 0.7em; }
-
-.card { 
-    background: white; 
-    max-width: 450px; 
-    margin: auto; 
-    border-radius: 15px; 
-    box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
-    font-family: sans-serif;
-    overflow: hidden;
-}
-.card-header { background: var(--primary); color: white; padding: 20px; text-align: center; }
-.card-content { padding: 20px; color: #333; }
-.card-footer { text-align: center; padding: 10px; font-size: 0.8em; color: #888; }
+.f_vermelho { top: 0; left: 0; background: #ff4b4b; }
+.r_amarelo { top: 0; left: 50px; background: #f1c40f; color: black !important; }
+.s_azul { top: 50px; left: 0; background: #3498db; }
+.e_branco { top: 50px; left: 50px; background: #ffffff; color: black !important; font-size: 0.8rem !important; }
