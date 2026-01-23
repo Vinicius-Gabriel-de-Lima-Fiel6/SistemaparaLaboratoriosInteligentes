@@ -27,7 +27,7 @@ def registrar_historico(acao, item, detalhes, user_data):
         pass
 
 def show_substances():
-    # --- CARREGA O CSS SEM EXIBIR TEXTO NA TELA ---
+    # --- ACESSA O CSS EXTERNO PARA TÍTULOS BRANCOS ---
     if os.path.exists("CSS/style_subst.css"):
         with open("CSS/style_subst.css", "r") as f:
             st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
@@ -90,6 +90,7 @@ def show_substances():
         if not df.empty:
             st.dataframe(df[['id', 'nome', 'cas', 'quantidade', 'validade']], use_container_width=True, hide_index=True)
 
+            # --- MELHORIA TI: CONSULTA E QR CODE ---
             st.subheader("🛡️ Consulta de Segurança e QR Code")
             substancia_alvo = st.selectbox("Selecione um item:", options=df['nome'].tolist())
             detalhes = df[df['nome'] == substancia_alvo].iloc[0]
@@ -97,38 +98,47 @@ def show_substances():
             col_vis, col_txt, col_qr = st.columns([1.5, 2.5, 1.5])
             
             with col_vis:
-                # Carrega o CSS interno do Diamante sem imprimir na tela
-                css_diamond = ""
+                # Lógica blindada para carregar CSS sem vazar texto
+                css_content = ""
                 if os.path.exists("CSS/substancias.css"):
                     with open("CSS/substancias.css", "r") as f:
-                        css_diamond = f.read()
+                        css_content = f.read()
                 
-                html_template = f"""
-                <style>{css_diamond}</style>
+                # Renderização do Diamante (Mantendo exatamente sua estrutura)
+                html_template = """
+                <style>__CSS__</style>
                 <div style="display: flex; justify-content: center; align-items: center; background: #1e1e1e; padding: 15px; border-radius: 10px; border: 1px solid #333;">
                     <div style="position: relative; width: 80px; height: 80px; transform: rotate(45deg); border: 1px solid #555;">
-                        <div style="position: absolute; top: 0; left: 0; width: 40px; height: 40px; background: #ff4b4b; display: flex; align-items: center; justify-content: center; transform: rotate(-45deg); color: white; font-weight: bold;">{detalhes.get('fogo', 0)}</div>
-                        <div style="position: absolute; top: 0; left: 40px; width: 40px; height: 40px; background: #f1c40f; display: flex; align-items: center; justify-content: center; transform: rotate(-45deg); color: black; font-weight: bold;">{detalhes.get('reatividade', 0)}</div>
-                        <div style="position: absolute; top: 40px; left: 0; width: 40px; height: 40px; background: #3498db; display: flex; align-items: center; justify-content: center; transform: rotate(-45deg); color: white; font-weight: bold;">{detalhes.get('saude', 0)}</div>
-                        <div style="position: absolute; top: 40px; left: 40px; width: 40px; height: 40px; background: #fff; display: flex; align-items: center; justify-content: center; transform: rotate(-45deg); color: black; font-weight: bold; font-size: 0.7em;">{detalhes.get('especial', '')}</div>
+                        <div style="position: absolute; top: 0; left: 0; width: 40px; height: 40px; background: #ff4b4b; display: flex; align-items: center; justify-content: center; transform: rotate(-45deg); color: white; font-weight: bold;">__FOGO__</div>
+                        <div style="position: absolute; top: 0; left: 40px; width: 40px; height: 40px; background: #f1c40f; display: flex; align-items: center; justify-content: center; transform: rotate(-45deg); color: black; font-weight: bold;">__REAT__</div>
+                        <div style="position: absolute; top: 40px; left: 0; width: 40px; height: 40px; background: #3498db; display: flex; align-items: center; justify-content: center; transform: rotate(-45deg); color: white; font-weight: bold;">__SAUDE__</div>
+                        <div style="position: absolute; top: 40px; left: 40px; width: 40px; height: 40px; background: #fff; display: flex; align-items: center; justify-content: center; transform: rotate(-45deg); color: black; font-weight: bold; font-size: 0.7em;">__ESP__</div>
                     </div>
                 </div>
                 """
-                st.markdown(html_template, unsafe_allow_html=True)
+                render = html_template.replace("__CSS__", css_content)
+                render = render.replace("__FOGO__", str(detalhes.get('fogo', 0)))
+                render = render.replace("__REAT__", str(detalhes.get('reatividade', 0)))
+                render = render.replace("__SAUDE__", str(detalhes.get('saude', 0)))
+                render = render.replace("__ESP__", str(detalhes.get('especial', '')))
+                st.markdown(render, unsafe_allow_html=True)
 
             with col_txt:
                 st.warning(f"**Emergência:**\n\n{detalhes.get('instrucoes', 'N/A')}")
                 st.caption(f"CAS: {detalhes.get('cas', 'N/A')}")
 
             with col_qr:
-                url_portal = st.text_input("URL do Portal Online:", "https://portal-ficha.streamlit.app")
+                # Alteração: URL agora para o portal online dinâmico
+                url_portal = st.text_input("URL do Portal Online:", "https://portal-consulta.streamlit.app")
                 qr_link = f"{url_portal}?id={detalhes['id']}&org={org_usuario.replace(' ', '%20')}"
+                
                 img_qr = qrcode.make(qr_link)
                 buf = BytesIO()
                 img_qr.save(buf, format="PNG")
                 st.image(buf.getvalue(), width=130, caption="QR Ficha Digital")
                 st.download_button("📥 Baixar QR", buf.getvalue(), f"qr_{substancia_alvo}.png", use_container_width=True)
 
+            # --- FERRAMENTAS DE ADM TI ---
             if role_usuario in ["ADM", "Tecnico"]:
                 with st.expander("⚙️ Ferramentas de Administrador (Massa)"):
                     if st.button("📦 Gerar Tudo (ZIP de HTML e QR Codes)"):
@@ -141,6 +151,8 @@ def show_substances():
                                     h = tmpl
                                     for col in r.index: h = h.replace(f"{{{{{col}}}}}", str(r[col]))
                                     z.writestr(f"fichas/{r['id']}.html", h)
+                                    
+                                    # QR codes em massa apontando para o portal online
                                     q = qrcode.make(f"{url_portal}?id={r['id']}&org={org_usuario.replace(' ', '%20')}")
                                     b = BytesIO()
                                     q.save(b, format="PNG")
