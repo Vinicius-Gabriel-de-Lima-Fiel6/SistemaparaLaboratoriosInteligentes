@@ -28,8 +28,7 @@ def registrar_historico(acao, item, detalhes, user_data):
         pass
 
 def render_hommel(saude, fogo, reat, esp):
-    caminho_css = "CSS/substancias.css"
-    estilo_fallback = """
+    estilo = """
     <style>
         .hommel-container { display: flex; justify-content: center; align-items: center; background: #1e1e1e; padding: 15px; border-radius: 10px; border: 1px solid #333; }
         .hommel-box { position: relative; width: 80px; height: 80px; transform: rotate(45deg); border: 1px solid #555; }
@@ -40,12 +39,14 @@ def render_hommel(saude, fogo, reat, esp):
         .e_branco { top: 40px; left: 40px; background: #fff; color: black !important; font-size: 0.7em; }
     </style>
     """
-    conteudo_css = estilo_fallback
-    if os.path.exists(caminho_css):
-        with open(caminho_css, "r") as f:
-            conteudo_css = f"<style>{f.read()}</style>"
+    if os.path.exists("CSS/substancias.css"):
+        try:
+            with open("CSS/substancias.css", "r") as f:
+                estilo = f"<style>{f.read()}</style>"
+        except:
+            pass
     
-    st.markdown(conteudo_css + f"""
+    st.markdown(estilo + f"""
     <div class="hommel-container">
         <div class="hommel-box">
             <div class="f_vermelho">{fogo}</div>
@@ -57,129 +58,114 @@ def render_hommel(saude, fogo, reat, esp):
     """, unsafe_allow_html=True)
 
 def show_substances():
-    st.header("🔬 Gerenciamento de Substâncias")
-    
-    user_data = st.session_state.get('user_data', {})
+    if 'user_data' not in st.session_state:
+        st.error("Erro de autenticação. Realize o login novamente.")
+        return
+
+    user_data = st.session_state.user_data
     org_usuario = user_data.get('org_name', 'Default')
     role_usuario = user_data.get('role', 'Visualizador')
 
-    with st.container(border=True):
-        st.subheader("Cadastrar Novo Item")
-        if role_usuario == "Visualizador":
-            st.warning("Seu perfil é apenas para visualização.")
-        else:
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                nome = st.text_input("Nome da Substância")
-                finalidade = st.text_input("Finalidade")
-            with col2:
-                concentracao = st.text_input("Concentração")
-                quantidade = st.number_input("Quantidade Atual", min_value=0.0)
-            with col3:
-                estoque_minimo = st.number_input("Estoque Mínimo", min_value=0.0)
-                validade = st.text_input("Validade (MM/AAAA)")
-                cas = st.text_input("Número CAS")
+    st.header(f"🧪 Gestão de Substâncias - {org_usuario}")
 
-            with st.expander("🛡️ Informações de Segurança"):
-                c_s1, c_s2, c_s3, c_s4 = st.columns(4)
-                s_saude = c_s1.slider("Saúde", 0, 4, 0)
-                s_fogo = c_s2.slider("Fogo", 0, 4, 0)
-                s_reat = c_s3.slider("Reatividade", 0, 4, 0)
-                s_esp = c_s4.selectbox("Especial", ["", "W", "OX", "SA", "BIO"])
-                instrucoes = st.text_area("Instruções de Emergência")
+    with st.container(border=True):
+        st.subheader("Cadastrar Item")
+        if role_usuario == "Visualizador":
+            st.warning("Apenas leitura.")
+        else:
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                nome = st.text_input("Substância")
+                finalidade = st.text_input("Uso")
+            with c2:
+                concentracao = st.text_input("Conc.")
+                quantidade = st.number_input("Qtd", min_value=0.0)
+            with c3:
+                estoque_min = st.number_input("Mínimo", min_value=0.0)
+                validade = st.text_input("Validade")
+            
+            cas = st.text_input("CAS Number")
+
+            with st.expander("Informações NFPA 704"):
+                s1, s2, s3, s4 = st.columns(4)
+                v_saude = s1.slider("Saúde", 0, 4, 0)
+                v_fogo = s2.slider("Fogo", 0, 4, 0)
+                v_reat = s3.slider("Reatividade", 0, 4, 0)
+                v_esp = s4.selectbox("Especial", ["", "W", "OX", "SA", "BIO"])
+                instrucoes = st.text_area("Procedimentos de Emergência")
                 
-            if st.button("➕ Adicionar Substância", use_container_width=True):
-                if nome and quantidade:
-                    data_insert = {
+            if st.button("Gravar no Banco", use_container_width=True):
+                if nome:
+                    data = {
                         "nome": nome, "finalidade": finalidade, "concentracao": concentracao,
-                        "quantidade": quantidade, "estoque_minimo": estoque_minimo,
+                        "quantidade": quantidade, "estoque_minimo": estoque_min,
                         "validade": validade, "org_name": org_usuario, "cas": cas,
-                        "saude": s_saude, "fogo": s_fogo, "reatividade": s_reat,
-                        "especial": s_esp, "instrucoes": instrucoes
+                        "saude": v_saude, "fogo": v_fogo, "reatividade": v_reat,
+                        "especial": v_esp, "instrucoes": instrucoes
                     }
-                    supabase.table("substancias").insert(data_insert).execute()
-                    registrar_historico("Cadastro", nome, f"Adicionado ao estoque de {org_usuario}.", user_data)
-                    st.success(f"'{nome}' cadastrado!")
+                    supabase.table("substancias").insert(data).execute()
+                    registrar_historico("Cadastro", nome, "Inserção manual", user_data)
                     st.rerun()
 
-    st.divider()
-
     try:
-        response = supabase.table("substancias").select("*").eq("org_name", org_usuario).execute()
-        df = pd.DataFrame(response.data)
+        res = supabase.table("substancias").select("*").eq("org_name", org_usuario).execute()
+        df = pd.DataFrame(res.data)
 
         if not df.empty:
-            st.dataframe(df[['id', 'nome', 'cas', 'quantidade', 'validade']], use_container_width=True, hide_index=True)
+            st.divider()
+            st.dataframe(df[['nome', 'quantidade', 'validade', 'cas']], use_container_width=True)
 
-            if role_usuario in ["ADM", "Tecnico"]:
-                with st.expander("🔄 Atualizar Estoque"):
-                    col_sel, col_val, col_btn = st.columns([2, 1, 1])
-                    sub_edit = col_sel.selectbox("Escolha o item", options=df['nome'].tolist())
-                    nova_qtd = col_val.number_input("Nova Qtd", min_value=0.0)
-                    if col_btn.button("Salvar Alteração"):
-                        supabase.table("substancias").update({"quantidade": nova_qtd}).eq("nome", sub_edit).execute()
-                        registrar_historico("Movimentação", sub_edit, f"Estoque ajustado por {org_usuario}", user_data)
-                        st.rerun()
+            st.subheader("🛡️ Segurança e Identificação")
+            sel_item = st.selectbox("Escolha o item para gerar QR/Ficha", df['nome'].tolist())
+            item = df[df['nome'] == sel_item].iloc[0]
 
-            st.subheader("🛡️ Ficha de Segurança e QR Code")
-            col_f1, col_f2 = st.columns([2, 1])
+            col_ficha, col_qrcode = st.columns([2, 1])
+            with col_ficha:
+                render_hommel(item['saude'], item['fogo'], item['reatividade'], item['especial'])
+                st.info(f"**Emergência:** {item['instrucoes']}")
             
-            with col_f1:
-                sub_fispq = st.selectbox("Selecionar Substância:", options=df['nome'].tolist())
-                det = df[df['nome'] == sub_fispq].iloc[0]
-                c_vis, c_txt = st.columns([1, 2])
-                with c_vis:
-                    render_hommel(det['saude'], det['fogo'], det['reatividade'], det['especial'])
-                with c_txt:
-                    st.info(f"**Instruções:** {det['instrucoes']}")
-
-            with col_f2:
-                base_url = st.text_input("URL Base (Sua Infra):", f"https://{org_usuario.lower().replace(' ', '')}.lab.com/fichas/")
-                qr_link = f"{base_url}{det['id']}.html"
+            with col_qrcode:
+                url_base = st.text_input("URL do Servidor", f"https://{org_usuario.lower().replace(' ','')}.lab.com/fichas/")
+                link_final = f"{url_base}{item['id']}.html"
                 
-                qr = qrcode.QRCode(version=1, box_size=10, border=4)
-                qr.add_data(qr_link)
-                qr.make(fit=True)
-                img_qr = qr.make_image(fill_color="black", back_color="white")
-                
-                buf = BytesIO()
-                img_qr.save(buf, format="PNG")
-                st.image(buf.getvalue(), caption=f"QR Code: {sub_fispq}", width=200)
-                st.download_button("📥 Baixar QR Individual", buf.getvalue(), f"qr_{sub_fispq}.png", "image/png")
+                qr = qrcode.make(link_final)
+                buffer = BytesIO()
+                qr.save(buffer, format="PNG")
+                st.image(buffer.getvalue(), width=180, caption=f"ID: {item['id']}")
+                st.download_button("Baixar PNG", buffer.getvalue(), f"qr_{sel_item}.png")
 
             st.divider()
-            
-            with st.expander("⚙️ Ferramentas de Administrador"):
-                col_gen1, col_gen2 = st.columns(2)
+            with st.expander("🛠️ Console de TI - Ações em Massa"):
+                c_ti1, c_ti2 = st.columns(2)
                 
-                if col_gen1.button(f"📑 Gerar Todos QR Codes ({org_usuario})"):
-                    zip_qr = BytesIO()
-                    with zipfile.ZipFile(zip_qr, "a", zipfile.ZIP_DEFLATED) as z:
+                if c_ti1.button("Gerar ZIP de QRCodes"):
+                    z_qr = BytesIO()
+                    with zipfile.ZipFile(z_qr, "a") as z:
                         for _, r in df.iterrows():
-                            qr_m = qrcode.make(f"{base_url}{r['id']}.html")
-                            b_m = BytesIO()
-                            qr_m.save(b_m, format="PNG")
-                            z.writestr(f"qrcodes_{org_usuario}/qr_{r['nome']}.png", b_m.getvalue())
-                    st.download_button("📥 Baixar ZIP de QRs", zip_qr.getvalue(), f"qrcodes_{org_usuario}.zip", "application/zip")
+                            img = qrcode.make(f"{url_base}{r['id']}.html")
+                            img_b = BytesIO()
+                            img.save(img_b, format="PNG")
+                            z.writestr(f"qrcodes/qr_{r['nome']}.png", img_b.getvalue())
+                    st.download_button("Download ZIP QRs", z_qr.getvalue(), "estoque_qr.zip")
 
-                if col_gen2.button("🛠️ Gerar HTML/CSS do Estoque"):
-                    zip_sys = BytesIO()
-                    with zipfile.ZipFile(zip_sys, "a", zipfile.ZIP_DEFLATED) as z:
+                if c_ti2.button("Gerar Estáticos (HTML/CSS)"):
+                    z_html = BytesIO()
+                    with zipfile.ZipFile(z_html, "a") as z:
                         if os.path.exists("CSS/substancias.css"):
                             with open("CSS/substancias.css", "r") as f:
                                 z.writestr("substancias.css", f.read())
                         if os.path.exists("HTML/substancias.html"):
                             with open("HTML/substancias.html", "r") as f:
-                                tmpl = f.read()
+                                template = f.read()
                             for _, r in df.iterrows():
-                                html_i = tmpl
+                                h = template
                                 for k in r.index:
-                                    html_i = html_i.replace(f"{{{{{k}}}}}", str(r[k]))
-                                z.writestr(f"{r['id']}.html", html_i)
-                    st.download_button("📥 Baixar ZIP de HTMLs", zip_sys.getvalue(), f"site_{org_usuario}.zip", "application/zip")
+                                    h = h.replace(f"{{{{{k}}}}}", str(r[k]))
+                                z.writestr(f"{r['id']}.html", h)
+                    st.download_button("Download ZIP Site", z_html.getvalue(), "site_estatico.zip")
 
     except Exception as e:
-        st.error(f"Erro: {e}")
+        st.error(f"Erro na conexão com Supabase: {e}")
 
 if __name__ == "__main__":
     show_substances()
