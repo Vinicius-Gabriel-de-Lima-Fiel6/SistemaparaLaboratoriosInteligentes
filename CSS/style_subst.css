@@ -1,30 +1,40 @@
-/* Estilização dos Containers e Botões do ADM */
+/* Fundo Geral */
 .stApp {
-    background-color: #0e1117;
+    background-color: #000000;
 }
 
+/* Cor de todos os textos e títulos */
+h1, h2, h3, h4, p, span, label, .stMarkdown {
+    color: #ffffff !important;
+}
+
+/* Ajuste das Labels dos Inputs (Nome, Concentração, etc) */
+div[data-testid="stWidgetLabel"] p {
+    color: #e0e0e0 !important;
+    font-weight: 600 !important;
+}
+
+/* Estilização dos campos de input para não ficarem invisíveis */
+input, textarea {
+    background-color: #1a1a1a !important;
+    color: #ffffff !important;
+    border: 1px solid #333333 !important;
+}
+
+/* Expander (Informações de Segurança) */
 div[data-testid="stExpander"] {
-    background-color: #1a1c23;
-    border: 1px solid #3d414d;
-    border-radius: 10px;
+    background-color: #111111;
+    border: 1px solid #222222;
 }
 
-.stButton > button {
-    background-color: #262730;
-    color: #ffffff;
-    border-radius: 8px;
-    border: 1px solid #464b5d;
-    transition: all 0.2s ease-in-out;
-}
-
-.stButton > button:hover {
-    border-color: #ff4b4b;
-    color: #ff4b4b;
-    transform: scale(1.02);
-}
-
-/* Estilo para a tabela de inventário */
+/* Dataframe/Tabela */
 div[data-testid="stDataFrame"] {
-    border: 1px solid #3d414d;
-    border-radius: 8px;
+    background-color: #1a1a1a;
+}
+
+/* Botões */
+.stButton>button {
+    background-color: #ff4b4b;
+    color: white;
+    border-radius: 5px;
 }
