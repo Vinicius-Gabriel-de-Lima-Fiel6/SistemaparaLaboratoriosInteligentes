@@ -1,5 +1,5 @@
 import matplotlib
-# ESSENCIAL: Força o modo 'Agg' (sem interface gráfica) para o deploy não travar
+
 matplotlib.use('Agg') 
 import matplotlib.pyplot as plt
 
