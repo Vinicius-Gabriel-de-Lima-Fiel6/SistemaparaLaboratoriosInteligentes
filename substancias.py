@@ -27,7 +27,7 @@ def registrar_historico(acao, item, detalhes, user_data):
         pass
 
 def show_substances():
-    # --- ACESSA O CSS EXTERNO PARA TÍTULOS BRANCOS ---
+    # Carrega o CSS de estilo sem imprimir texto na tela
     if os.path.exists("CSS/style_subst.css"):
         with open("CSS/style_subst.css", "r") as f:
             st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
@@ -88,7 +88,7 @@ def show_substances():
         df = pd.DataFrame(response.data)
 
         if not df.empty:
-            st.dataframe(df[['id', 'nome', 'cas', 'quantidade', 'validade']], use_container_width=True, hide_index=True)
+            st.dataframe(df[['id', 'nome', 'cas', 'quantidade', 'validative']], use_container_width=True, hide_index=True)
 
             # --- MELHORIA TI: CONSULTA E QR CODE ---
             st.subheader("🛡️ Consulta de Segurança e QR Code")
@@ -104,7 +104,7 @@ def show_substances():
                     with open("CSS/substancias.css", "r") as f:
                         css_content = f.read()
                 
-                # Renderização do Diamante (Mantendo exatamente sua estrutura)
+                # Renderização do Diamante (Mantendo sua estrutura original com replace)
                 html_template = """
                 <style>__CSS__</style>
                 <div style="display: flex; justify-content: center; align-items: center; background: #1e1e1e; padding: 15px; border-radius: 10px; border: 1px solid #333;">
@@ -128,7 +128,7 @@ def show_substances():
                 st.caption(f"CAS: {detalhes.get('cas', 'N/A')}")
 
             with col_qr:
-                # Alteração: URL agora para o portal online dinâmico
+                # Mudança: O link agora vai para o seu novo Portal Online
                 url_portal = st.text_input("URL do Portal Online:", "https://portal-consulta.streamlit.app")
                 qr_link = f"{url_portal}?id={detalhes['id']}&org={org_usuario.replace(' ', '%20')}"
                 
