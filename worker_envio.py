@@ -42,9 +42,9 @@ def gerar_pdf_completo(logs, estoque, org_name):
     pdf.set_font("Arial", 'B', 9)
     pdf.cell(35, 8, "Data/Hora", 1, 0, 'C', True)
     pdf.cell(35, 8, "Usuário", 1, 0, 'C', True)
-    pdf.cell(30, 8, "Ação", 1, 0, 'C', True) # Mantido conforme seu original
-    pdf.cell(55, 8, "Substância", 1, 0, 'C', True)
-    pdf.cell(35, 8, "Qtd Alterada", 1, 1, 'C', True)
+    pdf.cell(30, 8, "Ação", 1, 0, 'C', True) 
+    pdf.cell(55, 8, "Item/Substância", 1, 0, 'C', True) # Nome ajustado para cobrir ambos
+    pdf.cell(35, 8, "Qtd/Status", 1, 1, 'C', True)
 
     # Dados dos Logs
     pdf.set_font("Arial", size=8)
@@ -54,11 +54,9 @@ def gerar_pdf_completo(logs, estoque, org_name):
         for log in logs:
             data = log['created_at'][:16].replace('T', ' ')
             pdf.cell(35, 8, data, 1)
-            # Ajustado apenas as chaves para a nova tabela logs_estoque
             pdf.cell(35, 8, str(log.get('usuario', 'N/A'))[:18], 1)
-            pdf.cell(30, 8, "Alteração", 1) # Simplificado para manter o layout
+            pdf.cell(30, 8, "Alteração", 1) 
             pdf.cell(55, 8, str(log.get('substancia', 'N/A'))[:25], 1)
-            # Mostra a nova quantidade conforme a tabela nova
             pdf.cell(35, 8, str(log.get('quantidade_nova', '0')), 1, 1)
 
     pdf.ln(10)
@@ -77,18 +75,23 @@ def executar_robo():
     for ag in agendamentos.data:
         org = ag['org_name']
         
-        # Coleta dados do Supabase
+        # Coleta dados das duas tabelas para o Excel
         estoque_data = supabase.table("substancias").select("*").eq("org_name", org).execute().data
+        equip_data = supabase.table("equipamentos").select("*").eq("org_name", org).execute().data
         
-        # CONEXÃO COM A NOVA TABELA
+        # Conexão com a tabela de logs (Puxa tudo: Substâncias e Equipamentos)
         logs_data = supabase.table("logs_estoque").select("*").eq("org_name", org).order('created_at', desc=True).limit(50).execute().data
 
-        # Prepara os arquivos
+        # Prepara o arquivo EXCEL COM DUAS ABAS
         df_estoque = pd.DataFrame(estoque_data)
+        df_equip = pd.DataFrame(equip_data)
+        
         excel_buffer = io.BytesIO()
         with pd.ExcelWriter(excel_buffer, engine='xlsxwriter') as writer:
-            df_estoque.to_excel(writer, index=False, sheet_name='Estoque Atual')
+            df_estoque.to_excel(writer, index=False, sheet_name='Substâncias')
+            df_equip.to_excel(writer, index=False, sheet_name='Equipamentos')
         
+        # PDF foca no resumo das substâncias (conforme seu original) mas traz logs de tudo
         pdf_bytes = gerar_pdf_completo(logs_data, estoque_data, org)
 
         # Montagem do E-mail HTML (Bonito - Exatamente seu original)
@@ -108,8 +111,8 @@ def executar_robo():
                 <p>Olá,</p>
                 <p>Segue em anexo o relatório completo do seu laboratório referente às últimas atividades detectadas no sistema.</p>
                 <ul>
-                    <li><strong>Arquivo PDF:</strong> Histórico detalhado de quem alterou, retirou ou cadastrou itens.</li>
-                    <li><strong>Arquivo Excel:</strong> Planilha completa com o estoque atualizado.</li>
+                    <li><strong>Arquivo PDF:</strong> Histórico detalhado de quem alterou, retirou ou cadastrou itens (Substâncias e Equipamentos).</li>
+                    <li><strong>Arquivo Excel:</strong> Planilha com abas separadas para Estoque e Equipamentos atualizados.</li>
                 </ul>
                 <p>Caso precise de suporte, entre em contato com a administração do sistema.</p>
                 <br>
@@ -121,7 +124,7 @@ def executar_robo():
         msg.attach(MIMEText(corpo_html, 'html'))
 
         # Anexos
-        for content, name, mime in [(excel_buffer.getvalue(), f"Estoque_{org}.xlsx", "application/vnd.ms-excel"), 
+        for content, name, mime in [(excel_buffer.getvalue(), f"Inventario_Completo_{org}.xlsx", "application/vnd.ms-excel"), 
                                     (pdf_bytes, f"Auditoria_{org}.pdf", "application/pdf")]:
             part = MIMEBase('application', 'octet-stream')
             part.set_payload(content)
