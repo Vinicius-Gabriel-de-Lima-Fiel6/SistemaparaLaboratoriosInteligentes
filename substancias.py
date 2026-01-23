@@ -17,25 +17,23 @@ except Exception as e:
 
 # --- FUNÇÃO: REGISTRAR NA TABELA HISTORICO_ATIVIDADES ---
 def registrar_log_atividades(acao, substancia, quantidade, detalhes, user_data):
-    """
-    Alimenta a tabela 'historico_atividades' conforme a estrutura da sua imagem.
-    Campos: usuario_email (text), org_name (text), acao (text), 
-    substancia_nome (text), quantidade (text), detalhes (text)
-    """
     log = {
         "usuario_email": user_data.get('email', 'usuario@lab.com'),
         "org_name": user_data.get('org_name', 'Default'),
         "acao": acao,
         "substancia_nome": substancia,
-        "quantidade": str(quantidade),  # Convertido para TEXT conforme sua imagem
+        "quantidade": str(quantidade), 
         "detalhes": detalhes,
         "created_at": datetime.now().isoformat()
     }
     try:
-        supabase.table("historico_atividades").insert(log).execute()
+        # O .execute() retorna os dados ou levanta uma exceção
+        res = supabase.table("historico_atividades").insert(log).execute()
+        st.toast("✅ Histórico alimentado!") 
     except Exception as e:
-        # Exibe o erro na tela caso o Supabase rejeite (ex: RLS ou coluna faltando)
-        st.error(f"Erro ao alimentar histórico: {e}")
+        # ISSO VAI MOSTRAR O MOTIVO REAL (Ex: Coluna inexistente ou RLS)
+        st.error(f"🚨 ERRO CRÍTICO NO SUPABASE: {e}")
+        st.write("Dados que tentei enviar:", log)
 
 # --- FUNÇÃO AUXILIAR: RENDERIZAR DIAMANTE DE HOMMEL ---
 def render_hommel(saude, fogo, reat, esp):
@@ -177,3 +175,4 @@ def show_substances():
 
 if __name__ == "__main__":
     show_substances()
+
