@@ -27,7 +27,7 @@ def registrar_historico(acao, item, detalhes, user_data):
         pass
 
 def show_substances():
-    # Carrega o CSS de estilo sem imprimir texto na tela
+    # --- ACESSA O CSS EXTERNO PARA ESTILO ---
     if os.path.exists("CSS/style_subst.css"):
         with open("CSS/style_subst.css", "r") as f:
             st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
@@ -88,7 +88,8 @@ def show_substances():
         df = pd.DataFrame(response.data)
 
         if not df.empty:
-            st.dataframe(df[['id', 'nome', 'cas', 'quantidade', 'validative']], use_container_width=True, hide_index=True)
+            # CORRIGIDO: validade (estava escrito validative)
+            st.dataframe(df[['id', 'nome', 'cas', 'quantidade', 'validade']], use_container_width=True, hide_index=True)
 
             # --- MELHORIA TI: CONSULTA E QR CODE ---
             st.subheader("🛡️ Consulta de Segurança e QR Code")
@@ -98,13 +99,11 @@ def show_substances():
             col_vis, col_txt, col_qr = st.columns([1.5, 2.5, 1.5])
             
             with col_vis:
-                # Lógica blindada para carregar CSS sem vazar texto
                 css_content = ""
                 if os.path.exists("CSS/substancias.css"):
                     with open("CSS/substancias.css", "r") as f:
                         css_content = f.read()
                 
-                # Renderização do Diamante (Mantendo sua estrutura original com replace)
                 html_template = """
                 <style>__CSS__</style>
                 <div style="display: flex; justify-content: center; align-items: center; background: #1e1e1e; padding: 15px; border-radius: 10px; border: 1px solid #333;">
@@ -128,8 +127,7 @@ def show_substances():
                 st.caption(f"CAS: {detalhes.get('cas', 'N/A')}")
 
             with col_qr:
-                # Mudança: O link agora vai para o seu novo Portal Online
-                url_portal = st.text_input("URL do Portal Online:", "https://portal-consulta.streamlit.app")
+                url_portal = st.text_input("URL do Portal de Consulta:", "https://ficha-seguranca.streamlit.app")
                 qr_link = f"{url_portal}?id={detalhes['id']}&org={org_usuario.replace(' ', '%20')}"
                 
                 img_qr = qrcode.make(qr_link)
@@ -152,7 +150,6 @@ def show_substances():
                                     for col in r.index: h = h.replace(f"{{{{{col}}}}}", str(r[col]))
                                     z.writestr(f"fichas/{r['id']}.html", h)
                                     
-                                    # QR codes em massa apontando para o portal online
                                     q = qrcode.make(f"{url_portal}?id={r['id']}&org={org_usuario.replace(' ', '%20')}")
                                     b = BytesIO()
                                     q.save(b, format="PNG")
