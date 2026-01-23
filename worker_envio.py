@@ -8,115 +8,123 @@ from email.mime.base import MIMEBase
 from email import encoders
 from fpdf import FPDF
 import io
-from datetime import datetime
+from datetime import datetime, timedelta
 
-# --- FUNÇÃO PARA GERAR O PDF BONITO ---
-def gerar_pdf_completo(logs, estoque, org_name):
+# --- FUNÇÃO PARA GERAR O PDF COM ALERTAS ---
+def gerar_pdf_completo(logs, estoque, equipamentos, org_name):
     pdf = FPDF()
     pdf.add_page()
     
-    # Cabeçalho Estilizado
-    pdf.set_fill_color(41, 128, 185) # Azul Profissional
+    # Cabeçalho
+    pdf.set_fill_color(41, 128, 185) 
     pdf.set_text_color(255, 255, 255)
     pdf.set_font("Arial", 'B', 16)
-    pdf.cell(190, 15, f"RELATÓRIO DE AUDITORIA - {org_name.upper()}", ln=True, align='C', fill=True)
+    pdf.cell(190, 15, f"AUDITORIA INTELIGENTE - {org_name.upper()}", ln=True, align='C', fill=True)
     
     pdf.set_text_color(0, 0, 0)
     pdf.set_font("Arial", size=10)
     pdf.cell(190, 10, f"Gerado em: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}", ln=True, align='R')
     pdf.ln(5)
 
-    # Seção 1: Resumo do Estoque Atual
+    # SEÇÃO 1: ALERTAS CRÍTICOS (NOVIDADE)
     pdf.set_font("Arial", 'B', 12)
-    pdf.cell(190, 10, "1. Resumo de Itens em Estoque", ln=True)
-    pdf.set_font("Arial", size=10)
-    pdf.multi_cell(190, 7, f"Atualmente, a organização {org_name} possui {len(estoque)} itens ativos cadastrados no sistema.")
+    pdf.set_text_color(200, 0, 0)
+    pdf.cell(190, 10, "!!! ALERTAS DE ATENÇÃO IMEDIATA !!!", ln=True)
+    pdf.set_font("Arial", size=9)
+    pdf.set_text_color(0, 0, 0)
+    
+    alertas = 0
+    for item in estoque:
+        if float(item.get('quantidade', 0)) <= float(item.get('estoque_minimo', 0)):
+            pdf.cell(190, 7, f"- STOCK CRÍTICO: {item['nome']} (Qtd: {item['quantidade']} / Mín: {item['estoque_minimo']})", ln=True)
+            alertas += 1
+    
+    if alertas == 0:
+        pdf.cell(190, 7, "Nenhum item abaixo do stock mínimo.", ln=True)
     pdf.ln(5)
 
-    # Seção 2: Histórico de Alterações (Tabela de Logs)
+    # SEÇÃO 2: ESTADO DOS EQUIPAMENTOS
     pdf.set_font("Arial", 'B', 12)
-    pdf.cell(190, 10, "2. Registro Detalhado de Movimentações", ln=True)
+    pdf.cell(190, 10, "2. Inventário de Equipamentos", ln=True)
+    pdf.set_font("Arial", size=9)
+    for eq in equipamentos:
+        status = eq.get('status', 'Ativo')
+        pdf.cell(190, 7, f"- {eq['nome']}: {status}", ln=True)
+    pdf.ln(5)
+
+    # SEÇÃO 3: HISTÓRICO DE LOGS (TABELA)
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(190, 10, "3. Registro de Movimentações Recentes", ln=True)
     
-    # Cabeçalho da Tabela
     pdf.set_fill_color(230, 230, 230)
     pdf.set_font("Arial", 'B', 9)
     pdf.cell(35, 8, "Data/Hora", 1, 0, 'C', True)
     pdf.cell(35, 8, "Usuário", 1, 0, 'C', True)
-    pdf.cell(30, 8, "Ação", 1, 0, 'C', True) 
-    pdf.cell(55, 8, "Item/Substância", 1, 0, 'C', True) # Nome ajustado para cobrir ambos
-    pdf.cell(35, 8, "Qtd/Status", 1, 1, 'C', True)
+    pdf.cell(85, 8, "Ação / Item", 1, 0, 'C', True)
+    pdf.cell(35, 8, "Qtd Nova", 1, 1, 'C', True)
 
-    # Dados dos Logs
     pdf.set_font("Arial", size=8)
-    if not logs:
-        pdf.cell(190, 10, "Nenhuma movimentação registrada no período.", 1, 1, 'C')
-    else:
-        for log in logs:
-            data = log['created_at'][:16].replace('T', ' ')
-            pdf.cell(35, 8, data, 1)
-            pdf.cell(35, 8, str(log.get('usuario', 'N/A'))[:18], 1)
-            pdf.cell(30, 8, "Alteração", 1) 
-            pdf.cell(55, 8, str(log.get('substancia', 'N/A'))[:25], 1)
-            pdf.cell(35, 8, str(log.get('quantidade_nova', '0')), 1, 1)
+    for log in logs:
+        data = log['created_at'][:16].replace('T', ' ')
+        pdf.cell(35, 8, data, 1)
+        pdf.cell(35, 8, str(log.get('usuario', 'N/A'))[:18], 1)
+        pdf.cell(85, 8, str(log.get('substancia', 'N/A'))[:45], 1)
+        pdf.cell(35, 8, str(log.get('quantidade_nova', '0')), 1, 1)
 
     pdf.ln(10)
     pdf.set_font("Arial", 'I', 8)
-    pdf.cell(190, 10, "Este relatório é gerado automaticamente pelo Sistema de Laboratórios Inteligentes.", align='C')
-    
+    pdf.cell(190, 10, "Relatório Automático - Sistema de Gestão de Laboratórios", align='C')
     return pdf.output(dest='S')
 
-# --- FUNÇÃO PRINCIPAL ---
 def executar_robo():
     supabase = create_client(os.environ.get("SUPABASE_URL"), os.environ.get("SUPABASE_KEY"))
-    
-    # Busca os agendamentos ativos
     agendamentos = supabase.table("bot_scheduler").select("*").eq("ativo", True).execute()
 
     for ag in agendamentos.data:
         org = ag['org_name']
         
-        # Coleta dados das duas tabelas para o Excel
+        # Coleta de Dados
         estoque_data = supabase.table("substancias").select("*").eq("org_name", org).execute().data
         equip_data = supabase.table("equipamentos").select("*").eq("org_name", org).execute().data
-        
-        # Conexão com a tabela de logs (Puxa tudo: Substâncias e Equipamentos)
         logs_data = supabase.table("logs_estoque").select("*").eq("org_name", org).order('created_at', desc=True).limit(50).execute().data
 
-        # Prepara o arquivo EXCEL COM DUAS ABAS
+        # Identificação de itens críticos para o corpo do e-mail
+        itens_criticos = [i['nome'] for i in estoque_data if float(i.get('quantidade', 0)) <= float(i.get('estoque_minimo', 0))]
+        status_alerta = "⚠️ ATENÇÃO: Itens em Stock Crítico" if itens_criticos else "✅ Tudo em conformidade"
+
+        # Geração do Excel com abas
         df_estoque = pd.DataFrame(estoque_data)
         df_equip = pd.DataFrame(equip_data)
-        
         excel_buffer = io.BytesIO()
         with pd.ExcelWriter(excel_buffer, engine='xlsxwriter') as writer:
             df_estoque.to_excel(writer, index=False, sheet_name='Substâncias')
             df_equip.to_excel(writer, index=False, sheet_name='Equipamentos')
         
-        # PDF foca no resumo das substâncias (conforme seu original) mas traz logs de tudo
-        pdf_bytes = gerar_pdf_completo(logs_data, estoque_data, org)
+        # Geração do PDF
+        pdf_bytes = gerar_pdf_completo(logs_data, estoque_data, equip_data, org)
 
-        # Montagem do E-mail HTML (Bonito - Exatamente seu original)
+        # E-mail
         msg = MIMEMultipart()
         msg['From'] = ag['smtp_user']
         msg['To'] = ag['email_destino']
-        msg['Subject'] = f"🧪 Relatório de Auditoria Inteligente: {org}"
+        msg['Subject'] = f"{status_alerta} | Relatório: {org}"
+
+        lista_criticos_html = "".join([f"<li style='color: red;'>{item}</li>" for item in itens_criticos])
+        if not lista_criticos_html: lista_criticos_html = "<li>Nenhum item abaixo do mínimo.</li>"
 
         corpo_html = f"""
         <html>
-        <body style="font-family: Arial, sans-serif; color: #333;">
+        <body style="font-family: Arial, sans-serif;">
             <div style="background-color: #2980b9; color: white; padding: 20px; text-align: center;">
-                <h1>Relatório Semanal de Atividades</h1>
-                <p>Organização: <strong>{org}</strong></p>
+                <h1>Auditoria de Laboratório Inteligente</h1>
+                <p>Status Atual: <strong>{status_alerta}</strong></p>
             </div>
             <div style="padding: 20px; border: 1px solid #ddd;">
-                <p>Olá,</p>
-                <p>Segue em anexo o relatório completo do seu laboratório referente às últimas atividades detectadas no sistema.</p>
-                <ul>
-                    <li><strong>Arquivo PDF:</strong> Histórico detalhado de quem alterou, retirou ou cadastrou itens (Substâncias e Equipamentos).</li>
-                    <li><strong>Arquivo Excel:</strong> Planilha com abas separadas para Estoque e Equipamentos atualizados.</li>
-                </ul>
-                <p>Caso precise de suporte, entre em contato com a administração do sistema.</p>
-                <br>
-                <p style="font-size: 12px; color: #777;">Este é um e-mail automático. Por favor, não responda.</p>
+                <h3>Resumo de Alertas:</h3>
+                <ul>{lista_criticos_html}</ul>
+                <hr>
+                <p>Em anexo, enviamos os detalhes técnicos das últimas 50 movimentações e a folha de inventário completa.</p>
+                <p style="font-size: 11px;">Relatório gerado em: {datetime.now().strftime('%d/%m/%Y')}</p>
             </div>
         </body>
         </html>
@@ -124,23 +132,22 @@ def executar_robo():
         msg.attach(MIMEText(corpo_html, 'html'))
 
         # Anexos
-        for content, name, mime in [(excel_buffer.getvalue(), f"Inventario_Completo_{org}.xlsx", "application/vnd.ms-excel"), 
-                                    (pdf_bytes, f"Auditoria_{org}.pdf", "application/pdf")]:
+        for content, name in [(excel_buffer.getvalue(), f"Inventario_{org}.xlsx"), 
+                              (pdf_bytes, f"Auditoria_{org}.pdf")]:
             part = MIMEBase('application', 'octet-stream')
             part.set_payload(content)
             encoders.encode_base64(part)
             part.add_header('Content-Disposition', f'attachment; filename="{name}"')
             msg.attach(part)
 
-        # Disparo
         try:
             with smtplib.SMTP('smtp.gmail.com', 587) as server:
                 server.starttls()
                 server.login(ag['smtp_user'], ag['smtp_pass'])
                 server.send_message(msg)
-                print(f"✅ Relatório Completo enviado para {org}!")
+                print(f"✅ Relatório enviado para {org}")
         except Exception as e:
-            print(f"❌ Erro ao enviar para {org}: {e}")
+            print(f"❌ Erro: {e}")
 
 if __name__ == "__main__":
     executar_robo()
