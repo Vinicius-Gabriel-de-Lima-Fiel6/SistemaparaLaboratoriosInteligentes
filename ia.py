@@ -5,16 +5,19 @@ from ultralytics import YOLO
 from streamlit_webrtc import webrtc_streamer, VideoTransformerBase, WebRtcMode
 import PyPDF2
 import io
-
-# Configuração de Logs para evitar poluição visual no console
 import logging
+
+# Silencia avisos de rede para manter o console limpo
 logging.getLogger("aioice").setLevel(logging.ERROR)
 
 def inicializar_motor():
     if "GROQ_API_KEY" not in st.secrets:
         return None, "Erro: Chave API ausente."
-    client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-    return client, "llama-3.3-70b-versatile"
+    try:
+        client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+        return client, "llama-3.3-70b-versatile"
+    except Exception as e:
+        return None, f"Erro: {e}"
 
 client_groq, modelo_ativo = inicializar_motor()
 
@@ -22,10 +25,13 @@ class VideoProcessor(VideoTransformerBase):
     def __init__(self, model):
         self.model = model
     def transform(self, frame):
-        img = frame.to_ndarray(format="bgr24")
-        if img is not None and self.model is not None:
-            return self.model(img)[0].plot()
-        return img
+        try:
+            img = frame.to_ndarray(format="bgr24")
+            if img is not None and self.model is not None:
+                return self.model(img)[0].plot()
+            return img
+        except:
+            return None
 
 def extrair_texto(arquivo):
     if not arquivo: return None
@@ -51,11 +57,14 @@ def responder_ia(prompt, historico, dados=None, esp="Geral"):
     contexto = f"DADOS DO ARQUIVO: {dados}\n\nPERGUNTA: {prompt}" if dados else prompt
     msgs.append({"role": "user", "content": contexto})
     
-    res = client_groq.chat.completions.create(model=modelo_ativo, messages=msgs, temperature=0.0)
-    return res.choices[0].message.content
+    try:
+        res = client_groq.chat.completions.create(model=modelo_ativo, messages=msgs, temperature=0.0)
+        return res.choices[0].message.content
+    except Exception as e:
+        return f"Erro na IA: {e}"
 
 def show_chatbot():
-    # Inicialização do modelo global
+    # Inicialização do modelo
     if "yolo_model" not in st.session_state: 
         st.session_state.yolo_model = YOLO("yolov8n.pt")
 
@@ -89,13 +98,17 @@ def show_chatbot():
             st.write("### ⚙️ Ferramentas")
             if st.toggle("🎥 Visão YOLO", key="tgl_v1"):
                 webrtc_streamer(
-                    key="vision_geral",
+                    key="vision_mobile",
                     mode=WebRtcMode.SENDRECV,
                     video_processor_factory=lambda: VideoProcessor(st.session_state.yolo_model),
                     rtc_configuration={
                         "iceServers": [{"urls": ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"]}]
                     },
-                    media_stream_constraints={"video": True, "audio": False},
+                    # Essencial para funcionar em Celulares:
+                    media_stream_constraints={
+                        "video": {"facingMode": "environment"}, # Tenta usar a câmera traseira
+                        "audio": False
+                    },
                     async_processing=True
                 )
             
@@ -117,8 +130,9 @@ def show_chatbot():
                 st.link_button("Abrir", info["url"])
 
         with col_c1:
+            chat_box = st.container(height=500)
             for m in st.session_state.messages_geral:
-                st.chat_message(m["role"]).write(m["content"])
+                chat_box.chat_message(m["role"]).write(m["content"])
             
     else:
         col_c2, col_t2 = st.columns([3, 1])
@@ -131,15 +145,16 @@ def show_chatbot():
                 st.rerun()
 
         with col_c2:
+            chat_box_ag = st.container(height=500)
             for m in st.session_state.messages_agente:
-                st.chat_message(m["role"]).write(m["content"])
+                chat_box_ag.chat_message(m["role"]).write(m["content"])
 
     if prompt := st.chat_input("Digite sua mensagem..."):
         h_key = "messages_geral" if escolha_aba == "💬 Chat Científico" else "messages_agente"
         persona = "Consultor Sênior PhD" if escolha_aba == "💬 Chat Científico" else esp_nome
         
         st.session_state[h_key].append({"role": "user", "content": prompt})
-        with st.spinner("Processando..."):
+        with st.spinner("Analisando..."):
             dados_doc = extrair_texto(up_geral if escolha_aba == "💬 Chat Científico" else up_agente)
             resposta = responder_ia(prompt, st.session_state[h_key], dados_doc, persona)
             st.session_state[h_key].append({"role": "assistant", "content": resposta})
