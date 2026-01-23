@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 from supabase import create_client
 from datetime import datetime
+import qrcode
+from io import BytesIO
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 # Nota: Se este arquivo for importado em outro, o set_page_config deve estar no arquivo principal.
@@ -11,25 +13,6 @@ from datetime import datetime
 url = st.secrets["SUPABASE_URL"]
 key = st.secrets["SUPABASE_KEY"]
 supabase = create_client(url, key)
-
-# --- FUNÇÃO: REGISTRAR NA TABELA DE HISTÓRICO ---
-def registrar_historico_atividades(acao, item, detalhes, user_data):
-    """
-    Registra eventos na tabela 'historico_atividades' conforme as colunas do seu banco.
-    """
-    log = {
-        "usuario_email": user_data.get('email', 'Sistema'),
-        "org_name": user_data.get('org_name', 'Default'),
-        "acao": acao,
-        "substancia_nome": item,
-        "quantidade": "0",  # Valor padrão como string conforme solicitado anteriormente
-        "detalhes": detalhes,
-        "created_at": datetime.now().isoformat()
-    }
-    try:
-        supabase.table("historico_atividades").insert(log).execute()
-    except:
-        pass # Falha no log não deve travar o sistema principal
 
 # --- FUNÇÃO AUXILIAR: RENDERIZAR DIAMANTE DE HOMMEL (NFPA 704) ---
 def render_hommel(saude, fogo, reat, esp):
@@ -90,10 +73,6 @@ def show_substances():
                             "especial": s_esp, "instrucoes": instrucoes
                         }
                         supabase.table("substancias").insert(data_insert).execute()
-                        
-                        # Registro no Histórico
-                        registrar_historico_atividades("Cadastro", nome, f"Item cadastrado por {username_atual}", user_data)
-                        
                         st.success(f"'{nome}' cadastrado com sucesso!")
                         st.rerun()
                 else:
@@ -133,11 +112,8 @@ def show_substances():
                         qtd_antiga = df[df['nome'] == sub_para_editar]['quantidade'].values[0]
                         supabase.table("substancias").update({"quantidade": nova_qtd}).eq("nome", sub_para_editar).execute()
                         
-                        # Log Duplo: No log_estoque (seu original) e no historico_atividades (novo)
                         log_data = {"usuario": username_atual, "substancia": sub_para_editar, "quantidade_antiga": float(qtd_antiga), "quantidade_nova": float(nova_qtd), "org_name": org_usuario}
                         supabase.table("logs_estoque").insert(log_data).execute()
-                        
-                        registrar_historico_atividades("Atualização", sub_para_editar, f"Quantidade alterada de {qtd_antiga} para {nova_qtd}", user_data)
                         
                         st.success(f"Estoque de {sub_para_editar} atualizado!")
                         st.rerun()
@@ -146,12 +122,21 @@ def show_substances():
             st.subheader("🛡️ Consulta de Segurança (FISPQ Digital)")
             substancia_alvo = st.selectbox("Selecione um item:", options=df['nome'].tolist())
             detalhes = df[df['nome'] == substancia_alvo].iloc[0]
-            col_visual, col_texto = st.columns([1, 3])
+            
+            # ADICIONADO: QR CODE NA CONSULTA
+            col_visual, col_texto, col_qr = st.columns([1, 2, 1])
             with col_visual:
                 render_hommel(detalhes.get('saude', 0), detalhes.get('fogo', 0), detalhes.get('reatividade', 0), detalhes.get('especial', ''))
             with col_texto:
                 st.warning(f"**Instruções de Emergência:**\n\n{detalhes.get('instrucoes', 'Não informadas.')}")
                 st.caption(f"CAS: {detalhes.get('cas', 'N/A')}")
+            with col_qr:
+                qr_content = f"Substancia: {detalhes['nome']}\nCAS: {detalhes.get('cas', 'N/A')}\nEmergencia: {detalhes.get('instrucoes', 'N/A')}"
+                qr = qrcode.make(qr_content)
+                buf = BytesIO()
+                qr.save(buf, format="PNG")
+                st.image(buf.getvalue(), caption="QR Code", width=120)
+                st.download_button("📥 Baixar QR", buf.getvalue(), f"qr_{detalhes['nome']}.png", "image/png")
             
             # --- HISTÓRICO DE MOVIMENTAÇÕES ---
             with st.expander("📜 Histórico Recente de Alterações"):
@@ -165,13 +150,9 @@ def show_substances():
             if role_usuario in ["ADM", "Tecnico"]:
                 with st.expander("🗑️ Remover Substância"):
                     id_del = st.selectbox("ID para remover", options=df['id'].tolist())
-                    nome_del = df[df['id'] == id_del]['nome'].values[0]
                     if st.button("Confirmar Exclusão", type="primary"):
                         supabase.table("substancias").delete().eq("id", id_del).execute()
-                        
-                        registrar_historico_atividades("Exclusão", nome_del, f"Substância removida do inventário", user_data)
-                        
-                        st.warning(f"Item '{nome_del}' removido.")
+                        st.warning(f"Item removido.")
                         st.rerun()
         else:
             st.info(f"Nenhuma substância cadastrada para {org_usuario}.")
