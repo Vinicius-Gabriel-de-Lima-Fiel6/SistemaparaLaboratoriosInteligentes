@@ -2,14 +2,13 @@ import streamlit as st
 import pandas as pd
 from groq import Groq
 from ultralytics import YOLO
-from streamlit_webrtc import webrtc_streamer, VideoTransformerBase
+from streamlit_webrtc import webrtc_streamer, VideoTransformerBase, WebRtcMode
 import PyPDF2
 import io
 
-# --- CARREGAMENTO GLOBAL (ERRO ZERO) ---
-@st.cache_resource
-def get_yolo_model():
-    return YOLO("yolov8n.pt")
+# Configuração de Logs para evitar poluição visual no console
+import logging
+logging.getLogger("aioice").setLevel(logging.ERROR)
 
 def inicializar_motor():
     if "GROQ_API_KEY" not in st.secrets:
@@ -24,10 +23,8 @@ class VideoProcessor(VideoTransformerBase):
         self.model = model
     def transform(self, frame):
         img = frame.to_ndarray(format="bgr24")
-        # Adicionada verificação de segurança para o modelo
-        if self.model:
-            results = self.model(img)
-            return results[0].plot()
+        if img is not None and self.model is not None:
+            return self.model(img)[0].plot()
         return img
 
 def extrair_texto(arquivo):
@@ -58,14 +55,15 @@ def responder_ia(prompt, historico, dados=None, esp="Geral"):
     return res.choices[0].message.content
 
 def show_chatbot():
-    # Inicialização básica
+    # Inicialização do modelo global
+    if "yolo_model" not in st.session_state: 
+        st.session_state.yolo_model = YOLO("yolov8n.pt")
+
     if "messages_geral" not in st.session_state: st.session_state.messages_geral = []
     if "messages_agente" not in st.session_state: st.session_state.messages_agente = []
     
-    # Busca o modelo do cache global
-    yolo_model = get_yolo_model()
-
     st.subheader("🔬 LabSmart AI - Hub de Inteligência")
+
     escolha_aba = st.radio("Selecione o ambiente de trabalho:", ["💬 Chat Científico", "👥 Squad de Agentes"], horizontal=True)
 
     st.divider()
@@ -90,8 +88,16 @@ def show_chatbot():
         with col_t1:
             st.write("### ⚙️ Ferramentas")
             if st.toggle("🎥 Visão YOLO", key="tgl_v1"):
-                # Passa o modelo carregado pelo cache diretamente
-                webrtc_streamer(key="stream_v1", video_processor_factory=lambda: VideoProcessor(yolo_model))
+                webrtc_streamer(
+                    key="vision_geral",
+                    mode=WebRtcMode.SENDRECV,
+                    video_processor_factory=lambda: VideoProcessor(st.session_state.yolo_model),
+                    rtc_configuration={
+                        "iceServers": [{"urls": ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"]}]
+                    },
+                    media_stream_constraints={"video": True, "audio": False},
+                    async_processing=True
+                )
             
             up_geral = st.file_uploader("📎 Base de Dados", type=["pdf", "csv", "txt"], key="up_v1")
             if st.button("🗑️ Limpar Chat"):
@@ -99,28 +105,22 @@ def show_chatbot():
                 st.rerun()
             
             st.write("---")
-            st.write("🛠️ **Auxiliares**")
             ft_sel = st.selectbox("Selecionar:", list(dict_ferramentas.keys()), key="ft_geral")
-            
             if ft_sel == "AlphaFold":
-                sub_sel = st.selectbox("Tipo de AlphaFold:", list(dict_ferramentas["AlphaFold"]["sub"].keys()), key="sub_geral")
+                sub_sel = st.selectbox("Tipo:", list(dict_ferramentas["AlphaFold"]["sub"].keys()))
                 info = dict_ferramentas["AlphaFold"]["sub"][sub_sel]
-                btn_name = sub_sel
             else:
                 info = dict_ferramentas[ft_sel]
-                btn_name = ft_sel
-
-            with st.popover("Ver Detalhes", use_container_width=True):
+            
+            with st.popover("Ver Detalhes"):
                 st.write(info["desc"])
-                st.link_button(f"Abrir {btn_name}", info["url"], use_container_width=True)
+                st.link_button("Abrir", info["url"])
 
         with col_c1:
-            chat_container = st.container(height=500, border=False)
             for m in st.session_state.messages_geral:
-                chat_container.chat_message(m["role"]).write(m["content"])
+                st.chat_message(m["role"]).write(m["content"])
             
     else:
-        # Lógica similar para a aba de Agentes...
         col_c2, col_t2 = st.columns([3, 1])
         with col_t2:
             st.write("### 👥 Squad")
@@ -129,24 +129,19 @@ def show_chatbot():
             if st.button("🗑️ Limpar Squad"):
                 st.session_state.messages_agente = []
                 st.rerun()
-            
-            # (Repetir lógica de auxiliares aqui se desejar)
 
         with col_c2:
-            chat_container = st.container(height=500, border=False)
             for m in st.session_state.messages_agente:
-                chat_container.chat_message(m["role"]).write(m["content"])
+                st.chat_message(m["role"]).write(m["content"])
 
     if prompt := st.chat_input("Digite sua mensagem..."):
         h_key = "messages_geral" if escolha_aba == "💬 Chat Científico" else "messages_agente"
-        arquivo_ativo = up_geral if escolha_aba == "💬 Chat Científico" else up_agente
-        dados_extraidos = extrair_texto(arquivo_ativo)
+        persona = "Consultor Sênior PhD" if escolha_aba == "💬 Chat Científico" else esp_nome
         
-        persona = "Consultor Sênior em Engenharia" if escolha_aba == "💬 Chat Científico" else esp_nome
-
         st.session_state[h_key].append({"role": "user", "content": prompt})
-        with st.spinner(f"O {persona} está processando..."):
-            resposta = responder_ia(prompt, st.session_state[h_key], dados_extraidos, persona)
+        with st.spinner("Processando..."):
+            dados_doc = extrair_texto(up_geral if escolha_aba == "💬 Chat Científico" else up_agente)
+            resposta = responder_ia(prompt, st.session_state[h_key], dados_doc, persona)
             st.session_state[h_key].append({"role": "assistant", "content": resposta})
         st.rerun()
 
