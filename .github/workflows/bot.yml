@@ -21,7 +21,7 @@ jobs:
 
       - name: Instalando Bibliotecas
         run: |
-           pip install pandas supabase xlsxwriter
+           pip install pandas supabase xlsxwriter fpdf2
 
       - name: Executando o Worker
         env:
