@@ -147,9 +147,16 @@ def show_substances():
             
             # --- HISTÓRICO DE MOVIMENTAÇÕES ---
             with st.expander("📜 Histórico Recente de Alterações"):
-                logs_res = supabase.table("logs_estoque").select("*").eq("org_name", org_usuario).order("created_at", desc=True).limit(5).execute()
+                logs_res = supabase.table("logs_estoque")\
+                    .select("*")\
+                    .eq("org_name", org_usuario)\
+                    .not.ilike("substancia", "CADASTRO EQUIP%")\
+                    .not.ilike("substancia", "MANUTENÇÃO%")\
+                    .not.ilike("substancia", "EDITOU EQUIP%")\
+                    .order("created_at", desc=True)\
+                    .limit(5).execute()
                 if logs_res.data:
-                    log_df = pd.DataFrame(logs_res.data)
+                   log_df = pd.DataFrame(logs_res.data)
                     log_df['created_at'] = pd.to_datetime(log_df['created_at']).dt.strftime('%d/%m %H:%M')
                     st.table(log_df[['created_at', 'usuario', 'substancia', 'quantidade_antiga', 'quantidade_nova']])
 
@@ -174,3 +181,4 @@ def show_substances():
 
 if __name__ == "__main__":
     show_substances()
+
