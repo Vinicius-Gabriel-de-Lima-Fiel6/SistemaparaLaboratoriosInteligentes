@@ -86,12 +86,46 @@ def show_reports(supabase): # Recebe a conexão do app.py
         except Exception as e:
             st.error(f"Erro na exportação: {e}")
 
-    # --- ABA 3: CONFIGURAÇÃO DO BOT ---
+
     with aba_bot:
-        st.subheader("Configurar Bot de Envio")
-        with st.form("bot_config"):
-            email = st.text_input("E-mail do Técnico")
-            dia = st.selectbox("Dia", ["Segunda-feira", "Sexta-feira"])
-            hora = st.time_input("Hora")
-            if st.form_submit_button("Ativar Bot"):
-                st.success("Agendamento salvo!")
+        st.subheader("🤖 Configurar Agente de Automação")
+        st.info("Este bot enviará relatórios automaticamente utilizando as configurações abaixo.")
+        
+
+        config_existente = supabase.table("config_automacao").select("*").eq("org_name", org).execute().data
+        default_data = config_existente[0] if config_existente else {}
+
+        with st.form("config_bot_form"):
+            email_dest = st.text_input("E-mail de Destino", value=default_data.get('email_destino', ""))
+            
+            c1, c2 = st.columns(2)
+            dia_sem = c1.selectbox("Dia da Semana", 
+                                   ["Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado", "Domingo"],
+                                   index=["Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado", "Domingo"].index(default_data.get('dia_semana', "Segunda-feira")))
+            
+         
+            hora_val = datetime.strptime(default_data.get('horario', "08:00:00"), "%H:%M:%S").time() if default_data.get('horario') else datetime.now().time()
+            horario_envio = c2.time_input("Horário do Disparo", value=hora_val)
+            
+            st.divider()
+            st.caption("🔑 Configurações de E-mail (SMTP)")
+            s_user = st.text_input("Usuário SMTP (E-mail)", value=default_data.get('smtp_user', ""), help="Ex: seu-email@gmail.com")
+            s_pass = st.text_input("Senha SMTP (Senha de App)", value=default_data.get('smtp_pass', ""), type="password", help="Use uma 'Senha de App' gerada na sua conta Google/Outlook")
+            
+            if st.form_submit_button("💾 Salvar e Ativar Automação"):
+                payload = {
+                    "org_name": org,
+                    "email_destino": email_dest,
+                    "dia_semana": dia_sem,
+                    "horario": str(horario_envio),
+                    "smtp_user": s_user,
+                    "smtp_pass": s_pass
+                }
+                
+                try:
+                    # Upsert baseado no org_name (garantindo uma config por empresa)
+                    supabase.table("config_automacao").upsert(payload, on_conflict="org_name").execute()
+                    st.success("✅ Automação configurada com sucesso!")
+                except Exception as e:
+                    st.error(f"Erro ao salvar configuração: {e}")
+
