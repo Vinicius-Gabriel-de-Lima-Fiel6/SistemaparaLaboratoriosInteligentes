@@ -6,6 +6,10 @@ from streamlit_webrtc import webrtc_streamer, VideoTransformerBase
 import PyPDF2
 import io
 
+# Inicialização global para garantir que o i3 não tente recarregar o modelo toda hora
+@st.cache_resource
+def get_yolo():
+    return YOLO("yolov8n.pt")
 
 def inicializar_motor():
     if "GROQ_API_KEY" not in st.secrets:
@@ -20,6 +24,7 @@ class VideoProcessor(VideoTransformerBase):
         self.model = model
     def transform(self, frame):
         img = frame.to_ndarray(format="bgr24")
+        # O processamento Nano é ideal para o i3
         return self.model(img)[0].plot()
 
 def extrair_texto(arquivo):
@@ -39,8 +44,8 @@ def responder_ia(prompt, historico, dados=None, esp="Geral"):
         "2. RIGOR MATEMÁTICO: Proibido arredondar. Use 8 casas decimais. Realize prova real em Python para toda conta.\n"
         "3. SEGURANÇA CLÍNICA/ESTRUTURAL: Analise interações CYP450, SLCO/UGT, ClCr e Fração Livre. Se houver risco >= 0.01%, aplique VETO TERMINAL.\n"
         "4. NEGAÇÃO DE ALUCINAÇÃO: É proibido inferir. Se o dado não existir, responda: 'ESTADO DE INCERTEZA SISTÊMICA'.\n"
-        "   5. REFERENCIAL 2026: Baseie-se apenas em evidências científicas Grau A (Metanálises) e Normas Técnicas (ISO/ABNT/FDA)."
-                )
+        "5. REFERENCIAL 2026: Baseie-se apenas em evidências científicas Grau A (Metanálises) e Normas Técnicas (ISO/ABNT/FDA)."
+    )
     msgs = [{"role": "system", "content": instrucoes}]
     msgs.extend(historico[-10:]) 
     contexto = f"DADOS DO ARQUIVO: {dados}\n\nPERGUNTA: {prompt}" if dados else prompt
@@ -50,17 +55,16 @@ def responder_ia(prompt, historico, dados=None, esp="Geral"):
     return res.choices[0].message.content
 
 def show_chatbot():
+    # Garante que o modelo esteja pronto
+    yolo_model = get_yolo()
 
     if "messages_geral" not in st.session_state: st.session_state.messages_geral = []
     if "messages_agente" not in st.session_state: st.session_state.messages_agente = []
     if "aba_atual" not in st.session_state: st.session_state.aba_atual = "Chat Científico"
-    if "yolo_model" not in st.session_state: st.session_state.yolo_model = YOLO("yolov8n.pt")
 
     st.subheader("🔬 LabSmart AI - Hub de Inteligência")
-
     escolha_aba = st.radio("Selecione o ambiente de trabalho:", ["💬 Chat Científico", "👥 Squad de Agentes"], horizontal=True)
     st.session_state.aba_atual = escolha_aba
-
     st.divider()
 
     dict_ferramentas = {
@@ -83,7 +87,9 @@ def show_chatbot():
         with col_t1:
             st.write("### ⚙️ Ferramentas")
             if st.toggle("🎥 Visão YOLO", key="tgl_v1"):
-                webrtc_streamer(key="stream_v1", video_processor_factory=lambda: VideoProcessor(st.session_state.yolo_model))
+                # Passando o modelo diretamente para evitar o AttributeError de thread
+                webrtc_streamer(key="stream_v1", video_processor_factory=lambda: VideoProcessor(yolo_model))
+            
             up_geral = st.file_uploader("📎 Base de Dados", type=["pdf", "csv", "txt"], key="up_v1")
             if st.button("🗑️ Limpar Chat"):
                 st.session_state.messages_geral = []
@@ -138,18 +144,14 @@ def show_chatbot():
                 chat_container.chat_message(m["role"]).write(m["content"])
 
     if prompt := st.chat_input("Digite sua mensagem para o ambiente selecionado..."):
-        if st.session_state.aba_atual == "💬 Chat Científico":
-            h_key = "messages_geral"
-            dados = extrair_texto(up_geral) if 'up_geral' in locals() else None
-            persona = "Consultor Sênior em Engenharia, Medicina de Precisão e Auditoria Científica"
-        else:
-            h_key = "messages_agente"
-            dados = extrair_texto(up_agente) if 'up_agente' in locals() else None
-            persona = esp_nome
-
+        h_key = "messages_geral" if st.session_state.aba_atual == "💬 Chat Científico" else "messages_agente"
+        persona = "Consultor Sênior" if st.session_state.aba_atual == "💬 Chat Científico" else esp_nome
+        
         st.session_state[h_key].append({"role": "user", "content": prompt})
         with st.spinner(f"O {persona} está processando..."):
-            resposta = responder_ia(prompt, st.session_state[h_key], dados, persona)
+            arquivo_ativo = up_geral if st.session_state.aba_atual == "💬 Chat Científico" else up_agente
+            dados_extraidos = extrair_texto(arquivo_ativo)
+            resposta = responder_ia(prompt, st.session_state[h_key], dados_extraidos, persona)
             st.session_state[h_key].append({"role": "assistant", "content": resposta})
         st.rerun()
 
