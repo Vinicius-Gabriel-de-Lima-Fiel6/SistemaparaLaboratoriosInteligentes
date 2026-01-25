@@ -99,7 +99,8 @@ def show_substances():
                 buf_zip = BytesIO()
                 with zipfile.ZipFile(buf_zip, 'w') as zf:
                     for _, row in df.iterrows():
-                        qr_content = f"Item: {row['nome']}\nCAS: {row.get('cas', 'N/A')}\nEmergencia: {row.get('instrucoes', 'N/A')}"
+                        # ALTERAÇÃO: Agora aponta para a URL do seu App
+                        qr_content = f"https://sistemadeqrcodes.streamlit.app/"
                         img_qr = qrcode.make(qr_content)
                         img_buf = BytesIO(); img_qr.save(img_buf, format="PNG")
                         zf.writestr(f"qr_{row['nome'].replace(' ', '_')}.png", img_buf.getvalue())
@@ -132,10 +133,11 @@ def show_substances():
                 st.warning(f"**Instruções de Emergência:**\n\n{detalhes.get('instrucoes', 'Não informadas.')}")
                 st.caption(f"CAS: {detalhes.get('cas', 'N/A')}")
             with col_qr:
-                qr_content = f"Substancia: {detalhes['nome']}\nCAS: {detalhes.get('cas', 'N/A')}\nEmergencia: {detalhes.get('instrucoes', 'N/A')}"
+                # ALTERAÇÃO: Agora aponta para a URL do seu App
+                qr_content = f"https://sistemadeqrcodes.streamlit.app/"
                 qr = qrcode.make(qr_content)
                 buf = BytesIO(); qr.save(buf, format="PNG")
-                st.image(buf.getvalue(), caption="QR Code", width=120)
+                st.image(buf.getvalue(), caption="Abrir Sistema", width=120)
                 st.download_button("📥 Baixar QR", buf.getvalue(), f"qr_{detalhes['nome']}.png", "image/png")
             
             # --- HISTÓRICO RECENTE (COM FILTRO CORRIGIDO) ---
