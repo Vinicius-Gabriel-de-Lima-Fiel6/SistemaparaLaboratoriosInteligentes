@@ -23,26 +23,27 @@ def show_estoque():
         
         if not df.empty:
             # --- SEÇÃO DE ALERTAS E MÉTRICAS ---
-            # Garante que as colunas numéricas funcionem para o cálculo
-            df['quantidade'] = pd.to_numeric(df['quantidade'], errors='coerce').fillna(0)
-            df['estoque_minimo'] = pd.to_numeric(df.get('estoque_minimo', 0), errors='coerce').fillna(0)
-
-            # --- ACRESCIMO: Lógica de Status Visual (Mesma do substancias.py) ---
-            def definir_status(row):
-                if row['quantidade'] <= 0: return "🔴 ESGOTADO"
-                if row['quantidade'] <= row['estoque_minimo']: return "🟡 REPOR"
-                return "🟢 OK"
-            
-            df['Status'] = df.apply(definir_status, axis=1)
-            
             col1, col2 = st.columns(2)
-            # Itens baixos agora consideram o estoque_minimo dinâmico da linha
-            itens_baixos = df[df['quantidade'] <= df['estoque_minimo']]
+            # Verifica se existe a coluna 'quantidade', senão usa 0
+            df['quantidade'] = pd.to_numeric(df['quantidade'], errors='coerce').fillna(0)
             
+            # --- LÓGICA DE CORES (SEMÁFORO) ---
+            # Criando a coluna visual baseada na quantidade
+            def aplicar_cor(qtd):
+                if qtd < 10:
+                    return "🔴 CRÍTICO (Repor)"
+                elif 10 <= qtd <= 20:
+                    return "🟡 ATENÇÃO (Baixo)"
+                else:
+                    return "🟢 SEGURO (Ok)"
+            
+            df['Status'] = df['quantidade'].apply(aplicar_cor)
+
+            itens_baixos = df[df['quantidade'] < 10]
             col1.metric("Total no Inventário", len(df))
             col2.metric("Itens para Reposição", len(itens_baixos), delta_color="inverse")
 
-            # --- SEÇÃO DE COMPRAS DIRETAS (MANTIDA 100%) ---
+            # --- SEÇÃO DE COMPRAS DIRETAS ---
             if len(itens_baixos) > 0:
                 with st.expander("🛒 COMPRA RÁPIDA (Itens com estoque baixo)", expanded=True):
                     st.write("Selecione um item para buscar fornecedores online:")
@@ -57,54 +58,52 @@ def show_estoque():
 
             st.divider()
 
-            # --- TABELA DE EDIÇÃO (ACRESCENTADO COLUNA DE STATUS E MINIMO) ---
+            # --- TABELA DE EDIÇÃO ---
             st.subheader(f"📝 Inventário: {org_usuario}")
             
             # Bloqueia edição para 'Visualizador'
             is_disabled = (role_usuario == "Visualizador")
             
-            # Organizamos as colunas para o Status vir na frente
-            colunas_ordem = ['Status', 'nome', 'quantidade', 'estoque_minimo', 'unidade', 'id']
-            
+            # Exibição com configuração de colunas para mostrar o Status
             edited_df = st.data_editor(
-                df[colunas_ordem], 
+                df, 
                 use_container_width=True, 
                 hide_index=True, 
                 disabled=is_disabled,
+                # Impede o usuário de mudar o org_name e o Status manualmente
                 column_config={
-                    "Status": st.column_config.TextColumn("Status", help="Cálculo automático", disabled=True),
-                    "id": st.column_config.TextColumn("ID", disabled=True),
-                    "quantidade": st.column_config.NumberColumn("Qtd Atual", min_value=0),
-                    "estoque_minimo": st.column_config.NumberColumn("Alerta Mínimo", min_value=0)
+                    "org_name": st.column_config.TextColumn("Empresa", disabled=True),
+                    "Status": st.column_config.TextColumn("Status Visual", disabled=True),
+                    "id": None  # Oculta o ID para o usuário mas mantém no DataFrame para o update
                 }
             )
 
-            # Botão de salvar (Lógica mantida, acrescentando o update do estoque_minimo)
+            # Botão de salvar (Lógica de permissão mantida)
             if role_usuario in ["ADM", "Tecnico"]:
                 if st.button("💾 Salvar Alterações no Banco"):
                     with st.spinner("Sincronizando com a nuvem..."):
                         for _, row in edited_df.iterrows():
+                            # Faz o update linha por linha no Supabase usando o ID
                             supabase.table("substancias").update({
                                 "nome": row['nome'],
                                 "quantidade": row['quantidade'],
-                                "estoque_minimo": row['estoque_minimo'], # AGORA SALVA O MÍNIMO TAMBÉM
                                 "unidade": row['unidade'] if 'unidade' in row else "un"
                             }).eq("id", row['id']).execute()
                         
-                        st.success("Estoque e alertas salvos permanentemente!")
+                        st.success("Estoque salvo permanentemente na nuvem!")
                         st.rerun()
 
         else:
             st.warning(f"O inventário da empresa {org_usuario} está vazio.")
             if role_usuario != "Visualizador":
                 if st.button("➕ Criar Primeiro Item"):
-                    supabase.table("substancias").insert({"nome": "Novo Item", "quantidade": 0, "estoque_minimo": 10, "org_name": org_usuario}).execute()
+                    supabase.table("substancias").insert({"nome": "Novo Item", "quantidade": 0, "org_name": org_usuario}).execute()
                     st.rerun()
 
     except Exception as e:
         st.error(f"Erro de Conexão: {e}")
 
-    # --- BUSCA GERAL (MANTIDA 100%) ---
+    # --- BUSCA GERAL ---
     st.divider()
     st.subheader("🌐 Pesquisa Externa")
     busca_livre = st.text_input("Procurar qualquer reagente para compra:")
