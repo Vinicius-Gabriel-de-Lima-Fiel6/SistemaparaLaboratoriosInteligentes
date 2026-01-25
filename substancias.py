@@ -11,7 +11,7 @@ url = st.secrets["SUPABASE_URL"]
 key = st.secrets["SUPABASE_KEY"]
 supabase = create_client(url, key)
 
-# URL Base do seu sistema (ajuste se o endereço mudar)
+# URL Base do seu sistema
 URL_SISTEMA = "https://sistemadeqrcodes.streamlit.app/"
 
 def render_hommel(saude, fogo, reat, esp):
@@ -21,7 +21,7 @@ def render_hommel(saude, fogo, reat, esp):
             <div style="position: absolute; top: 0; left: 0; width: 40px; height: 40px; background: #ff4b4b; display: flex; align-items: center; justify-content: center; transform: rotate(-45deg); color: white; font-weight: bold;">{fogo}</div>
             <div style="position: absolute; top: 0; left: 40px; width: 40px; height: 40px; background: #f1c40f; display: flex; align-items: center; justify-content: center; transform: rotate(-45deg); color: black; font-weight: bold;">{reat}</div>
             <div style="position: absolute; top: 40px; left: 0; width: 40px; height: 40px; background: #3498db; display: flex; align-items: center; justify-content: center; transform: rotate(-45deg); color: white; font-weight: bold;">{saude}</div>
-            <div style="position: absolute; top: 40px; left: 40px; width: 40px; height: 40px; background: #fff; display: flex; align-items: center; justify-content: center; transform: rotate(-45deg); color: black; font-weight: bold; font-size: 0.7em;">{esp if esp else ''}</div>
+            <div style="position: absolute; top: 40px; left: 40px; width: 40px; height: 40px; background: #fff; display: flex; align-items: center; justify-content: center; transform: rotate(-45deg); color: black; font-size: 0.7em; font-weight: bold;">{esp if esp else ''}</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -33,6 +33,28 @@ def show_substances():
     org_usuario = user_data.get('org_name', 'Default')
     role_usuario = user_data.get('role', 'Visualizador')
     username_atual = user_data.get('username', 'Usuário')
+
+    # --- FUNÇÃO INTERNA PARA STATUS VISUAL ---
+    def get_status_visual(row):
+        alertas = []
+        try:
+            # Lógica de Estoque
+            if float(row['quantidade']) <= float(row['estoque_minimo']):
+                alertas.append("⚠️ Baixo")
+            
+            # Lógica de Validade (MM/AAAA)
+            hoje = datetime.now()
+            mes, ano = map(int, row['validade'].split('/'))
+            data_val = datetime(ano, mes, 1)
+            
+            if data_val < hoje.replace(day=1):
+                alertas.append("🔴 Vencido")
+            elif data_val.year == hoje.year and data_val.month == hoje.month:
+                alertas.append("🟡 Vence este mês")
+        except:
+            return "⚪ S/ Info"
+            
+        return " | ".join(alertas) if alertas else "✅ OK"
 
     # --- 1. CADASTRO DE SUBSTÂNCIAS ---
     with st.container(border=True):
@@ -88,8 +110,17 @@ def show_substances():
         df = pd.DataFrame(response.data)
 
         if not df.empty:
+            # Aplicando a lógica de avisos
+            df['Status'] = df.apply(get_status_visual, axis=1)
+            
+            # Alerta de topo para itens críticos
+            criticos = df[df['Status'].str.contains("🔴|⚠️")]
+            if not criticos.empty:
+                st.error(f"🚨 Atenção: {len(criticos)} itens com problemas de estoque ou validade encontrados.")
+
             st.subheader(f"📋 Inventário: {org_usuario}")
-            cols_ordem = ['id', 'nome', 'cas', 'quantidade', 'estoque_minimo', 'validade']
+            # Adicionei a coluna 'Status' na visualização principal
+            cols_ordem = ['Status', 'nome', 'cas', 'quantidade', 'estoque_minimo', 'validade']
             st.dataframe(df[cols_ordem], use_container_width=True, hide_index=True)
 
             with st.container(border=True):
@@ -102,8 +133,6 @@ def show_substances():
                 buf_zip = BytesIO()
                 with zipfile.ZipFile(buf_zip, 'w') as zf:
                     for _, row in df.iterrows():
-                        # MELHORIA: O QR Code agora aponta para a URL com o ID do item
-                        # Exemplo: https://sistemadeqrcodes.streamlit.app/?id=123
                         qr_link = f"{URL_SISTEMA}?id={row['id']}"
                         img_qr = qrcode.make(qr_link)
                         img_buf = BytesIO(); img_qr.save(img_buf, format="PNG")
@@ -137,14 +166,12 @@ def show_substances():
                 st.warning(f"**Instruções de Emergência:**\n\n{detalhes.get('instrucoes', 'Não informadas.')}")
                 st.caption(f"CAS: {detalhes.get('cas', 'N/A')}")
             with col_qr:
-                # MELHORIA: QR Code individual também com link dinâmico
                 qr_link_individual = f"{URL_SISTEMA}?id={detalhes['id']}"
                 qr = qrcode.make(qr_link_individual)
                 buf = BytesIO(); qr.save(buf, format="PNG")
                 st.image(buf.getvalue(), caption="Scan para Detalhes", width=120)
                 st.download_button("📥 Baixar QR", buf.getvalue(), f"qr_{detalhes['nome']}.png", "image/png")
             
-            # --- HISTÓRICO RECENTE ---
             with st.expander("📜 Histórico Recente de Alterações"):
                 logs_res = (
                     supabase.table("logs_estoque")
