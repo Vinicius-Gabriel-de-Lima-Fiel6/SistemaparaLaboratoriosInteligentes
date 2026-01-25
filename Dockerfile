@@ -1,24 +1,14 @@
-FROM python:3.11-slim
-
-WORKDIR /app
-
-# Instalar dependências do sistema
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    curl \
-    libgl1 \
-    libglib2.0-0 \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copiar requirements
+# Estágio 1: Builder
+FROM python:3.11-slim AS builder
+RUN apt-get update && apt-get install -y build-essential
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --user -r requirements.txt
 
-# Copiar código
+# Estágio 2: Runtime (Imagem final)
+FROM python:3.11-slim
+WORKDIR /app
+# Copia apenas o que foi instalado no estágio anterior
+COPY --from=builder /root/.local /root/.local
 COPY . .
-
-# Expor porta
-EXPOSE 8080
-
-# Comando de inicialização
-CMD ["streamlit", "run", "app.py", "--server.port=8080", "--server.address=0.0.0.0"]
+ENV PATH=/root/.local/bin:$PATH
+CMD ["python", "app.py"]
