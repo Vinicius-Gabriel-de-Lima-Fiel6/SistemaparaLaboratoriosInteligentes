@@ -27,14 +27,6 @@ def show_estoque():
             # Verifica se existe a coluna 'quantidade', senão usa 0
             df['quantidade'] = pd.to_numeric(df['quantidade'], errors='coerce').fillna(0)
             
-            # --- ACRESCIMO: Lógica Visual (Não afeta o Banco) ---
-            def definir_status(qtd):
-                if qtd <= 0: return "🔴 ESGOTADO"
-                if qtd < 10: return "🟡 REPOR"
-                return "🟢 OK"
-            df['Status'] = df['quantidade'].apply(definir_status)
-            # ---------------------------------------------------
-
             itens_baixos = df[df['quantidade'] < 10]
             col1.metric("Total no Inventário", len(df))
             col2.metric("Itens para Reposição", len(itens_baixos), delta_color="inverse")
@@ -65,14 +57,11 @@ def show_estoque():
                 use_container_width=True, 
                 hide_index=True, 
                 disabled=is_disabled,
-                # ACRESCIMO: Configuração para mostrar a cor na tabela
-                column_config={
-                    "org_name": st.column_config.TextColumn("Empresa", disabled=True),
-                    "Status": st.column_config.TextColumn("Status", help="Aviso visual de estoque", disabled=True)
-                }
+                # Impede o usuário de mudar o org_name manualmente
+                column_config={"org_name": st.column_config.TextColumn("Empresa", disabled=True)}
             )
 
-            # Botão de salvar (Lógica ORIGINAL mantida 100%)
+            # Botão de salvar (Lógica de permissão mantida)
             if role_usuario in ["ADM", "Tecnico"]:
                 if st.button("💾 Salvar Alterações no Banco"):
                     with st.spinner("Sincronizando com a nuvem..."):
