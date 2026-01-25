@@ -11,6 +11,9 @@ url = st.secrets["SUPABASE_URL"]
 key = st.secrets["SUPABASE_KEY"]
 supabase = create_client(url, key)
 
+# URL Base do seu sistema (ajuste se o endereço mudar)
+URL_SISTEMA = "https://sistemadeqrcodes.streamlit.app/"
+
 def render_hommel(saude, fogo, reat, esp):
     st.markdown(f"""
     <div style="display: flex; justify-content: center; align-items: center; background: #1e1e1e; padding: 15px; border-radius: 10px; border: 1px solid #333;">
@@ -99,9 +102,10 @@ def show_substances():
                 buf_zip = BytesIO()
                 with zipfile.ZipFile(buf_zip, 'w') as zf:
                     for _, row in df.iterrows():
-                        # ALTERAÇÃO: Agora aponta para a URL do seu App
-                        qr_content = f"https://sistemadeqrcodes.streamlit.app/"
-                        img_qr = qrcode.make(qr_content)
+                        # MELHORIA: O QR Code agora aponta para a URL com o ID do item
+                        # Exemplo: https://sistemadeqrcodes.streamlit.app/?id=123
+                        qr_link = f"{URL_SISTEMA}?id={row['id']}"
+                        img_qr = qrcode.make(qr_link)
                         img_buf = BytesIO(); img_qr.save(img_buf, format="PNG")
                         zf.writestr(f"qr_{row['nome'].replace(' ', '_')}.png", img_buf.getvalue())
                 
@@ -133,14 +137,14 @@ def show_substances():
                 st.warning(f"**Instruções de Emergência:**\n\n{detalhes.get('instrucoes', 'Não informadas.')}")
                 st.caption(f"CAS: {detalhes.get('cas', 'N/A')}")
             with col_qr:
-                # ALTERAÇÃO: Agora aponta para a URL do seu App
-                qr_content = f"https://sistemadeqrcodes.streamlit.app/"
-                qr = qrcode.make(qr_content)
+                # MELHORIA: QR Code individual também com link dinâmico
+                qr_link_individual = f"{URL_SISTEMA}?id={detalhes['id']}"
+                qr = qrcode.make(qr_link_individual)
                 buf = BytesIO(); qr.save(buf, format="PNG")
-                st.image(buf.getvalue(), caption="Abrir Sistema", width=120)
+                st.image(buf.getvalue(), caption="Scan para Detalhes", width=120)
                 st.download_button("📥 Baixar QR", buf.getvalue(), f"qr_{detalhes['nome']}.png", "image/png")
             
-            # --- HISTÓRICO RECENTE (COM FILTRO CORRIGIDO) ---
+            # --- HISTÓRICO RECENTE ---
             with st.expander("📜 Histórico Recente de Alterações"):
                 logs_res = (
                     supabase.table("logs_estoque")
