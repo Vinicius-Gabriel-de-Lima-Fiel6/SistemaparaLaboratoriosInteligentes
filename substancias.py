@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 from supabase import create_client
-from datetime import datetime
+from datetime import datetime, timedelta
 import qrcode
 from io import BytesIO
 import zipfile
@@ -34,25 +34,36 @@ def show_substances():
     role_usuario = user_data.get('role', 'Visualizador')
     username_atual = user_data.get('username', 'Usuário')
 
-    # --- FUNÇÃO INTERNA PARA STATUS VISUAL ---
+    # --- FUNÇÃO INTERNA PARA STATUS VISUAL (CORRIGIDA) ---
     def get_status_visual(row):
         alertas = []
         try:
-            # Lógica de Estoque
-            if float(row['quantidade']) <= float(row['estoque_minimo']):
+            # 1. Validação de Estoque
+            qtd = float(row.get('quantidade', 0))
+            min_est = float(row.get('estoque_minimo', 0))
+            if qtd <= min_est:
                 alertas.append("⚠️ Baixo")
             
-            # Lógica de Validade (MM/AAAA)
-            hoje = datetime.now()
-            mes, ano = map(int, row['validade'].split('/'))
-            data_val = datetime(ano, mes, 1)
-            
-            if data_val < hoje.replace(day=1):
-                alertas.append("🔴 Vencido")
-            elif data_val.year == hoje.year and data_val.month == hoje.month:
-                alertas.append("🟡 Vence este mês")
+            # 2. Validação de Validade (MM/AAAA)
+            val_raw = str(row.get('validade', '')).strip()
+            if "/" in val_raw:
+                mes, ano = map(int, val_raw.split('/'))
+                if ano < 100: ano += 2000 # Caso digitem 25 em vez de 2025
+                
+                hoje = datetime.now()
+                data_val = datetime(ano, mes, 1)
+                
+                # Compara o primeiro dia do mês da validade com o primeiro dia do mês atual
+                if data_val.date() < hoje.replace(day=1).date():
+                    alertas.append("🔴 Vencido")
+                elif data_val.year == hoje.year and data_val.month == hoje.month:
+                    alertas.append("🟡 Vence este mês")
+            else:
+                # Se não houver barra, verificamos se o campo está apenas vazio
+                if not val_raw or val_raw.lower() == 'none':
+                    return "⚪ Sem Data"
         except:
-            return "⚪ S/ Info"
+            return "⚪ Erro Formato"
             
         return " | ".join(alertas) if alertas else "✅ OK"
 
@@ -110,19 +121,20 @@ def show_substances():
         df = pd.DataFrame(response.data)
 
         if not df.empty:
-            # Aplicando a lógica de avisos
+            # Gerar a coluna de Status dinamicamente
             df['Status'] = df.apply(get_status_visual, axis=1)
             
-            # Alerta de topo para itens críticos
-            criticos = df[df['Status'].str.contains("🔴|⚠️")]
-            if not criticos.empty:
-                st.error(f"🚨 Atenção: {len(criticos)} itens com problemas de estoque ou validade encontrados.")
+            # Alerta de topo para itens que precisam de atenção (estoque baixo ou vencido)
+            criticos_count = len(df[df['Status'].str.contains("🔴|⚠️")])
+            if criticos_count > 0:
+                st.error(f"🚨 Atenção: Existem {criticos_count} itens com problemas de estoque ou validade.")
 
             st.subheader(f"📋 Inventário: {org_usuario}")
-            # Adicionei a coluna 'Status' na visualização principal
+            # Definindo a ordem das colunas com 'Status' em evidência
             cols_ordem = ['Status', 'nome', 'cas', 'quantidade', 'estoque_minimo', 'validade']
             st.dataframe(df[cols_ordem], use_container_width=True, hide_index=True)
 
+            # --- SEÇÃO DE EXPORTAÇÃO ---
             with st.container(border=True):
                 st.markdown("### 📊 Exportação e Análise Externa")
                 col_exp1, col_exp2, col_exp3, col_exp4 = st.columns([1, 1, 1, 1])
@@ -143,6 +155,7 @@ def show_substances():
                     with st.popover("💡 Como analisar no Excel?", use_container_width=True):
                         st.write("1. Clique em Baixar. 2. Abra o Excel Online. 3. Vá em Arquivo > Abrir e envie o CSV.")
 
+            # --- ATUALIZAÇÃO RÁPIDA DE ESTOQUE ---
             if role_usuario in ["ADM", "Tecnico"]:
                 with st.expander("🔄 Atualizar Quantidade em Estoque"):
                     col_sel, col_val, col_btn = st.columns([2, 1, 1])
@@ -157,6 +170,7 @@ def show_substances():
                         }).execute()
                         st.rerun()
 
+            # --- CONSULTA FISPQ (HOMMEL) ---
             st.subheader("🛡️ Consulta de Segurança (FISPQ Digital)")
             substancia_alvo = st.selectbox("Selecione um item:", options=df['nome'].tolist())
             detalhes = df[df['nome'] == substancia_alvo].iloc[0]
@@ -172,6 +186,7 @@ def show_substances():
                 st.image(buf.getvalue(), caption="Scan para Detalhes", width=120)
                 st.download_button("📥 Baixar QR", buf.getvalue(), f"qr_{detalhes['nome']}.png", "image/png")
             
+            # --- HISTÓRICO DE LOGS ---
             with st.expander("📜 Histórico Recente de Alterações"):
                 logs_res = (
                     supabase.table("logs_estoque")
@@ -189,6 +204,7 @@ def show_substances():
                     log_df['created_at'] = pd.to_datetime(log_df['created_at']).dt.strftime('%d/%m %H:%M')
                     st.table(log_df[['created_at', 'usuario', 'substancia', 'quantidade_antiga', 'quantidade_nova']])
 
+            # --- EXCLUSÃO ---
             if role_usuario in ["ADM", "Tecnico"]:
                 with st.expander("🗑️ Remover Substância"):
                     id_del = st.selectbox("ID para remover", options=df['id'].tolist())
