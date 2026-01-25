@@ -27,9 +27,25 @@ def show_estoque():
             # Verifica se existe a coluna 'quantidade', senão usa 0
             df['quantidade'] = pd.to_numeric(df['quantidade'], errors='coerce').fillna(0)
             
+            # Lógica para definir o Status Visual antes de exibir
+            def definir_status(qtd):
+                if qtd <= 0:
+                    return "🔴 ESGOTADO"
+                elif qtd < 10:
+                    return "🟡 REPOR"
+                else:
+                    return "🟢 OK"
+
+            df['Status'] = df['quantidade'].apply(definir_status)
+
             itens_baixos = df[df['quantidade'] < 10]
             col1.metric("Total no Inventário", len(df))
             col2.metric("Itens para Reposição", len(itens_baixos), delta_color="inverse")
+
+            # Alerta visual crítico se houver itens zerados
+            itens_zerados = df[df['quantidade'] <= 0]['nome'].tolist()
+            if itens_zerados:
+                st.error(f"🚨 **URGENTE:** Itens esgotados: {', '.join(itens_zerados)}")
 
             # --- SEÇÃO DE COMPRAS DIRETAS ---
             if len(itens_baixos) > 0:
@@ -52,21 +68,29 @@ def show_estoque():
             # Bloqueia edição para 'Visualizador'
             is_disabled = (role_usuario == "Visualizador")
             
+            # Configuração das colunas para incluir o visual colorido
             edited_df = st.data_editor(
                 df, 
                 use_container_width=True, 
                 hide_index=True, 
                 disabled=is_disabled,
-                # Impede o usuário de mudar o org_name manualmente
-                column_config={"org_name": st.column_config.TextColumn("Empresa", disabled=True)}
+                column_config={
+                    "id": None,  # Esconde o ID para ficar mais limpo
+                    "org_name": st.column_config.TextColumn("Empresa", disabled=True),
+                    "nome": st.column_config.TextColumn("Nome da Substância"),
+                    "quantidade": st.column_config.NumberColumn("Qtd Atual", format="%d"),
+                    "unidade": st.column_config.TextColumn("Unidade"),
+                    "Status": st.column_config.TextColumn("Status Visual", help="🔴 Crítico | 🟡 Atenção | 🟢 Bom", disabled=True)
+                }
             )
 
-            # Botão de salvar (Lógica de permissão mantida)
+            # Botão de salvar (Lógica de permissão mantida intacta)
             if role_usuario in ["ADM", "Tecnico"]:
                 if st.button("💾 Salvar Alterações no Banco"):
                     with st.spinner("Sincronizando com a nuvem..."):
                         for _, row in edited_df.iterrows():
                             # Faz o update linha por linha no Supabase usando o ID
+                            # Note que não enviamos a coluna 'Status' de volta, pois ela é apenas visual
                             supabase.table("substancias").update({
                                 "nome": row['nome'],
                                 "quantidade": row['quantidade'],
