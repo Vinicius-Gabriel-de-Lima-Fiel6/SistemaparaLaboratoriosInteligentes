@@ -15,6 +15,7 @@ def show_estoque():
     user_data = st.session_state.get('user_data', {})
     org_usuario = user_data.get('org_name', 'Default')
     role_usuario = user_data.get('role', 'Visualizador')
+    username_atual = user_data.get('username', 'Usuário Desconhecido')
 
     try:
         # --- BUSCA DADOS NO SUPABASE FILTRANDO PELA EMPRESA ---
@@ -61,19 +62,42 @@ def show_estoque():
                 column_config={"org_name": st.column_config.TextColumn("Empresa", disabled=True)}
             )
 
-            # Botão de salvar (Lógica de permissão mantida)
+            # Botão de salvar (Lógica de permissão mantida com acréscimo de LOGS)
             if role_usuario in ["ADM", "Tecnico"]:
                 if st.button("💾 Salvar Alterações no Banco"):
-                    with st.spinner("Sincronizando com a nuvem..."):
-                        for _, row in edited_df.iterrows():
-                            # Faz o update linha por linha no Supabase usando o ID
-                            supabase.table("substancias").update({
-                                "nome": row['nome'],
-                                "quantidade": row['quantidade'],
-                                "unidade": row['unidade'] if 'unidade' in row else "un"
-                            }).eq("id", row['id']).execute()
+                    with st.spinner("Sincronizando e gerando logs..."):
+                        houve_mudanca = False
                         
-                        st.success("Estoque salvo permanentemente na nuvem!")
+                        for index, row in edited_df.iterrows():
+                            # Localiza o valor original para comparar se houve mudança na quantidade
+                            valor_original = df.loc[df['id'] == row['id']].iloc[0]
+                            qtd_antiga = float(valor_original['quantidade'])
+                            qtd_nova = float(row['quantidade'])
+
+                            if qtd_nova != qtd_antiga:
+                                houve_mudanca = True
+                                
+                                # 1. Atualiza a tabela 'substancias'
+                                supabase.table("substancias").update({
+                                    "nome": row['nome'],
+                                    "quantidade": qtd_nova,
+                                    "unidade": row['unidade'] if 'unidade' in row else "un"
+                                }).eq("id", row['id']).execute()
+                                
+                                # 2. Insere o registro na 'logs_estoque' conforme seu diagrama
+                                supabase.table("logs_estoque").insert({
+                                    "usuario": username_atual,
+                                    "substancia": row['nome'],
+                                    "quantidade_antiga": qtd_antiga,
+                                    "quantidade_nova": qtd_nova,
+                                    "org_name": org_usuario
+                                }).execute()
+                        
+                        if houve_mudanca:
+                            st.success("Estoque e Histórico atualizados com sucesso!")
+                        else:
+                            st.info("Nenhuma alteração de quantidade foi detectada.")
+                            
                         st.rerun()
 
         else:
