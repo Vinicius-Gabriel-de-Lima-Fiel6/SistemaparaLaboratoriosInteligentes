@@ -27,18 +27,6 @@ def show_estoque():
             # Verifica se existe a coluna 'quantidade', senão usa 0
             df['quantidade'] = pd.to_numeric(df['quantidade'], errors='coerce').fillna(0)
             
-            # --- LÓGICA DE CORES (SEMÁFORO) ---
-            # Criando a coluna visual baseada na quantidade
-            def aplicar_cor(qtd):
-                if qtd < 10:
-                    return "🔴 CRÍTICO (Repor)"
-                elif 10 <= qtd <= 20:
-                    return "🟡 ATENÇÃO (Baixo)"
-                else:
-                    return "🟢 SEGURO (Ok)"
-            
-            df['Status'] = df['quantidade'].apply(aplicar_cor)
-
             itens_baixos = df[df['quantidade'] < 10]
             col1.metric("Total no Inventário", len(df))
             col2.metric("Itens para Reposição", len(itens_baixos), delta_color="inverse")
@@ -64,18 +52,13 @@ def show_estoque():
             # Bloqueia edição para 'Visualizador'
             is_disabled = (role_usuario == "Visualizador")
             
-            # Exibição com configuração de colunas para mostrar o Status
             edited_df = st.data_editor(
                 df, 
                 use_container_width=True, 
                 hide_index=True, 
                 disabled=is_disabled,
-                # Impede o usuário de mudar o org_name e o Status manualmente
-                column_config={
-                    "org_name": st.column_config.TextColumn("Empresa", disabled=True),
-                    "Status": st.column_config.TextColumn("Status Visual", disabled=True),
-                    "id": None  # Oculta o ID para o usuário mas mantém no DataFrame para o update
-                }
+                # Impede o usuário de mudar o org_name manualmente
+                column_config={"org_name": st.column_config.TextColumn("Empresa", disabled=True)}
             )
 
             # Botão de salvar (Lógica de permissão mantida)
