@@ -119,7 +119,7 @@ def show_estoque():
                 )
 
                 if role_usuario in ["ADM", "Tecnico"]:
-                    if st.button("💾 Sincronizar e Gravar Logs"):
+                    if st.button("💾 Salvar Alteração"):
                         for _, row in edited_df.iterrows():
                             orig = df.loc[df['id'] == row['id']].iloc[0]
                             if (float(row['quantidade']) != float(orig['quantidade'])) or (row['unidade'] != orig['unidade']) or (float(row['preco_unitario']) != float(orig['preco_unitario'])):
@@ -166,7 +166,7 @@ def show_estoque():
                 st.dataframe(df_logs, use_container_width=True, hide_index=True)
 
             with tab_llama:
-                st.subheader("🤖 Consultor Llama 3.3-70B")
+                st.subheader("🤖 Consultor de estoque")
                 # Llama agora analisa também o valor financeiro do estoque
                 valor_total = (df['quantidade'] * df['preco_unitario']).sum()
                 contexto = f"Empresa: {org_usuario}. Valor Total em Estoque: R$ {valor_total:.2f}. Dados: {df[['nome', 'quantidade', 'unidade', 'preco_unitario']].to_string()}"
@@ -184,3 +184,4 @@ def show_estoque():
     busca_livre = st.text_input("Busca Externa:")
     if busca_livre:
         st.link_button("🔍 Buscar na Web", f"https://www.google.com/search?q=comprar+{urllib.parse.quote(busca_livre)}")
+
