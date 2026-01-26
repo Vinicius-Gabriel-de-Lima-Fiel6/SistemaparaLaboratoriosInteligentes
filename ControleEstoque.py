@@ -30,18 +30,17 @@ def show_estoque():
 
         if not df.empty:
             df['quantidade'] = pd.to_numeric(df['quantidade'], errors='coerce').fillna(0)
+            # Garantir que a coluna preco_unitario existe (lógica de incremento)
+            if 'preco_unitario' not in df.columns: df['preco_unitario'] = 0.0
             
             # --- LÓGICA DE ORDENAÇÃO PRIORITÁRIA ---
-            # Atribuímos um peso para cada status para ordenar corretamente
             def get_priority(q):
-                if q <= 0: return 0  # Maior prioridade (🔴)
-                if q < 10: return 1  # Prioridade média (🟡)
-                return 2             # Estável (🟢)
+                if q <= 0: return 0  
+                if q < 10: return 1  
+                return 2             
 
             df['prioridade'] = df['quantidade'].apply(get_priority)
             df['Status'] = df['quantidade'].apply(lambda x: "🔴 ESGOTADO" if x <= 0 else ("🟡 BAIXO" if x < 10 else "🟢 OK"))
-            
-            # Ordena: Primeiro os esgotados, depois baixos, depois OK
             df = df.sort_values(by=['prioridade', 'nome'], ascending=[True, True])
 
             st.title(f"🚀 Gestão de Insumos | {org_usuario}")
@@ -72,8 +71,30 @@ def show_estoque():
             ])
 
             with tab_inv:
+                # --- NOVO: MÓDULO DE ENTRADA DE MATERIAL (INCREMENTO) ---
+                with st.expander("📥 RECEBIMENTO DE COMPRAS (Entrada no Estoque)", expanded=False):
+                    c_in1, c_in2, c_in3, c_in4 = st.columns([2, 1, 1, 1])
+                    with c_in1:
+                        item_ent = st.selectbox("Material recebido:", df['nome'].unique(), key="in_item")
+                    with c_in2:
+                        qtd_ent = st.number_input("Qtd recebida:", min_value=0.1, step=0.1, key="in_qtd")
+                    with c_in3:
+                        vlr_ent = st.number_input("Valor Unitário (R$):", min_value=0.0, step=0.1, key="in_vlr")
+                    with c_in4:
+                        st.write("##")
+                        if st.button("✅ Confirmar", use_container_width=True):
+                            row_at = df.loc[df['nome'] == item_ent, 'id'].values[0]
+                            qtd_at = df.loc[df['nome'] == item_ent, 'quantidade'].values[0]
+                            nova_qtd = float(qtd_at) + qtd_ent
+                            supabase.table("substancias").update({"quantidade": nova_qtd, "preco_unitario": vlr_ent}).eq("id", row_at).execute()
+                            supabase.table("logs_estoque").insert({
+                                "usuario": username_atual, "substancia": item_ent, "quantidade_antiga": qtd_at,
+                                "quantidade_nova": nova_qtd, "org_name": org_usuario, "observacao": f"Entrada: R$ {vlr_ent}"
+                            }).execute()
+                            st.success(f"Entrada de {item_ent} registrada!"); st.rerun()
+
                 if len(itens_baixos) > 0:
-                    with st.expander("🛒 COMPRA RÁPIDA (Itens no topo)", expanded=True):
+                    with st.expander("🛒 COMPRA RÁPIDA (Marketplace)", expanded=True):
                         item_sel = st.selectbox("O que precisa repor?", itens_baixos['nome'].unique())
                         if item_sel:
                             query = urllib.parse.quote(item_sel)
@@ -82,38 +103,29 @@ def show_estoque():
                             c2.link_button("🧪 Sigma-Aldrich", f"https://www.sigmaaldrich.com/BR/pt/search/{query}", use_container_width=True)
                             c3.link_button("📦 Amazon", f"https://www.amazon.com.br/s?k={query}", use_container_width=True)
 
-                st.subheader("📝 Edição de Estoque (Priorizados por Urgência)")
+                st.subheader("📝 Edição de Estoque")
                 is_disabled = (role_usuario == "Visualizador")
-                
                 edited_df = st.data_editor(
                     df, use_container_width=True, hide_index=True, disabled=is_disabled,
                     column_config={
                         "org_name": st.column_config.TextColumn("Empresa", disabled=True),
                         "Status": st.column_config.TextColumn("Status", disabled=True),
-                        "prioridade": None, # Esconde a coluna técnica de ordenação
+                        "prioridade": None,
+                        "preco_unitario": st.column_config.NumberColumn("Preço Unit. (R$)", format="R$ %.2f"),
                         "quantidade": st.column_config.NumberColumn("Qtd Atual", format="%.2f"),
-                        "unidade": st.column_config.SelectboxColumn(
-                            "Unidade", options=["g", "mg", "kg", "ml", "L", "un", "cx", "pct"], required=True
-                        )
+                        "unidade": st.column_config.SelectboxColumn("Unidade", options=["g", "mg", "kg", "ml", "L", "un", "cx", "pct"], required=True)
                     },
-                    column_order=("Status", "nome", "quantidade", "unidade", "org_name")
+                    column_order=("Status", "nome", "quantidade", "unidade", "preco_unitario", "org_name")
                 )
 
                 if role_usuario in ["ADM", "Tecnico"]:
-                    if st.button("💾 Salvar alteração"):
+                    if st.button("💾 Sincronizar e Gravar Logs"):
                         for _, row in edited_df.iterrows():
                             orig = df.loc[df['id'] == row['id']].iloc[0]
-                            if (float(row['quantidade']) != float(orig['quantidade'])) or (row['unidade'] != orig['unidade']):
-                                supabase.table("substancias").update({
-                                    "nome": row['nome'], "quantidade": row['quantidade'], "unidade": row['unidade']
-                                }).eq("id", row['id']).eq("org_name", org_usuario).execute()
-
-                                supabase.table("logs_estoque").insert({
-                                    "usuario": username_atual, "substancia": row['nome'],
-                                    "quantidade_antiga": orig['quantidade'], "quantidade_nova": row['quantidade'], "org_name": org_usuario
-                                }).execute()
-                        st.success("Sincronizado!")
-                        st.rerun()
+                            if (float(row['quantidade']) != float(orig['quantidade'])) or (row['unidade'] != orig['unidade']) or (float(row['preco_unitario']) != float(orig['preco_unitario'])):
+                                supabase.table("substancias").update({"nome": row['nome'], "quantidade": row['quantidade'], "unidade": row['unidade'], "preco_unitario": row['preco_unitario']}).eq("id", row['id']).eq("org_name", org_usuario).execute()
+                                supabase.table("logs_estoque").insert({"usuario": username_atual, "substancia": row['nome'], "quantidade_antiga": orig['quantidade'], "quantidade_nova": row['quantidade'], "org_name": org_usuario}).execute()
+                        st.success("Sincronizado!"); st.rerun()
 
             with tab_ia:
                 col_g1, col_g2 = st.columns(2)
@@ -154,16 +166,15 @@ def show_estoque():
                 st.dataframe(df_logs, use_container_width=True, hide_index=True)
 
             with tab_llama:
-                st.subheader("🤖 Consultor de estoque")
-                contexto = df[['nome', 'quantidade', 'unidade', 'Status']].to_string()
-                pre_prompt = f"Técnico de Lab em {org_usuario}. Dados: {contexto}"
-                user_input = st.chat_input("Dúvida técnica?")
+                st.subheader("🤖 Consultor Llama 3.3-70B")
+                # Llama agora analisa também o valor financeiro do estoque
+                valor_total = (df['quantidade'] * df['preco_unitario']).sum()
+                contexto = f"Empresa: {org_usuario}. Valor Total em Estoque: R$ {valor_total:.2f}. Dados: {df[['nome', 'quantidade', 'unidade', 'preco_unitario']].to_string()}"
+                pre_prompt = f"Gerente Lab. Analise: {contexto}"
+                user_input = st.chat_input("Dúvida técnica ou financeira?")
                 if user_input:
                     with st.chat_message("assistant"):
-                        chat = client_groq.chat.completions.create(
-                            messages=[{"role": "system", "content": pre_prompt}, {"role": "user", "content": user_input}],
-                            model="llama-3.3-70b-versatile",
-                        )
+                        chat = client_groq.chat.completions.create(messages=[{"role": "system", "content": pre_prompt}, {"role": "user", "content": user_input}], model="llama-3.3-70b-versatile")
                         st.write(chat.choices[0].message.content)
 
     except Exception as e:
@@ -172,5 +183,4 @@ def show_estoque():
     st.divider()
     busca_livre = st.text_input("Busca Externa:")
     if busca_livre:
-        st.link_button("🔍 Buscar produto na WEB", f"https://www.google.com/search?q=comprar+{urllib.parse.quote(busca_livre)}")
-
+        st.link_button("🔍 Buscar na Web", f"https://www.google.com/search?q=comprar+{urllib.parse.quote(busca_livre)}")
