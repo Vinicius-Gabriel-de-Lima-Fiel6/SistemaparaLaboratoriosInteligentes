@@ -172,4 +172,5 @@ def show_estoque():
     st.divider()
     busca_livre = st.text_input("Busca Externa:")
     if busca_livre:
-        st.link_button("🔍 Buscar na Web", f"https://www.google.com/search?q=comprar+{urllib.parse.quote(busca_livre)}")
+        st.link_button("🔍 Buscar produto na WEB", f"https://www.google.com/search?q=comprar+{urllib.parse.quote(busca_livre)}")
+
