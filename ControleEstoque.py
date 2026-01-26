@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import urllib.parse
 from supabase import create_client
-import plotly.express as px  # Adicionado para os gráficos de IA
+import plotly.express as px # Adicionado para os acréscimos visuais
 
 # Configurações do Supabase (buscando as chaves do seu st.secrets)
 url = st.secrets["SUPABASE_URL"]
@@ -16,7 +16,7 @@ def show_estoque():
     user_data = st.session_state.get('user_data', {})
     org_usuario = user_data.get('org_name', 'Default')
     role_usuario = user_data.get('role', 'Visualizador')
-    username_atual = user_data.get('username', 'Usuário') # Para os logs
+    username_atual = user_data.get('username', 'Usuário')
 
     try:
         # --- BUSCA DADOS NO SUPABASE FILTRANDO PELA EMPRESA ---
@@ -30,19 +30,28 @@ def show_estoque():
         if not df.empty:
             # --- CRIAÇÃO DAS SUB-ABAS (ACRÉSCIMO) ---
             tab_inv, tab_ia, tab_hist, tab_manut = st.tabs([
-                "📋 Inventário e Compras", "🧠 Inteligência e Predição", "📜 Histórico de Logs", "🛠️ Equipamentos"
+                "📋 Inventário e Compras", "🧠 Inteligência 2026", "📜 Histórico de Logs", "🛠️ Equipamentos"
             ])
 
             with tab_inv:
-                # --- SEÇÃO DE ALERTAS E MÉTRICAS (ORIGINAL) ---
-                col1, col2 = st.columns(2)
+                # --- SEÇÃO DE ALERTAS E MÉTRICAS (SUA LÓGICA ORIGINAL) ---
+                col1, col2, col3 = st.columns([1, 1, 1])
                 df['quantidade'] = pd.to_numeric(df['quantidade'], errors='coerce').fillna(0)
                 
                 itens_baixos = df[df['quantidade'] < 10]
                 col1.metric("Total no Inventário", len(df))
                 col2.metric("Itens para Reposição", len(itens_baixos), delta_color="inverse")
 
-                # --- SEÇÃO DE COMPRAS DIRETAS (ORIGINAL) ---
+                # Acréscimo Visual 2026: Saúde do Estoque (Gráfico Donut)
+                df['Status'] = df['quantidade'].apply(lambda x: "🔴 ESGOTADO" if x <= 0 else ("🟡 BAIXO" if x < 10 else "🟢 OK"))
+                status_counts = df['Status'].value_counts()
+                fig_saude = px.pie(names=status_counts.index, values=status_counts.values, 
+                                 hole=0.6, height=150, color=status_counts.index,
+                                 color_discrete_map={"🟢 OK": "#28a745", "🟡 BAIXO": "#ffc107", "🔴 ESGOTADO": "#dc3545"})
+                fig_saude.update_layout(showlegend=False, margin=dict(t=0, b=0, l=0, r=0))
+                col3.plotly_chart(fig_saude, use_container_width=True)
+
+                # --- SEÇÃO DE COMPRAS DIRETAS (SUA LÓGICA ORIGINAL) ---
                 if len(itens_baixos) > 0:
                     with st.expander("🛒 COMPRA RÁPIDA (Itens com estoque baixo)", expanded=True):
                         st.write("Selecione um item para buscar fornecedores online:")
@@ -57,13 +66,10 @@ def show_estoque():
 
                 st.divider()
 
-                # --- TABELA DE EDIÇÃO (ORIGINAL + STATUS VISUAL) ---
+                # --- TABELA DE EDIÇÃO (SUA LÓGICA ORIGINAL + STATUS) ---
                 st.subheader(f"📝 Inventário: {org_usuario}")
                 is_disabled = (role_usuario == "Visualizador")
                 
-                # Adiciona coluna de Status em tempo real
-                df['Status'] = df['quantidade'].apply(lambda x: "🔴 ESGOTADO" if x <= 0 else ("🟡 BAIXO" if x < 10 else "🟢 OK"))
-
                 edited_df = st.data_editor(
                     df, 
                     use_container_width=True, 
@@ -76,7 +82,7 @@ def show_estoque():
                     column_order=("Status", "nome", "quantidade", "unidade", "org_name")
                 )
 
-                # Botão de salvar (ORIGINAL + REGISTRO DE LOGS)
+                # Botão de salvar (SUA LÓGICA ORIGINAL + LOGS)
                 if role_usuario in ["ADM", "Tecnico"]:
                     if st.button("💾 Salvar Alterações no Banco"):
                         with st.spinner("Sincronizando com a nuvem..."):
@@ -90,7 +96,7 @@ def show_estoque():
                                         "unidade": row['unidade'] if 'unidade' in row else "un"
                                     }).eq("id", row['id']).execute()
 
-                                    # Insert na logs_estoque (Novo)
+                                    # Insert na logs_estoque (Necessário para a IA)
                                     supabase.table("logs_estoque").insert({
                                         "usuario": username_atual,
                                         "substancia": row['nome'],
@@ -103,36 +109,38 @@ def show_estoque():
                             st.rerun()
 
             with tab_ia:
-                st.subheader("🧠 Análise Preditiva de IA")
+                st.subheader("🧠 Inteligência Preditiva e BI")
                 if not df_logs.empty:
-                    # Cálculo de consumo baseado nos logs
                     df_saidas = df_logs[df_logs['quantidade_nova'] < df_logs['quantidade_antiga']].copy()
                     df_saidas['consumo'] = df_saidas['quantidade_antiga'] - df_saidas['quantidade_nova']
                     
                     if not df_saidas.empty:
-                        fig = px.bar(df_saidas, x='substancia', y='consumo', title="Consumo Histórico por Item", color='substancia')
+                        # Gráfico de tendência de uso
+                        fig = px.line(df_saidas, x='created_at', y='consumo', color='substancia', title="Histórico de Consumo")
                         st.plotly_chart(fig, use_container_width=True)
 
                         st.divider()
                         # Lógica de Predição
-                        analise_item = st.selectbox("Prever esgotamento de:", df['nome'].unique())
+                        analise_item = st.selectbox("Analisar tendência de:", df['nome'].unique())
                         qtd_atual = df.loc[df['nome'] == analise_item, 'quantidade'].values[0]
                         logs_especificos = df_saidas[df_saidas['substancia'] == analise_item]
                         
                         if not logs_especificos.empty:
                             media = logs_especificos['consumo'].mean()
                             previsao = qtd_atual / media if media > 0 else 0
-                            st.write(f"📊 **Média de consumo:** {media:.2f} unidades por retirada.")
+                            
+                            c_ia1, c_ia2 = st.columns(2)
+                            c_ia1.metric("Média de Consumo", f"{media:.2f} /uso")
                             if previsao < 5:
-                                st.error(f"🚨 Crítico: De acordo com a IA, este item acaba em aproximadamente {previsao:.1f} utilizações!")
+                                c_ia2.error(f"Predição: Esgota em ~{previsao:.1f} usos")
                             else:
-                                st.success(f"✅ Seguro: Este item deve durar mais {previsao:.1f} utilizações.")
+                                c_ia2.success(f"Predição: Seguro por ~{previsao:.1f} usos")
                         else:
-                            st.info("Sem dados de consumo suficientes para este item.")
+                            st.info("Dados insuficientes para prever este item.")
                     else:
-                        st.info("Ainda não foram detectadas saídas de estoque para análise.")
+                        st.info("Nenhuma saída de material detectada para análise.")
                 else:
-                    st.info("O histórico de logs está vazio. Realize alterações para ativar a IA.")
+                    st.info("Histórico de logs vazio.")
 
             with tab_hist:
                 st.subheader("📜 Movimentações Recentes")
@@ -157,7 +165,7 @@ def show_estoque():
     except Exception as e:
         st.error(f"Erro de Conexão: {e}")
 
-    # --- BUSCA GERAL (ORIGINAL) ---
+    # --- BUSCA GERAL (SUA LÓGICA ORIGINAL) ---
     st.divider()
     st.subheader("🌐 Pesquisa Externa")
     busca_livre = st.text_input("Procurar qualquer reagente para compra:")
