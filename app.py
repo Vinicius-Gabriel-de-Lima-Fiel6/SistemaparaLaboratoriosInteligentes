@@ -17,126 +17,59 @@ st.set_page_config(
 
 # --- CSS GLOBAL (Preto, Branco e Verde Esmeralda) ---
 st.markdown("""
-    <style>
-    /* 1. VARIÁVEIS DE CORES */
-    :root {
-        --bg-black: #000000;
-        --bg-card: #0d1117;
-        --emerald-primary: #10b981;
-        --emerald-light: #34d399;
-        --text-white: #ffffff;
-        --text-gray: #9ca3af;
-        --border-color: #30363d;
-    }
+        <style>
+        /* Fundo principal e texto */
+        .stApp {
+            background-color: #f8f9fa; /* Cinza claro */
+            color: #212529; /* Preto suave */
+        }
+        
+        /* Estilização da Sidebar */
+        [data-testid="stSidebar"] {
+            background-color: #000000 !important; /* Preto */
+            color: #ffffff !important; /* Branco */
+        }
+        
+        /* Textos e ícones na Sidebar */
+        [data-testid="stSidebar"] *, [data-testid="stSidebar"] p, [data-testid="stSidebar"] span {
+            color: #ffffff !important;
+        }
 
-    /* 2. CONFIGURAÇÕES GERAIS DA APP */
-    .stApp {
-        background-color: var(--bg-black) !important;
-        color: var(--text-white) !important;
-    }
+        /* Destaques em Verde (Botões e Links na Sidebar) */
+        [data-testid="stSidebar"] .stButton button {
+            background-color: #28a745 !important; /* Verde */
+            color: white !important;
+            border-radius: 5px;
+            border: none;
+        }
 
-    /* FORÇAR TODOS OS TÍTULOS E TEXTOS PARA BRANCO */
-    h1, h2, h3, h4, h5, h6, p, span, label, .stMarkdown {
-        color: var(--text-white) !important;
-        font-family: 'Inter', sans-serif;
-    }
+        /* Estilo dos Radio Buttons e Seletores */
+        .stRadio label, .stSelectbox label {
+            font-weight: bold;
+            color: #000000;
+        }
 
-    /* 3. SIDEBAR */
-    [data-testid="stSidebar"] {
-        background-color: var(--bg-black) !important;
-        border-right: 1px solid var(--border-color) !important;
-    }
-    
-    /* Corrigindo rádio buttons e textos da sidebar */
-    [data-testid="stSidebar"] .stRadio label {
-        color: var(--text-white) !important;
-    }
+        /* Container de Chat */
+        .stChatMessage {
+            background-color: #ffffff !important; /* Branco */
+            border: 1px solid #dee2e6;
+            border-radius: 10px;
+            margin-bottom: 10px;
+        }
 
-    /* 4. BOTÕES (VERDE ESMERALDA) - CORRIGINDO PISQUE E CORES ESTRANHAS */
-    div.stButton > button {
-        width: 100%;
-        background-color: var(--emerald-primary) !important;
-        color: white !important;
-        border: none !important;
-        border-radius: 8px !important;
-        padding: 0.6rem !important;
-        font-weight: 600 !important;
-        transition: all 0.2s ease-in-out !important;
-    }
+        /* Divisores */
+        hr {
+            border-top: 2px solid #28a745 !important; /* Linha Verde */
+        }
 
-    div.stButton > button:hover {
-        background-color: var(--emerald-light) !important;
-        box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4) !important;
-        transform: translateY(-1px);
-    }
-
-    div.stButton > button:active, div.stButton > button:focus {
-        background-color: var(--emerald-dark) !important;
-        color: white !important;
-        outline: none !important;
-        border: none !important;
-    }
-
-    /* 5. EXPANDERS (Menu de Compra/Abas internas) */
-    .streamlit-expanderHeader {
-        background-color: var(--bg-card) !important;
-        color: var(--text-white) !important;
-        border: 1px solid var(--border-color) !important;
-        border-radius: 8px !important;
-    }
-    
-    .streamlit-expanderContent {
-        background-color: var(--bg-black) !important;
-        border: 1px solid var(--border-color) !important;
-        border-top: none !important;
-    }
-
-    /* 6. CARDS E MÉTRICAS */
-    .user-card, div[data-testid="metric-container"] {
-        background-color: var(--bg-card) !important;
-        border: 1px solid var(--border-color) !important;
-        border-radius: 12px !important;
-        padding: 15px !important;
-    }
-
-    div[data-testid="stMetricValue"] > div {
-        color: var(--emerald-primary) !important;
-        font-weight: 700;
-    }
-    
-    div[data-testid="stMetricLabel"] > div {
-        color: var(--text-gray) !important;
-    }
-
-    /* 7. INPUTS E CAMPOS DE TEXTO */
-    .stTextInput input {
-        background-color: var(--bg-black) !important;
-        color: white !important;
-        border: 1px solid var(--border-color) !important;
-        border-radius: 6px !important;
-    }
-
-    .stTextInput input:focus {
-        border-color: var(--emerald-primary) !important;
-        box-shadow: 0 0 5px var(--emerald-primary);
-    }
-
-    /* 8. ELEMENTOS DE LINK */
-    div.stLinkButton > a {
-        background-color: transparent !important;
-        color: var(--text-gray) !important;
-        border: 1px solid var(--border-color) !important;
-        text-align: center;
-        transition: 0.3s;
-    }
-    
-    div.stLinkButton > a:hover {
-        border-color: var(--emerald-primary) !important;
-        color: var(--emerald-primary) !important;
-    }
-    </style>
+        /* Inputs de Texto */
+        .stChatInput textarea {
+            background-color: #ffffff !important;
+            color: #000000 !important;
+            border: 1px solid #000000 !important;
+        }
+        </style>
     """, unsafe_allow_html=True)
-
 # --- CONEXÃO SUPABASE ---
 supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 
@@ -270,3 +203,4 @@ else:
 
     st.sidebar.markdown("---")
     st.sidebar.caption("LabSmartAI • v1.0")
+
