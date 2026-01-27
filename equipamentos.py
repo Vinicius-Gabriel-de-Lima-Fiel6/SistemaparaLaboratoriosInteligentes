@@ -4,21 +4,21 @@ import matplotlib.pyplot as plt
 from datetime import datetime
 from supabase import create_client
 
-# Conexão Supabase
+
 url = st.secrets["SUPABASE_URL"]
 key = st.secrets["SUPABASE_KEY"]
 supabase = create_client(url, key)
 
 def show_equipamentos():
-    st.title("🔧 Controle de Equipamentos e Manutenção")
+   
     
-    # Dados do usuário para filtragem
+    
     user_data = st.session_state.get('user_data', {})
     org_usuario = user_data.get('org_name', 'Default')
     role_usuario = user_data.get('role', 'Visualizador')
     username_atual = user_data.get('username', 'Usuário')
 
-    # --- 1. CADASTRO DE EQUIPAMENTOS ---
+  
     with st.expander("➕ Adicionar Novo Equipamento", expanded=False):
         if role_usuario == "Visualizador":
             st.warning("Apenas administradores e técnicos podem cadastrar.")
@@ -44,7 +44,7 @@ def show_equipamentos():
                     }
                     supabase.table("equipamentos").insert(data_insert).execute()
                     
-                    # --- NOVO: LOG DE CADASTRO ---
+                  
                     supabase.table("logs_estoque").insert({
                         "usuario": username_atual,
                         "substancia": f"CADASTRO EQUIP.: {nome}",
@@ -56,7 +56,7 @@ def show_equipamentos():
                     st.success(f"Equipamento {nome} cadastrado!")
                     st.rerun()
 
-    # --- 2. REGISTRO DE MANUTENÇÃO ---
+
     st.divider()
     with st.expander("🛠️ Registrar Nova Manutenção"):
         resp_eq = supabase.table("equipamentos").select("id, nome").eq("org_name", org_usuario).execute()
@@ -123,7 +123,7 @@ def show_equipamentos():
                         "categoria": row['categoria']
                     }).eq("id", row['id']).execute()
                     
-                    # --- NOVO: LOG DE ALTERAÇÃO DE DADOS ---
+              
                     supabase.table("logs_estoque").insert({
                         "usuario": username_atual,
                         "substancia": f"EDITOU EQUIP.: {row['nome']}",
@@ -163,7 +163,7 @@ def show_equipamentos():
                 tipo_count = df_view['tipo'].value_counts()
                 st.bar_chart(tipo_count)
 
-    # --- 4. EXPORTAÇÃO ---
+
     st.sidebar.divider()
     if st.sidebar.button("📄 Gerar Relatório CSV"):
         if not df_view.empty:
@@ -172,3 +172,4 @@ def show_equipamentos():
 
 if __name__ == "__main__":
     show_equipamentos()
+
