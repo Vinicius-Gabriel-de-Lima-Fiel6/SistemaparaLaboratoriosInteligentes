@@ -25,7 +25,7 @@ def tela_acesso():
         st.write("")
         # Exibição da sua logo na tela de login
         st.image("https://i.ibb.co/6cKPZ5Pr/Gemini-Generated-Image-jes56ljes56ljes5.png", use_container_width=True)
-        st.markdown("<h1 style='text-align: center;'>LabSmartAI</h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align: center;'>SynapseLab</h1>", unsafe_allow_html=True)
         
         st.subheader("Login Administrativo")
         email_input = st.text_input("E-mail Profissional", key="l_email")
@@ -181,3 +181,4 @@ else:
 
     st.sidebar.markdown("---")
     st.sidebar.caption("LabSmartAI V.Beta")
+
