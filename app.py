@@ -15,7 +15,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- CSS GLOBAL (Mantendo sua estrutura de cores com a separação solicitada) ---
+# --- CSS GLOBAL (Correção Cirúrgica de Contraste) ---
 st.markdown("""
         <style>
         .stApp { background-color: #f8f9fa; color: #212529; }
@@ -49,15 +49,14 @@ st.markdown("""
             object-fit: cover;
         }
         
-      /* Botão de 3 pontos (Opções) - COR PRETA FIXA E LEITURA CLARA */
+        /* CORREÇÃO DO BOTÃO POPOVER (OPÇÕES) - RESOLVENDO O TEXTO BRANCO NA IMAGEM */
         div[data-testid="stPopover"] > button {
-            background-color: #28a745 !important; /* Fundo Verde */
+            background-color: #28a745 !important; /* Fundo Verde para leitura */
             border: none !important;
             width: 100%;
-            height: auto;
         }
 
-        /* Força o texto e o ícone (setinha/pontos) a ficarem pretos */
+        /* Força o texto e ícone de dentro do popover a serem PRETOS */
         div[data-testid="stPopover"] > button p, 
         div[data-testid="stPopover"] > button span,
         div[data-testid="stPopover"] > button svg {
@@ -65,15 +64,7 @@ st.markdown("""
             fill: #000000 !important;
         }
 
-        /* Bloqueia qualquer mudança de cor no Hover (Passar o mouse) */
-        div[data-testid="stPopover"] > button:hover, 
-        div[data-testid="stPopover"] > button:active, 
-        div[data-testid="stPopover"] > button:focus {
-            background-color: #28a745 !important;
-            border: none !important;
-        }
-
-        /* Garante que o texto dentro do hover também continue preto */
+        /* Mantém o preto fixo mesmo passando o mouse (Hover) */
         div[data-testid="stPopover"] > button:hover p,
         div[data-testid="stPopover"] > button:hover span,
         div[data-testid="stPopover"] > button:hover svg {
@@ -184,7 +175,7 @@ else:
 
     clean_selection = selection.split(" ", 1)[-1]
 
-    # DASHBOARD (Lógica original de métricas)
+    # DASHBOARD
     if clean_selection == "Dashboard":
         st.title(f"🚀 Painel de Controle - {org_atual}")
         
@@ -221,7 +212,7 @@ else:
             if st.button("🧮 Calculadora de Soluções"):
                 st.session_state.selection = "🧮 Calculadora Química"; st.rerun()
 
-    # NAVEGAÇÃO DOS MÓDULOS (Chamadas originais preservadas)
+    # NAVEGAÇÃO DOS MÓDULOS
     elif clean_selection == "IA & Visão": ia.show_chatbot()
     elif clean_selection == "Tabelas Químicas": show_tabelas()
     elif clean_selection == "Calculadora Química": show_calculadora()
@@ -234,10 +225,3 @@ else:
 
     st.sidebar.markdown("---")
     st.sidebar.caption("LabSmartAI • v1.0")
-
-
-
-
-
-
-
