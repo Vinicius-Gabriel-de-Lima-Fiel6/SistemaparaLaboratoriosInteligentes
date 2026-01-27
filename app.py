@@ -18,84 +18,89 @@ st.set_page_config(
 
 st.markdown("""
     <style>
-    /* 1. VARIÁVEIS DE CORES */
+    /* 1. VARIÁVEIS DE CORES (Ciano Futurista) */
     :root {
-        --bg-primary: #000000;
-        --bg-secondary: #1A202C;
-        --accent-green: #38A169;
-        --accent-green-hover: #2F855A;
-        --ui-gray-light: #CBD5E0;
-        --ui-gray-medium: #A0AEC0;
-        --text-bright: #FFFFFF;
-        --text-muted: #CBD5E0;
-        --card-bg: #F7FAFC;
+        --bg-dark: #0a0e17;
+        --sidebar-dark: #06090f;
+        --primary-cyan: #00f2fe;
+        --accent-glow: rgba(0, 242, 254, 0.4);
+        --text-white: #ffffff;
+        --ui-border: rgba(0, 242, 254, 0.3);
     }
 
-    /* 2. CLASSES UTILITÁRIAS */
-    .main-header {
-        font-family: 'Inter', sans-serif;
-        color: var(--ui-gray-light) !important;
-        text-align: center;
-        font-weight: 700;
-    }
-
-    .sub-text {
-        color: var(--text-muted) !important;
-        font-size: 0.9rem;
-    }
-
-    /* 3. RESET E FUNDO DA APP */
+    /* 2. RESET E FUNDO */
     .stApp {
-        background-color: var(--bg-primary);
-        color: var(--text-bright);
+        background-color: var(--bg-dark) !important;
+        color: var(--text-white);
     }
 
-    /* 4. SIDEBAR */
+    /* 3. SIDEBAR */
     [data-testid="stSidebar"] {
-        background-color: var(--bg-secondary);
-        border-right: 1px solid var(--ui-gray-medium);
+        background-color: var(--sidebar-dark) !important;
+        border-right: 1px solid var(--ui-border) !important;
     }
 
-    /* 5. INPUTS E LABELS */
-    label, p, span {
-        color: var(--text-bright) !important;
+    /* 4. CORREÇÃO DOS EXPANDERS (A imagem que você mandou) */
+    /* Cabeçalho do Expander */
+    .streamlit-expanderHeader {
+        background-color: var(--sidebar-dark) !important;
+        color: var(--primary-cyan) !important;
+        border: 1px solid var(--ui-border) !important;
+        border-radius: 8px !important;
+        font-weight: 600;
     }
 
-    /* 6. BOTÕES ESTILIZADOS */
+    /* Ícone da seta no expander */
+    svg[data-testid="stExpanderIcon"] {
+        fill: var(--primary-cyan) !important;
+    }
+
+    /* Conteúdo interno do expander */
+    .streamlit-expanderContent {
+        background-color: rgba(16, 22, 34, 0.6) !important;
+        border: 1px solid var(--ui-border) !important;
+        border-top: none !important;
+        color: var(--text-white) !important;
+    }
+
+    /* 5. BOTÕES NEON */
     .stButton>button {
         width: 100%;
         border-radius: 8px;
         background-color: transparent;
-        color: var(--accent-green) !important;
-        border: 2px solid var(--accent-green);
-        padding: 0.5rem;
+        color: var(--primary-cyan) !important;
+        border: 1px solid var(--primary-cyan);
         font-weight: 700;
         transition: all 0.3s ease;
     }
 
     .stButton>button:hover {
-        background-color: var(--accent-green);
-        color: white !important;
-        border-color: var(--accent-green);
-        box-shadow: 0 0 15px rgba(56, 161, 105, 0.4);
+        background-color: var(--primary-cyan);
+        color: var(--bg-dark) !important;
+        box-shadow: 0 0 20px var(--accent-glow);
     }
 
-    /* 7. CARDS E MÉTRICAS */
+    /* 6. CARDS E MÉTRICAS */
     div[data-testid="metric-container"], .user-card {
-        background-color: var(--bg-secondary) !important;
-        border: 1px solid var(--ui-gray-medium) !important;
-        padding: 15px;
+        background-color: var(--sidebar-dark) !important;
+        border: 1px solid var(--ui-border) !important;
         border-radius: 12px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.2);
     }
 
-    /* Ajuste específico para o texto dentro dos cards de métrica */
-    div[data-testid="stMetricValue"] {
-        color: var(--accent-green) !important;
+    div[data-testid="stMetricValue"] > div {
+        color: var(--primary-cyan) !important;
+        text-shadow: 0 0 10px var(--accent-glow);
+    }
+
+    /* 7. INPUTS E LABELS */
+    label, p, span {
+        color: var(--text-white) !important;
     }
     
-    div[data-testid="stMetricLabel"] {
-        color: var(--ui-gray-light) !important;
+    input {
+        background-color: var(--bg-dark) !important;
+        color: white !important;
+        border: 1px solid var(--ui-border) !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -265,6 +270,7 @@ else:
 
     st.sidebar.markdown("---")
     st.sidebar.caption("LabSmartAI • v1.0")
+
 
 
 
