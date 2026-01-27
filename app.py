@@ -16,37 +16,72 @@ st.set_page_config(
 )
 
 # --- CSS GLOBAL (Mantendo sua estrutura de cores) ---
+Aqui está o código completo e organizado. Removi as redundâncias e apliquei a especificidade correta: os textos de navegação e do cartão do usuário em branco, e apenas o texto de dentro dos botões de ação (verdes) em preto.
+
+Python
+import streamlit as st
+import os
+import sys
+import auth_db as db 
+from supabase import create_client
+
+# Garante que o caminho do projeto está no sistema
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+# Configuração da Página
+st.set_page_config(
+    page_title="LabSmartAI", 
+    page_icon="🧪", 
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# --- CSS GLOBAL ---
 st.markdown("""
         <style>
+        /* Fundo Geral */
         .stApp { background-color: #f8f9fa; color: #212529; }
-        [data-testid="stSidebar"] { background-color: #000000 !important; }
-
-        /* 1. TEXTOS GERAIS DA SIDEBAR (Brancos) */
-        [data-testid="stSidebar"] [data-testid="stWidgetLabel"] p, 
-        [data-testid="stSidebar"] .stMarkdown p,
-        [data-testid="stSidebar"] .stCaption {
-            color: #ffffff !important;
+        
+        /* Sidebar Base */
+        [data-testid="stSidebar"] { 
+            background-color: #000000 !important; 
         }
 
-        /* 2. BOTÕES DE AÇÃO (Fundo Verde, Texto PRETO) */
-        /* Isso afeta os botões dentro do Popover e botões normais da sidebar */
+        /* 1. TEXTOS DAS ABAS DE NAVEGAÇÃO (Brancos e Visíveis) */
+        [data-testid="stSidebar"] .stRadio label p {
+            color: #ffffff !important;
+            font-size: 0.95rem !important;
+            font-weight: 500 !important;
+        }
+        
+        /* Título "NAVEGAÇÃO" */
+        [data-testid="stSidebar"] [data-testid="stWidgetLabel"] p {
+            color: #28a745 !important;
+            font-weight: bold !important;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* 2. BOTÕES DE AÇÃO (Fundo Verde, Texto PRETO para contraste) */
         [data-testid="stSidebar"] .stButton button, 
         div[data-testid="stPopoverContent"] .stButton button {
             background-color: #28a745 !important;
-            color: #000000 !important; /* Texto Preto para contraste no verde */
+            color: #000000 !important;
             font-weight: bold !important;
+            border-radius: 8px !important;
             border: none !important;
+            width: 100%;
         }
 
-        /* 3. BOTÃO DO POPOVER (O de 3 pontos "⋮ Opções") */
-        /* Mantemos a borda e o texto verde sobre o fundo preto da sidebar */
+        /* 3. BOTÃO DE OPÇÕES (3 Pontos) */
         div[data-testid="stPopover"] > button {
             background-color: transparent !important;
-            border: 1px solid #28a745 !important;
+            border: 1px solid #333 !important;
             color: #28a745 !important;
+            width: 100% !important;
         }
 
-        /* 4. CARTÃO DE USUÁRIO (Texto Branco) */
+        /* 4. CARTÃO DO USUÁRIO (Texto Branco) */
         .user-card {
             background: #111;
             border: 1px solid #28a745;
@@ -54,7 +89,6 @@ st.markdown("""
             padding: 15px;
             text-align: center;
             margin-bottom: 10px;
-            color: #ffffff !important;
         }
         .user-card span, .user-card small {
             color: #ffffff !important;
@@ -67,12 +101,8 @@ st.markdown("""
             object-fit: cover;
         }
 
-        /* 5. NAVEGAÇÃO / RADIO BUTTONS (Texto Branco) */
-        [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label {
-            color: #ffffff !important;
-        }
-        
-        hr { border-top: 2px solid #28a745 !important; }
+        /* Linha divisória verde */
+        hr { border-top: 1px solid #28a745 !important; opacity: 0.5; }
         </style>
     """, unsafe_allow_html=True)
 
@@ -225,3 +255,4 @@ else:
 
     st.sidebar.markdown("---")
     st.sidebar.caption("LabSmartAI • v1.0")
+
