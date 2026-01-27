@@ -18,89 +18,72 @@ st.set_page_config(
 
 st.markdown("""
     <style>
-    /* 1. VARIÁVEIS DE CORES (Ciano Futurista) */
     :root {
         --bg-dark: #0a0e17;
-        --sidebar-dark: #06090f;
         --primary-cyan: #00f2fe;
-        --accent-glow: rgba(0, 242, 254, 0.4);
+        --glow-color: rgba(0, 242, 254, 0.5);
         --text-white: #ffffff;
-        --ui-border: rgba(0, 242, 254, 0.3);
     }
 
-    /* 2. RESET E FUNDO */
-    .stApp {
-        background-color: var(--bg-dark) !important;
-        color: var(--text-white);
-    }
-
-    /* 3. SIDEBAR */
-    [data-testid="stSidebar"] {
-        background-color: var(--sidebar-dark) !important;
-        border-right: 1px solid var(--ui-border) !important;
-    }
-
-    /* 4. CORREÇÃO DOS EXPANDERS (A imagem que você mandou) */
-    /* Cabeçalho do Expander */
-    .streamlit-expanderHeader {
-        background-color: var(--sidebar-dark) !important;
-        color: var(--primary-cyan) !important;
-        border: 1px solid var(--ui-border) !important;
-        border-radius: 8px !important;
-        font-weight: 600;
-    }
-
-    /* Ícone da seta no expander */
-    svg[data-testid="stExpanderIcon"] {
-        fill: var(--primary-cyan) !important;
-    }
-
-    /* Conteúdo interno do expander */
-    .streamlit-expanderContent {
-        background-color: rgba(16, 22, 34, 0.6) !important;
-        border: 1px solid var(--ui-border) !important;
-        border-top: none !important;
-        color: var(--text-white) !important;
-    }
-
-    /* 5. BOTÕES NEON */
-    .stButton>button {
+    /* 1. ESTILIZAÇÃO DOS BOTÕES (MELHORADA) */
+    div.stButton > button {
         width: 100%;
-        border-radius: 8px;
-        background-color: transparent;
+        background-color: rgba(0, 242, 254, 0.05) !important; /* Fundo levemente azulado */
         color: var(--primary-cyan) !important;
-        border: 1px solid var(--primary-cyan);
-        font-weight: 700;
-        transition: all 0.3s ease;
+        border: 2px solid var(--primary-cyan) !important;
+        border-radius: 10px !important;
+        padding: 0.6rem 1rem !important;
+        font-weight: 700 !important;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        box-shadow: inset 0 0 5px var(--glow-color); /* Brilho interno */
     }
 
-    .stButton>button:hover {
-        background-color: var(--primary-cyan);
+    /* Efeito Hover (Passar o Mouse) */
+    div.stButton > button:hover {
+        background-color: var(--primary-cyan) !important;
         color: var(--bg-dark) !important;
-        box-shadow: 0 0 20px var(--accent-glow);
+        box-shadow: 0 0 20px var(--primary-cyan) !important; /* Brilho externo forte */
+        transform: translateY(-2px);
     }
 
-    /* 6. CARDS E MÉTRICAS */
-    div[data-testid="metric-container"], .user-card {
-        background-color: var(--sidebar-dark) !important;
-        border: 1px solid var(--ui-border) !important;
-        border-radius: 12px;
+    /* Efeito Active (Ao clicar) */
+    div.stButton > button:active {
+        transform: scale(0.98);
+        box-shadow: 0 0 5px var(--primary-cyan) !important;
     }
 
-    div[data-testid="stMetricValue"] > div {
-        color: var(--primary-cyan) !important;
-        text-shadow: 0 0 10px var(--accent-glow);
-    }
-
-    /* 7. INPUTS E LABELS */
-    label, p, span {
+    /* 2. CORREÇÃO DE LINKS E BOTÕES DE LINK */
+    div.stLinkButton > a {
+        background-color: transparent !important;
         color: var(--text-white) !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        border-radius: 8px;
+        text-decoration: none;
+        display: flex;
+        justify-content: center;
+        padding: 0.5rem;
+        transition: 0.3s;
     }
     
-    input {
-        background-color: var(--bg-dark) !important;
+    div.stLinkButton > a:hover {
+        border-color: var(--primary-cyan) !important;
+        color: var(--primary-cyan) !important;
+        background-color: rgba(0, 242, 254, 0.1) !important;
+    }
+
+    /* 3. INPUTS (PARA NÃO FICAREM "RUINS" NO ESCURO) */
+    .stTextInput input {
+        background-color: #06090f !important;
         color: white !important;
-        border: 1px solid var(--ui-border) !important;
+        border: 1px solid rgba(0, 242, 254, 0.3) !important;
+        border-radius: 8px !important;
+    }
+
+    .stTextInput input:focus {
+        border-color: var(--primary-cyan) !important;
+        box-shadow: 0 0 10px var(--glow-color) !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -270,6 +253,7 @@ else:
 
     st.sidebar.markdown("---")
     st.sidebar.caption("LabSmartAI • v1.0")
+
 
 
 
