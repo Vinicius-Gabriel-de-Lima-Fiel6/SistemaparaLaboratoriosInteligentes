@@ -26,7 +26,7 @@ st.markdown("""
     }
 
     [data-testid="stSidebar"] {
-        background-color: #CBD5E0;
+        background-color: #000000;
         border-right: 2px solid #A0AEC0;
     }
 
@@ -236,4 +236,5 @@ else:
 
     st.sidebar.markdown("---")
     st.sidebar.caption("LabSmartAI • v1.0")
+
 
