@@ -19,10 +19,34 @@ st.set_page_config(
 st.markdown("""
         <style>
         .stApp { background-color: #f8f9fa; color: #212529; }
-        [data-testid="stSidebar"] { background-color: #000000 !important; color: #ffffff !important; }
-        [data-testid="stSidebar"] * { color: #ffffff !important; }
-        
-        /* Estilo do Cartão Postal conforme sua imagem */
+        [data-testid="stSidebar"] { background-color: #000000 !important; }
+
+        /* 1. TEXTOS GERAIS DA SIDEBAR (Brancos) */
+        [data-testid="stSidebar"] [data-testid="stWidgetLabel"] p, 
+        [data-testid="stSidebar"] .stMarkdown p,
+        [data-testid="stSidebar"] .stCaption {
+            color: #ffffff !important;
+        }
+
+        /* 2. BOTÕES DE AÇÃO (Fundo Verde, Texto PRETO) */
+        /* Isso afeta os botões dentro do Popover e botões normais da sidebar */
+        [data-testid="stSidebar"] .stButton button, 
+        div[data-testid="stPopoverContent"] .stButton button {
+            background-color: #28a745 !important;
+            color: #000000 !important; /* Texto Preto para contraste no verde */
+            font-weight: bold !important;
+            border: none !important;
+        }
+
+        /* 3. BOTÃO DO POPOVER (O de 3 pontos "⋮ Opções") */
+        /* Mantemos a borda e o texto verde sobre o fundo preto da sidebar */
+        div[data-testid="stPopover"] > button {
+            background-color: transparent !important;
+            border: 1px solid #28a745 !important;
+            color: #28a745 !important;
+        }
+
+        /* 4. CARTÃO DE USUÁRIO (Texto Branco) */
         .user-card {
             background: #111;
             border: 1px solid #28a745;
@@ -30,6 +54,10 @@ st.markdown("""
             padding: 15px;
             text-align: center;
             margin-bottom: 10px;
+            color: #ffffff !important;
+        }
+        .user-card span, .user-card small {
+            color: #ffffff !important;
         }
         .profile-img {
             width: 75px; height: 75px;
@@ -38,19 +66,12 @@ st.markdown("""
             margin: 10px auto;
             object-fit: cover;
         }
-        
-        /* Botão de 3 pontos (Popover) */
-        div[data-testid="stPopover"] > button {
-            background-color: transparent !important;
-            border: 1px solid #333 !important;
-            color: #28a745 !important;
-            width: 100%;
-        }
 
-        [data-testid="stSidebar"] .stButton button {
-            background-color: #28a745 !important;
-            color: white !important;
+        /* 5. NAVEGAÇÃO / RADIO BUTTONS (Texto Branco) */
+        [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label {
+            color: #ffffff !important;
         }
+        
         hr { border-top: 2px solid #28a745 !important; }
         </style>
     """, unsafe_allow_html=True)
@@ -204,7 +225,3 @@ else:
 
     st.sidebar.markdown("---")
     st.sidebar.caption("LabSmartAI • v1.0")
-
-
-
-
