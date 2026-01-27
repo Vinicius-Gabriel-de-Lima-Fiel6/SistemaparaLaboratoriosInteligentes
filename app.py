@@ -6,7 +6,7 @@ from supabase import create_client
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-# Configuração da página com a sua logo no ícone da aba
+# Configuração da página
 st.set_page_config(
     page_title="LabSmartAI", 
     page_icon="https://i.ibb.co/6cKPZ5Pr/Gemini-Generated-Image-jes56ljes56ljes5.png", 
@@ -23,15 +23,32 @@ def tela_acesso():
     col1, col2, col3 = st.columns([1, 1.2, 1])
     with col2:
         st.write("")
-        # Exibição da sua logo na tela de login
-        st.image("https://i.ibb.co/6cKPZ5Pr/Gemini-Generated-Image-jes56ljes56ljes5.png", use_container_width=True)
-        st.markdown("<h1 style='text-align: center;'>SynapseLab</h1>", unsafe_allow_html=True)
+        
+        # --- LOGO REDONDA E MENOR ---
+        # Definimos o tamanho (200px) e o border-radius (50%) via HTML/CSS
+        logo_url = "https://i.ibb.co/6cKPZ5Pr/Gemini-Generated-Image-jes56ljes56ljes5.png"
+        st.markdown(
+            f"""
+            <div style="display: flex; justify-content: center;">
+                <img src="{logo_url}" style="
+                    width: 180px; 
+                    height: 180px; 
+                    border-radius: 50%; 
+                    object-fit: cover;
+                    background-color: transparent;
+                ">
+            </div>
+            """, 
+            unsafe_allow_html=True
+        )
+        
+        st.markdown("<h1 style='text-align: center;'>LabSmartAI</h1>", unsafe_allow_html=True)
         
         st.subheader("Login Administrativo")
         email_input = st.text_input("E-mail Profissional", key="l_email")
         senha_input = st.text_input("Senha de Acesso", type="password", key="l_pass")
         
-        if st.button("ACESSAR SISTEMA"):
+        if st.button("ACESSAR SISTEMA", use_container_width=True):
             user = db.buscar_usuario_por_email(email_input)
             if user and db.verificar_senha(senha_input, user['password_hash']):
                 st.session_state.logado = True
@@ -98,7 +115,6 @@ else:
 
         st.write("") 
         
-        # Menu Simplificado (Lógica de Agrupamento)
         abas = ["🏠 Dashboard", "🤖 IA & Visão", "💼 Laboratório", "⚛️ Tabelas Químicas", "🧮 Calculadora Química", "📊 Gráficos"]
         
         if role == "ADM":
@@ -112,7 +128,6 @@ else:
     if clean_selection == "Dashboard":
         st.title(f"🚀 Painel de Controle - {org_atual}")
         
-        # Métricas em Tempo Real
         try:
             res_sub = supabase.table("substancias").select("quantidade").eq("org_name", org_atual).execute()
             total_itens = sum([i['quantidade'] for i in res_sub.data]) if res_sub.data else 0
@@ -161,7 +176,6 @@ else:
 
     elif clean_selection == "Laboratório":
         st.title("💼 Central do Laboratório")
-        
         if role in ["Tecnico", "ADM"]:
             sub_tabs = st.tabs(["📦 Estoque Atual", "⚗️ Cadastro de Substâncias", "🛠️ Equipamentos"])
             with sub_tabs[0]: show_estoque()
@@ -181,4 +195,3 @@ else:
 
     st.sidebar.markdown("---")
     st.sidebar.caption("LabSmartAI V.Beta")
-
