@@ -30,9 +30,13 @@ st.markdown("""
         border-right: 2px solid ;
     }
     
-    h1, h2, h3,span{
+    h1, h2, h3{
         font-family: 'Inter', sans-serif;
         color: #FFFFFF !important;
+    } 
+    span{
+        font-family: 'Inter', sans-serif;
+        color: #000000 !important;
     }   
     p{
     font-family: 'Inter', sans-serif;
@@ -245,5 +249,6 @@ else:
 
     st.sidebar.markdown("---")
     st.sidebar.caption("LabSmartAI • v1.0")
+
 
 
