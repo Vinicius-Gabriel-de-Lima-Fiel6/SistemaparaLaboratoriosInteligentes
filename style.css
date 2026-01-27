@@ -1,108 +1,71 @@
-st.markdown("""
-    <style>
-    /* 1. VARIÁVEIS DE DESIGN */
-    :root {
-        --bg-dark: #0a0e17;
-        --sidebar-dark: #06090f;
-        --primary-cyan: #00f2fe;
-        --accent-glow: rgba(0, 242, 254, 0.4);
-        --card-bg: rgba(16, 22, 34, 0.8);
-        --text-white: #ffffff;
-        --text-dim: #CBD5E0;
-    }
+/* Fundo Geral da Aplicação */
+.stApp { 
+    background-color: #f8f9fa; 
+    color: #212529; 
+}
 
-    /* 2. CONFIGURAÇÃO DO FUNDO ANIMADO */
-    .stApp {
-        background-color: var(--bg-dark) !important;
-        overflow: hidden;
-    }
+/* Sidebar - Fundo Preto */
+[data-testid="stSidebar"] { 
+    background-color: #000000 !important; 
+    color: #ffffff !important; 
+}
 
-    /* Criando um container fixo para o grid não atrapalhar o scroll */
-    .stApp::before {
-        content: "";
-        position: fixed;
-        top: 0; left: 0; right: 0; bottom: 0;
-        background-image: 
-            linear-gradient(rgba(0, 242, 254, 0.05) 1px, transparent 1px), 
-            linear-gradient(90deg, rgba(0, 242, 254, 0.05) 1px, transparent 1px);
-        background-size: 60px 60px;
-        transform: perspective(1000px) rotateX(60deg) translateY(-100px);
-        transform-origin: center top;
-        z-index: -1;
-        animation: move-grid 15s linear infinite;
-    }
+/* 1. TEXTOS GERAIS DA SIDEBAR (Abas e Labels em Branco) */
+[data-testid="stSidebar"] p, 
+[data-testid="stSidebar"] label, 
+[data-testid="stSidebar"] span { 
+    color: #ffffff !important; 
+}
 
-    @keyframes move-grid {
-        0% { background-position: 0 0; }
-        100% { background-position: 0 60px; }
-    }
+/* 2. BOTÕES DE AÇÃO (Fundo Verde, Texto Preto) */
+[data-testid="stSidebar"] .stButton button,
+[data-testid="stSidebar"] div[data-testid="stPopover"] > button {
+    background-color: #28a745 !important;
+    border: none !important;
+    width: 100% !important;
+    transition: all 0.3s ease;
+}
 
-    /* 3. SIDEBAR CUSTOMIZADA */
-    [data-testid="stSidebar"] {
-        background-color: var(--sidebar-dark) !important;
-        border-right: 1px solid rgba(0, 242, 254, 0.3) !important;
-    }
+/* 3. FORÇA O TEXTO E ÍCONE DENTRO DOS BOTÕES A SEREM PRETOS (FIXO) */
+/* Resolve o erro de visibilidade do "Opções" */
+[data-testid="stSidebar"] button p, 
+[data-testid="stSidebar"] button span, 
+[data-testid="stSidebar"] button div,
+[data-testid="stSidebar"] button svg {
+    color: #000000 !important;
+    fill: #000000 !important;
+    -webkit-text-fill-color: #000000 !important;
+}
 
-    /* 4. TIPOGRAFIA E CORES GERAIS */
-    h1, h2, h3, label, .stMarkdown p {
-        color: var(--text-white) !important;
-        font-family: 'Inter', sans-serif;
-    }
-    
-    .stMarkdown small {
-        color: var(--primary-cyan) !important;
-    }
+/* Mantém as cores mesmo ao passar o mouse (Hover) */
+[data-testid="stSidebar"] button:hover p, 
+[data-testid="stSidebar"] button:hover span, 
+[data-testid="stSidebar"] button:hover svg {
+    color: #000000 !important;
+    fill: #000000 !important;
+}
 
-    /* 5. CARDS E MÉTRICAS (Efeito Glassmorphism) */
-    div[data-testid="metric-container"], .user-card {
-        background-color: var(--card-bg) !important;
-        border: 1px solid rgba(0, 242, 254, 0.2) !important;
-        border-radius: 12px !important;
-        padding: 20px !important;
-        backdrop-filter: blur(12px);
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
-    }
+/* Cartão do Usuário (Estilo Postal) */
+.user-card {
+    background: #111;
+    border: 1px solid #28a745;
+    border-radius: 12px;
+    padding: 15px;
+    text-align: center;
+    margin-bottom: 10px;
+}
 
-    /* Títulos das Métricas */
-    div[data-testid="stMetricLabel"] > div {
-        color: var(--text-dim) !important;
-    }
-    
-    /* Valores das Métricas */
-    div[data-testid="stMetricValue"] > div {
-        color: var(--primary-cyan) !important;
-        text-shadow: 0 0 10px var(--accent-glow);
-    }
+.profile-img {
+    width: 75px; 
+    height: 75px;
+    border-radius: 50%;
+    border: 2px solid #28a745;
+    margin: 10px auto;
+    object-fit: cover;
+}
 
-    /* 6. BOTÕES ESTILO NEON */
-    .stButton>button {
-        background-color: transparent !important;
-        color: var(--primary-cyan) !important;
-        border: 1px solid var(--primary-cyan) !important;
-        border-radius: 5px;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        transition: all 0.3s ease;
-    }
-
-    .stButton>button:hover {
-        background-color: var(--primary-cyan) !important;
-        color: var(--bg-dark) !important;
-        box-shadow: 0 0 20px var(--primary-cyan);
-        transform: translateY(-2px);
-    }
-
-    /* 7. INPUTS E CAMPOS DE TEXTO */
-    .stTextInput>div>div>input {
-        background-color: rgba(255, 255, 255, 0.05) !important;
-        color: white !important;
-        border: 1px solid rgba(0, 242, 254, 0.2) !important;
-    }
-
-    /* 8. LINHAS DIVISÓRIAS */
-    hr {
-        border-color: rgba(0, 242, 254, 0.2) !important;
-    }
-    </style>
-    """, unsafe_allow_html=True)
+/* Linha divisória verde */
+hr { 
+    border-top: 2px solid #28a745 !important; 
+    opacity: 0.6;
+}
