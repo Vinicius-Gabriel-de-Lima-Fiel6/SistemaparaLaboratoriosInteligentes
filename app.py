@@ -48,8 +48,8 @@ st.markdown("""
     }
     
     .stButton>button:hover {
-        background-color: #EDF2F7;
-        border-color: #718096;
+        background-color: #38A169;
+        border-color: #000000;
         transform: translateY(-1px);
     }
 
@@ -236,6 +236,7 @@ else:
 
     st.sidebar.markdown("---")
     st.sidebar.caption("LabSmartAI • v1.0")
+
 
 
 
