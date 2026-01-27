@@ -15,76 +15,80 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- CSS GLOBAL (Preto, Branco e Verde Esmeralda) ---
+# --- CSS GLOBAL REFINADO ---
 st.markdown("""
-        <style>
-        /* Fundo principal e texto */
-        .stApp {
-            background-color: #f8f9fa; /* Cinza claro */
-            color: #212529; /* Preto suave */
-        }
-        
-        /* Estilização da Sidebar */
-        [data-testid="stSidebar"] {
-            background-color: #000000 !important; /* Preto */
-            color: #ffffff !important; /* Branco */
-        }
-        
-        /* Textos e ícones na Sidebar */
-        [data-testid="stSidebar"] *, [data-testid="stSidebar"] p, [data-testid="stSidebar"] span {
-            color: #ffffff !important;
-        }
+    <style>
+    /* Fundo principal e texto */
+    .stApp {
+        background-color: #f8f9fa;
+        color: #212529;
+    }
+    
+    /* Estilização da Sidebar Dark */
+    [data-testid="stSidebar"] {
+        background-color: #000000 !important;
+        color: #ffffff !important;
+    }
+    
+    [data-testid="stSidebar"] *, [data-testid="stSidebar"] p, [data-testid="stSidebar"] span {
+        color: #ffffff !important;
+    }
 
-        /* Destaques em Verde (Botões e Links na Sidebar) */
-        [data-testid="stSidebar"] .stButton button {
-            background-color: #28a745 !important; /* Verde */
-            color: white !important;
-            border-radius: 5px;
-            border: none;
-        }
+    /* Cartão Postal de Usuário na Sidebar */
+    .profile-card {
+        background: linear-gradient(135deg, #1a1a1a 0%, #000000 100%);
+        border: 1px solid #28a745;
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 10px;
+        text-align: center;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    }
+    .profile-pic {
+        width: 80px; height: 80px;
+        border-radius: 50%;
+        border: 2px solid #28a745;
+        margin: 10px auto;
+        object-fit: cover;
+        display: block;
+    }
+    .org-label { font-size: 0.6rem; color: #28a745; text-transform: uppercase; letter-spacing: 2px; font-weight: 800; }
+    .user-name { font-size: 1.1rem; font-weight: bold; margin: 5px 0; color: white !important; }
+    .user-role { font-size: 0.7rem; background: #28a745; color: white !important; padding: 2px 10px; border-radius: 10px; }
 
-        /* Estilo dos Radio Buttons e Seletores */
-        .stRadio label, .stSelectbox label {
-            font-weight: bold;
-            color: #000000;
-        }
+    /* Menu Suspenso (Popover) Custom */
+    div[data-testid="stPopover"] > button {
+        background-color: transparent !important;
+        color: #28a745 !important;
+        border: 1px solid #28a745 !important;
+        width: 100%;
+        border-radius: 5px;
+    }
 
-        /* Container de Chat */
-        .stChatMessage {
-            background-color: #ffffff !important; /* Branco */
-            border: 1px solid #dee2e6;
-            border-radius: 10px;
-            margin-bottom: 10px;
-        }
+    /* Navegação */
+    .nav-header { 
+        font-size: 0.7rem; color: #666 !important; 
+        margin: 20px 0 10px 0; letter-spacing: 2px; font-weight: bold;
+    }
 
-        /* Divisores */
-        hr {
-            border-top: 2px solid #28a745 !important; /* Linha Verde */
-        }
+    /* Divisores */
+    hr { border-top: 1px solid #28a745 !important; opacity: 0.3; }
+    </style>
+""", unsafe_allow_html=True)
 
-        /* Inputs de Texto */
-        .stChatInput textarea {
-            background-color: #ffffff !important;
-            color: #000000 !important;
-            border: 1px solid #000000 !important;
-        }
-        </style>
-    """, unsafe_allow_html=True)
 # --- CONEXÃO SUPABASE ---
 supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 
 def tela_acesso():
     col1, col2, col3 = st.columns([1, 1.2, 1])
     with col2:
-        st.write("")
         st.markdown("<h1 style='text-align: center; font-size: 3.5rem;'>🧪</h1>", unsafe_allow_html=True)
         st.markdown("<h1 style='text-align: center;'>LabSmartAI</h1>", unsafe_allow_html=True)
-        
         st.subheader("Login Administrativo")
         email_input = st.text_input("E-mail Profissional", key="l_email")
         senha_input = st.text_input("Senha de Acesso", type="password", key="l_pass")
         
-        if st.button("ACESSAR SISTEMA"):
+        if st.button("ACESSAR SISTEMA", use_container_width=True):
             user = db.buscar_usuario_por_email(email_input)
             if user and db.verificar_senha(senha_input, user['password_hash']):
                 st.session_state.logado = True
@@ -94,7 +98,6 @@ def tela_acesso():
                 st.error("Dados incorretos.")
         
         st.markdown("---")
-        st.markdown("<p style='text-align: center; color: var(--text-gray);'>Se não tiver uma conta, clique abaixo:</p>", unsafe_allow_html=True)
         st.link_button("Cadastro Empresarial", "https://cadastro-de-empresas-e7bkusdk4tsdchmx89fh8c.streamlit.app/", use_container_width=True)
 
 # --- FLUXO PRINCIPAL ---
@@ -126,37 +129,53 @@ else:
     role = user.get('role', 'Visualizador')
     org_atual = user.get('org_name')
     
-    # SIDEBAR
-    st.sidebar.markdown(f"""
-        <div class="user-card">
-            <small style="font-weight: 800; font-size: 0.7rem; color: var(--emerald-primary);">ORGANIZAÇÃO</small><br>
-            <span style="font-size: 1rem; font-weight: 700;">{org_atual}</span><br>
-            <div style="margin-top: 10px; border-top: 1px solid var(--border-color); padding-top: 5px;">
-                <span style="font-size: 0.9rem;">{user['username']}</span><br>
-                <span style="background: var(--emerald-primary); color: white; font-size: 0.7rem; padding: 2px 8px; border-radius: 10px;">{role}</span>
+    # --- SIDEBAR CUSTOMIZADA ---
+    with st.sidebar:
+        # 1. Cartão Postal do Usuário
+        # Usando um avatar padrão, mas você pode substituir user.get('avatar_url') se tiver no banco
+        avatar_url = "https://api.dicebear.com/7.x/avataaars/svg?seed=" + user['username']
+        
+        st.markdown(f"""
+            <div class="profile-card">
+                <div class="org-label">ORGANIZAÇÃO</div>
+                <div class="user-name" style="font-size: 1.3rem; margin-bottom:10px;">{org_atual}</div>
+                <hr>
+                <img src="{avatar_url}" class="profile-pic">
+                <div class="user-name">{user['username']}</div>
+                <span class="user-role">{role}</span>
             </div>
-        </div>
-    """, unsafe_allow_html=True)
-    
-    abas = ["🏠 Dashboard", "🤖 IA & Visão", "🧪 Tabelas Químicas", "🧮 Calculadora Química", "📊 Gráficos"]
-    if role in ["Tecnico", "ADM"]:
-        abas.extend(["⚗️ Cadastro de Substâncias", "📦 Estoque"])
-    if role == "ADM":
-        abas.extend(["🛠️ Equipamentos", "👥 Gestão de Equipe", "📄 Relatórios"])
+        """, unsafe_allow_html=True)
 
-    selection = st.sidebar.radio("NAVEGAÇÃO", abas, index=abas.index(st.session_state.selection) if st.session_state.selection in abas else 0)
-    st.session_state.selection = selection
+        # 2. Menu Suspenso (Três Pontos / Opções)
+        with st.popover("⋮ Opções de Perfil"):
+            st.markdown("### ⚙️ Configurações")
+            if st.button("📝 Editar Perfil"):
+                st.info("Funcionalidade de edição em breve.")
+            if st.button("🔒 Alterar Senha"):
+                st.info("Redirecionando para segurança...")
+            st.divider()
+            if st.button("🚪 SAIR DO SISTEMA", use_container_width=True):
+                st.session_state.clear()
+                st.rerun()
 
-    if st.sidebar.button("SAIR"):
-        st.session_state.clear()
-        st.rerun()
+        st.markdown("<div class='nav-header'>NAVEGAÇÃO</div>", unsafe_allow_html=True)
+        
+        abas = ["🏠 Dashboard", "🤖 IA & Visão", "🧪 Tabelas Químicas", "🧮 Calculadora Química", "📊 Gráficos"]
+        if role in ["Tecnico", "ADM"]:
+            abas.extend(["⚗️ Cadastro de Substâncias", "📦 Estoque"])
+        if role == "ADM":
+            abas.extend(["🛠️ Equipamentos", "👥 Gestão de Equipe", "📄 Relatórios"])
 
+        selection = st.radio("Selecione a aba:", abas, label_visibility="collapsed")
+        st.session_state.selection = selection
+
+    # --- RENDERIZAÇÃO DE CONTEÚDO ---
     clean_selection = selection.split(" ", 1)[-1]
 
-    # DASHBOARD
     if clean_selection == "Dashboard":
         st.title(f"🚀 Painel de Controle - {org_atual}")
         
+        # Grid de Métricas (Mantido conforme seu original)
         try:
             res_sub = supabase.table("substancias").select("quantidade").eq("org_name", org_atual).execute()
             total_itens = sum([i['quantidade'] for i in res_sub.data]) if res_sub.data else 0
@@ -166,29 +185,24 @@ else:
         except:
             total_itens, total_equip, total_analises = 0, 0, 0
 
-        limite_alerta = 100 
-        cor_estoque = "inverse" if total_itens < limite_alerta else "normal"
-        delta_label = f"-{limite_alerta - total_itens} un. (Crítico)" if total_itens < limite_alerta else "Estoque Operacional"
-
         m1, m2, m3, m4 = st.columns(4)
-        m1.metric("Itens no Estoque", f"{total_itens:,}".replace(",", "."), delta=delta_label, delta_color=cor_estoque)
-        m2.metric("Equipamentos", total_equip, "Ativos")
-        m3.metric("Registros Ativos", total_analises, "Banco de Dados")
-        m4.metric("Usuário Atual", user['username'], f"Acesso {role}")
+        m1.metric("Itens no Estoque", total_itens)
+        m2.metric("Equipamentos", total_equip)
+        m3.metric("Registros Ativos", total_analises)
+        m4.metric("Sessão", user['username'], role)
 
         st.markdown("---")
-        st.subheader("Atalhos do Sistema")
-        
+        st.subheader("Atalhos Rápidos")
         c1, c2, c3 = st.columns(3)
-        with c1:
-            if st.button("🤖 Central de IA"):
+        with c1: 
+            if st.button("🤖 Central de IA", use_container_width=True): 
                 st.session_state.selection = "🤖 IA & Visão"; st.rerun()
-        with c2:
-            if st.button("🧪 Tabelas e Reagentes"):
+        with c2: 
+            if st.button("🧪 Tabelas Químicas", use_container_width=True): 
                 st.session_state.selection = "🧪 Tabelas Químicas"; st.rerun()
-        with c3:
-            if st.button("🧮 Calculadora de Soluções"):
-                st.session_state.selection = "🧮 Calculadora Química"; st.rerun()
+        with c3: 
+            if st.button("📦 Ver Estoque", use_container_width=True): 
+                st.session_state.selection = "📦 Estoque"; st.rerun()
 
     # NAVEGAÇÃO DOS MÓDULOS
     elif clean_selection == "IA & Visão": ia.show_chatbot()
@@ -200,7 +214,3 @@ else:
     elif clean_selection == "Equipamentos": show_equipamentos()
     elif clean_selection == "Gestão de Equipe": show_config_empresa()
     elif clean_selection == "Relatórios": relatorios.show_reports(supabase)
-
-    st.sidebar.markdown("---")
-    st.sidebar.caption("LabSmartAI • v1.0")
-
