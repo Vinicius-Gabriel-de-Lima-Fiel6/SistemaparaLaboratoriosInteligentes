@@ -32,13 +32,13 @@ st.markdown("""
 
     h1, h2, h3, p, span, label {
         font-family: 'Inter', sans-serif;
-        color: #FFFFFF !important;
+        color: #000000 !important;
     }
 
     .stButton>button {
         width: 100%;
         border-radius: 8px;
-        background-color: #FFFFFF;
+        background-color: #000000;
         color: #1A202C;
         border: 1px solid #38A169;
         padding: 0.5rem;
@@ -236,6 +236,7 @@ else:
 
     st.sidebar.markdown("---")
     st.sidebar.caption("LabSmartAI • v1.0")
+
 
 
 
