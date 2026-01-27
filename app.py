@@ -51,7 +51,7 @@ st.markdown("""
         
         /* Botão de 3 pontos (Popover) */
         div[data-testid="stPopover"] > button {
-            background-color: transparent !important;
+            background-color: green !important;
             border: 1px solid #333 !important;
             color: #28a745 !important;
             width: 100%;
@@ -210,5 +210,6 @@ else:
 
     st.sidebar.markdown("---")
     st.sidebar.caption("LabSmartAI • v1.0")
+
 
 
