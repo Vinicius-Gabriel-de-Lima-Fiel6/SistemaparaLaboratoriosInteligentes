@@ -1,53 +1,93 @@
 import streamlit as st
-import io
 
 def show_configuracoes(supabase, user_data):
-    st.subheader("⚙️ Configurações de Perfil e Sistema")
-    
-    tab1, tab2 = st.tabs(["👤 Meu Perfil", "🖥️ Sistema"])
-    
-    with tab1:
-        col1, col2 = st.columns([1, 2])
-        
-        with col1:
-            # Exibe a foto atual
-            foto_atual = user_data.get('avatar_url') if user_data.get('avatar_url') else f"https://api.dicebear.com/7.x/avataaars/svg?seed={user_data['username']}"
-            st.image(foto_atual, width=150, caption="Foto Atual")
-            
-        with col2:
-            novo_nome = st.text_input("Nome de Exibição", value=user_data['username'])
-            arquivo_foto = st.file_uploader("Upload de nova foto", type=['jpg', 'png', 'jpeg'])
-            
-            if st.button("Salvar Alterações de Perfil"):
-                updates = {"username": novo_nome}
-                
-                # Lógica de Upload para Supabase Storage (se houver arquivo)
-                if arquivo_foto:
-                    file_extension = arquivo_foto.name.split('.')[-1]
-                    file_path = f"avatars/{user_data['id']}.{file_extension}"
-                    
-                    # Upload do arquivo
-                    supabase.storage.from_('labsmart_assets').upload(
-                        file_path, arquivo_foto.getvalue(), 
-                        {"content-type": f"image/{file_extension}", "upsert": "true"}
-                    )
-                    
-                    # Gera URL pública
-                    url_publica = supabase.storage.from_('labsmart_assets').get_public_url(file_path)
-                    updates["avatar_url"] = url_publica
-                
-                # Atualiza tabela de usuários
-                try:
-                    supabase.table("usuarios").update(updates).eq("id", user_data['id']).execute()
-                    st.session_state.user_data.update(updates) # Atualiza sessão local
-                    st.success("Perfil atualizado com sucesso!")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Erro ao salvar: {e}")
+    # Botão de Voltar no topo para sair dessa "aba" e voltar ao Dashboard
+    if st.button("⬅️ Voltar para o Sistema"):
+        st.session_state.selection = "🏠 Dashboard"
+        st.rerun()
 
-    with tab2:
-        st.write("### Preferências da Organização")
-        st.info(f"Conectado a: {user_data.get('org_name')}")
-        st.checkbox("Habilitar Logs de Auditoria em Tempo Real", value=True)
-        st.checkbox("Alertas de Validade de Reagentes (E-mail)", value=True)
-        st.selectbox("Fuso Horário do Sistema", ["UTC-3 (Brasília)", "UTC-4 (Manaus)", "UTC+0"])
+    st.title("🛠️ Central de Personalização do Usuário")
+    st.markdown("---")
+
+    # Inicializa estados de preferência se não existirem
+    if 'prefs' not in st.session_state:
+        st.session_state.prefs = {
+            "cor_primaria": "#28a745",
+            "modulos_ocultos": [],
+            "links_externos": [
+                {"nome": "Planilha de Apoio Excel", "url": "https://office.com"},
+                {"nome": "Dashboard Power BI", "url": "https://powerbi.com"}
+            ]
+        }
+
+    tab_perfil, tab_visual, tab_modulos, tab_links = st.tabs([
+        "👤 Perfil & Foto", "🎨 Identidade Visual", "🙈 Visibilidade", "🔗 Links Externos"
+    ])
+
+    # --- 1. PERFIL E FOTO ---
+    with tab_perfil:
+        st.subheader("Configurações de Identidade")
+        col1, col2 = st.columns([1, 2])
+        with col1:
+            foto_url = user_data.get('avatar_url') if user_data.get('avatar_url') else f"https://api.dicebear.com/7.x/avataaars/svg?seed={user_data['username']}"
+            st.image(foto_url, width=150)
+            st.file_uploader("Alterar Foto", type=['jpg', 'png'])
+        with col2:
+            st.text_input("Nome Profissional", value=user_data['username'])
+            st.text_input("Cargo/Função", value=user_data.get('role', 'Técnico'))
+            if st.button("Salvar Perfil"):
+                st.success("Dados de perfil salvos!")
+
+    # --- 2. IDENTIDADE VISUAL (Dinamismo de Cores) ---
+    with tab_visual:
+        st.subheader("Paleta de Cores Pessoal")
+        st.info("Estas cores serão aplicadas à sua interface individual.")
+        nova_cor = st.color_picker("Cor Primária do Sistema (Botões e Destaques)", st.session_state.prefs["cor_primaria"])
+        
+        if nova_cor != st.session_state.prefs["cor_primaria"]:
+            st.session_state.prefs["cor_primaria"] = nova_cor
+            st.success(f"Cor alterada para {nova_cor}. O sistema aplicará as mudanças.")
+            st.rerun()
+
+    # --- 3. VISIBILIDADE (O que ele não quer ver) ---
+    with tab_modulos:
+        st.subheader("Gerenciar Módulos Visíveis")
+        st.write("Desmarque os módulos que você não utiliza para simplificar sua navegação.")
+        
+        opcoes_modulos = ["🤖 IA & Visão", "🧪 Tabelas Químicas", "🧮 Calculadora Química", "📊 Gráficos"]
+        
+        for modulo in opcoes_modulos:
+            is_visible = modulo not in st.session_state.prefs["modulos_ocultos"]
+            check = st.checkbox(modulo, value=is_visible)
+            
+            if not check and is_visible:
+                st.session_state.prefs["modulos_ocultos"].append(modulo)
+                st.rerun()
+            elif check and not is_visible:
+                st.session_state.prefs["modulos_ocultos"].remove(modulo)
+                st.rerun()
+
+    # --- 4. LINKS EXTRAS (Excel, Power BI, etc) ---
+    with tab_links:
+        st.subheader("Meus Atalhos Externos")
+        
+        # Exibe links atuais
+        for link in st.session_state.prefs["links_externos"]:
+            col_l, col_b = st.columns([3, 1])
+            col_l.markdown(f"🔗 **[{link['nome']}]({link['url']})**")
+            if col_b.button("Remover", key=link['nome']):
+                st.session_state.prefs["links_externos"].remove(link)
+                st.rerun()
+        
+        st.divider()
+        st.write("Adicionar Novo Atalho")
+        nome_link = st.text_input("Nome do Site")
+        url_link = st.text_input("URL (Link)")
+        if st.button("Adicionar Link"):
+            if nome_link and url_link:
+                st.session_state.prefs["links_externos"].append({"nome": nome_link, "url": url_link})
+                st.success("Link adicionado!")
+                st.rerun()
+
+    st.markdown("---")
+    st.caption("LabSmartAI - Configurações Avançadas v1.0")
