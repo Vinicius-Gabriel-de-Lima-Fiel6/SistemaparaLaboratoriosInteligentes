@@ -15,32 +15,24 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- CSS GLOBAL SEPARADO POR ELEMENTO ---
+# --- CSS GLOBAL (Mantendo sua estrutura de cores com a separação solicitada) ---
 st.markdown("""
         <style>
         .stApp { background-color: #f8f9fa; color: #212529; }
+        [data-testid="stSidebar"] { background-color: #000000 !important; color: #ffffff !important; }
         
-        /* 1. Fundo da Sidebar */
-        [data-testid="stSidebar"] { 
-            background-color: #000000 !important; 
-        }
-
-        /* 2. COR DOS TEXTOS DA SIDEBAR (Abas, Títulos, Labels) */
-        [data-testid="stSidebar"] p, 
-        [data-testid="stSidebar"] span, 
-        [data-testid="stSidebar"] label { 
+        /* 1. SEPARAÇÃO: Texto das abas e labels em BRANCO */
+        [data-testid="stSidebar"] p, [data-testid="stSidebar"] label, [data-testid="stSidebar"] span { 
             color: #ffffff !important; 
         }
         
-        /* 3. COR DOS BOTÕES DA SIDEBAR (Fundo verde, Texto preto) */
-        /* Aplicado apenas ao elemento 'button' para não afetar os 'p' (textos) */
+        /* 2. SEPARAÇÃO: Texto dos botões da sidebar em PRETO */
         [data-testid="stSidebar"] .stButton button {
             background-color: #28a745 !important;
-            color: #000000 !important; /* Texto Preto aqui */
-            border: none !important;
+            color: #000000 !important;
         }
 
-        /* 4. Estilo do Cartão Postal */
+        /* Estilo do Cartão Postal conforme sua imagem */
         .user-card {
             background: #111;
             border: 1px solid #28a745;
@@ -57,7 +49,7 @@ st.markdown("""
             object-fit: cover;
         }
         
-        /* Popover (3 pontos) */
+        /* Botão de 3 pontos (Popover) */
         div[data-testid="stPopover"] > button {
             background-color: transparent !important;
             border: 1px solid #333 !important;
@@ -107,7 +99,7 @@ if 'selection' not in st.session_state:
 if not st.session_state.logado:
     tela_acesso()
 else:
-    # IMPORTAÇÃO DOS MÓDULOS
+    # IMPORTAÇÃO DOS MÓDULOS (Original)
     try:
         from substancias import show_substances
         from ControleEstoque import show_estoque
@@ -126,7 +118,9 @@ else:
     role = user.get('role', 'Visualizador')
     org_atual = user.get('org_name')
     
+    # --- SIDEBAR (Mantendo sua estrutura exata) ---
     with st.sidebar:
+        # Seu User Card transformado em "Postal"
         st.markdown(f"""
             <div class="user-card">
                 <small style="font-weight: 800; font-size: 0.7rem; color: #28a745;">ORGANIZAÇÃO</small><br>
@@ -140,18 +134,21 @@ else:
             </div>
         """, unsafe_allow_html=True)
 
+        # O Menu de 3 Pontos (Popover)
         with st.popover("⋮ Opções"):
             st.write("👤 Perfil do Usuário")
-            if st.button("⚙️ Configurações Gerais", key="btn_config", use_container_width=True):
+            
+            if st.button("⚙️ Configurações Gerais", use_container_width=True):
                 st.session_state.selection = "Configurações"
                 st.rerun()
             st.divider()
-            if st.button("SAIR", key="btn_logout", use_container_width=True):
+            if st.button("SAIR", use_container_width=True):
                 st.session_state.clear()
                 st.rerun()
 
         st.write("") 
         
+        # Sua lógica de abas original
         abas = ["🏠 Dashboard", "🤖 IA & Visão", "🧪 Tabelas Químicas", "🧮 Calculadora Química", "📊 Gráficos"]
         if role in ["Tecnico", "ADM"]:
             abas.extend(["⚗️ Cadastro de Substâncias", "📦 Estoque"])
@@ -163,12 +160,44 @@ else:
 
     clean_selection = selection.split(" ", 1)[-1]
 
-    # DASHBOARD
+    # DASHBOARD (Lógica original de métricas)
     if clean_selection == "Dashboard":
         st.title(f"🚀 Painel de Controle - {org_atual}")
-        # Código de métricas original aqui...
+        
+        try:
+            res_sub = supabase.table("substancias").select("quantidade").eq("org_name", org_atual).execute()
+            total_itens = sum([i['quantidade'] for i in res_sub.data]) if res_sub.data else 0
+            res_eq = supabase.table("equipamentos").select("id", count="exact").eq("org_name", org_atual).execute()
+            total_equip = res_eq.count if res_eq.count else 0
+            total_analises = len(res_sub.data)
+        except:
+            total_itens, total_equip, total_analises = 0, 0, 0
 
-    # NAVEGAÇÃO DOS MÓDULOS
+        limite_alerta = 100 
+        cor_estoque = "inverse" if total_itens < limite_alerta else "normal"
+        delta_label = f"-{limite_alerta - total_itens} un. (Crítico)" if total_itens < limite_alerta else "Estoque Operacional"
+
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("Itens no Estoque", f"{total_itens:,}".replace(",", "."), delta=delta_label, delta_color=cor_estoque)
+        m2.metric("Equipamentos", total_equip, "Ativos")
+        m3.metric("Registros Ativos", total_analises, "Banco de Dados")
+        m4.metric("Usuário Atual", user['username'], f"Acesso {role}")
+
+        st.markdown("---")
+        st.subheader("Atalhos do Sistema")
+        
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            if st.button("🤖 Central de IA"):
+                st.session_state.selection = "🤖 IA & Visão"; st.rerun()
+        with c2:
+            if st.button("🧪 Tabelas e Reagentes"):
+                st.session_state.selection = "🧪 Tabelas Químicas"; st.rerun()
+        with c3:
+            if st.button("🧮 Calculadora de Soluções"):
+                st.session_state.selection = "🧮 Calculadora Química"; st.rerun()
+
+    # NAVEGAÇÃO DOS MÓDULOS (Chamadas originais preservadas)
     elif clean_selection == "IA & Visão": ia.show_chatbot()
     elif clean_selection == "Tabelas Químicas": show_tabelas()
     elif clean_selection == "Calculadora Química": show_calculadora()
