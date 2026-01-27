@@ -49,29 +49,38 @@ st.markdown("""
             object-fit: cover;
         }
         
-       /* Botão de 3 pontos (Opções) - TEXTO PRETO FIXO */
+      /* Botão de 3 pontos (Opções) - COR PRETA FIXA E LEITURA CLARA */
         div[data-testid="stPopover"] > button {
-            background-color: #28a745 !important; /* Cor de fundo fixa */
-            color: #000000 !important;           /* Cor do texto/ícone fixa */
+            background-color: #28a745 !important; /* Fundo Verde */
             border: none !important;
             width: 100%;
-            opacity: 1 !important;               /* Garante que não fique semi-transparente */
+            height: auto;
         }
 
-        /* Bloqueia qualquer mudança de cor ao passar o mouse ou clicar */
-        div[data-testid="stPopover"] > button:hover, 
-        div[data-testid="stPopover"] > button:active,
-        div[data-testid="stPopover"] > button:focus {
+        /* Força o texto e o ícone (setinha/pontos) a ficarem pretos */
+        div[data-testid="stPopover"] > button p, 
+        div[data-testid="stPopover"] > button span,
+        div[data-testid="stPopover"] > button svg {
             color: #000000 !important;
-            background-color: #28a745 !important;
-            border: none !important;
-            box-shadow: none !important;
-        }
-
-        /* Garante que o ícone (setinha ou pontos) também seja preto */
-        div[data-testid="stPopover"] svg {
             fill: #000000 !important;
         }
+
+        /* Bloqueia qualquer mudança de cor no Hover (Passar o mouse) */
+        div[data-testid="stPopover"] > button:hover, 
+        div[data-testid="stPopover"] > button:active, 
+        div[data-testid="stPopover"] > button:focus {
+            background-color: #28a745 !important;
+            border: none !important;
+        }
+
+        /* Garante que o texto dentro do hover também continue preto */
+        div[data-testid="stPopover"] > button:hover p,
+        div[data-testid="stPopover"] > button:hover span,
+        div[data-testid="stPopover"] > button:hover svg {
+            color: #000000 !important;
+            fill: #000000 !important;
+        }
+          
         hr { border-top: 2px solid #28a745 !important; }
         </style>
     """, unsafe_allow_html=True)
@@ -225,6 +234,7 @@ else:
 
     st.sidebar.markdown("---")
     st.sidebar.caption("LabSmartAI • v1.0")
+
 
 
 
