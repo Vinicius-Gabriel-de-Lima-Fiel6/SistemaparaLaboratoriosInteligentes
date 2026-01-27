@@ -6,7 +6,7 @@ from supabase import create_client
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-# Substituí o ícone "🧪" pelo link da logo na aba do navegador
+# Configuração da página com a sua logo no ícone da aba
 st.set_page_config(
     page_title="LabSmartAI", 
     page_icon="https://i.ibb.co/6cKPZ5Pr/Gemini-Generated-Image-jes56ljes56ljes5.png", 
@@ -23,7 +23,7 @@ def tela_acesso():
     col1, col2, col3 = st.columns([1, 1.2, 1])
     with col2:
         st.write("")
-        # Alteração: Removido o emoji e adicionada a imagem da logo centralizada
+        # Exibição da sua logo na tela de login
         st.image("https://i.ibb.co/6cKPZ5Pr/Gemini-Generated-Image-jes56ljes56ljes5.png", use_container_width=True)
         st.markdown("<h1 style='text-align: center;'>LabSmartAI</h1>", unsafe_allow_html=True)
         
