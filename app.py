@@ -46,17 +46,15 @@ def tela_acesso():
         st.markdown("<p style='text-align: center; color: var(--text-gray);'>Se não tiver uma conta, clique abaixo:</p>", unsafe_allow_html=True)
         st.link_button("Cadastro Empresarial", "https://cadastro-de-empresas-e7bkusdk4tsdchmx89fh8c.streamlit.app/", use_container_width=True)
 
-# --- FLUXO PRINCIPAL ---
-if 'logado' not in st.session_state:
-    st.session_state.logado = False
-if 'user_data' not in st.session_state:
-    st.session_state.user_data = None
-if 'selection' not in st.session_state:
-    st.session_state.selection = "🏠 Dashboard"
+# --- INICIALIZAÇÃO DE ESTADOS ---
+if 'logado' not in st.session_state: st.session_state.logado = False
+if 'user_data' not in st.session_state: st.session_state.user_data = None
+if 'selection' not in st.session_state: st.session_state.selection = "🏠 Dashboard"
 
 if not st.session_state.logado:
     tela_acesso()
 else:
+    # --- IMPORTAÇÃO DE MÓDULOS ---
     try:
         from substancias import show_substances
         from ControleEstoque import show_estoque
@@ -75,6 +73,7 @@ else:
     role = user.get('role', 'Visualizador')
     org_atual = user.get('org_name')
     
+    # --- SIDEBAR DE NAVEGAÇÃO ---
     with st.sidebar:
         st.markdown(f"""
             <div class="user-card">
@@ -101,20 +100,23 @@ else:
 
         st.write("") 
         
-        abas = ["🏠 Dashboard", "🤖 IA & Visão", "🧪 Tabelas Químicas", "🧮 Calculadora Química", "📊 Gráficos"]
-        if role in ["Tecnico", "ADM"]:
-            abas.extend(["⚗️ Cadastro de Substâncias", "📦 Estoque"])
+        # Menu Simplificado (Lógica de Agrupamento)
+        abas = ["🏠 Dashboard", "🤖 IA & Visão", "🧪 Laboratório", "🧪 Tabelas Químicas", "🧮 Calculadora Química", "📊 Gráficos"]
+        
         if role == "ADM":
-            abas.extend(["🛠️ Equipamentos", "👥 Gestão de Equipe", "📄 Relatórios"])
+            abas.extend(["👥 Gestão de Equipe", "📄 Relatórios"])
 
         selection = st.radio("NAVEGAÇÃO", abas, index=abas.index(st.session_state.selection) if st.session_state.selection in abas else 0)
         st.session_state.selection = selection
 
     clean_selection = selection.split(" ", 1)[-1]
 
+    # --- ROTEAMENTO DE TELAS ---
+    
     if clean_selection == "Dashboard":
         st.title(f"🚀 Painel de Controle - {org_atual}")
         
+        # Métricas em Tempo Real
         try:
             res_sub = supabase.table("substancias").select("quantidade").eq("org_name", org_atual).execute()
             total_itens = sum([i['quantidade'] for i in res_sub.data]) if res_sub.data else 0
@@ -131,28 +133,58 @@ else:
         m4.metric("Usuário", user['username'], f"Nível {role}")
 
         st.markdown("---")
-        st.subheader("Atalhos do Sistema")
+        st.subheader("Atalhos e Guias Rápidos")
         
+        # Linha 1 de Atalhos (Acessível a todos)
         c1, c2, c3 = st.columns(3)
         with c1:
-            if st.button("🤖 Central de IA"):
+            if st.button("🤖 Central de IA", use_container_width=True):
                 st.session_state.selection = "🤖 IA & Visão"; st.rerun()
         with c2:
-            if st.button("🧪 Tabelas e Reagentes"):
+            if st.button("🧪 Tabelas e Reagentes", use_container_width=True):
                 st.session_state.selection = "🧪 Tabelas Químicas"; st.rerun()
         with c3:
-            if st.button("🧮 Calculadora de Soluções"):
+            if st.button("🧮 Calculadora de Soluções", use_container_width=True):
                 st.session_state.selection = "🧮 Calculadora Química"; st.rerun()
+
+        # Linha 2 de Atalhos (Baseada em Permissão)
+        st.write("")
+        ca, cb, cc = st.columns(3)
+        with ca:
+            if st.button("📊 Analisar Gráficos", use_container_width=True):
+                st.session_state.selection = "📊 Gráficos"; st.rerun()
+        
+        if role in ["Tecnico", "ADM"]:
+            with cb:
+                if st.button("📦 Abrir Estoque", use_container_width=True):
+                    st.session_state.selection = "🧪 Laboratório"; st.rerun()
+            with cc:
+                if st.button("⚗️ Novo Cadastro", use_container_width=True):
+                    st.session_state.selection = "🧪 Laboratório"; st.rerun()
+        else:
+            with cb:
+                st.button("🔒 Estoque (Restrito)", disabled=True, use_container_width=True)
+
+    elif clean_selection == "Laboratório":
+        st.title("🧪 Central do Laboratório")
+        
+        # Definindo as sub-áreas dentro do Laboratório
+        if role in ["Tecnico", "ADM"]:
+            sub_tabs = st.tabs(["📦 Estoque Atual", "⚗️ Cadastro de Substâncias", "🛠️ Equipamentos"])
+            with sub_tabs[0]: show_estoque()
+            with sub_tabs[1]: show_substances()
+            with sub_tabs[2]: show_equipamentos()
+        else:
+            st.info("Você tem permissão apenas para visualização do estoque.")
+            show_estoque() # Visualizador vê apenas a tabela de estoque (conforme lógica do módulo)
 
     elif clean_selection == "IA & Visão": ia.show_chatbot()
     elif clean_selection == "Tabelas Químicas": show_tabelas()
     elif clean_selection == "Calculadora Química": show_calculadora()
     elif clean_selection == "Gráficos": show_graficos()
-    elif clean_selection == "Cadastro de Substâncias": show_substances()
-    elif clean_selection == "Estoque": show_estoque()
-    elif clean_selection == "Equipamentos": show_equipamentos()
     elif clean_selection == "Gestão de Equipe": show_config_empresa()
     elif clean_selection == "Relatórios": relatorios.show_reports(supabase)
+    elif clean_selection == "Configurações": show_configuracoes()
 
     st.sidebar.markdown("---")
-    st.sidebar.caption("LabSmartAI • v1.0")
+    st.sidebar.caption("LabSmartAI V.Beta")
