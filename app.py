@@ -21,7 +21,7 @@ st.markdown("""
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
     
     .stApp {
-        background-color: #E2E8F0;
+        background-color: #000000;
         color: #1A202C;
     }
 
@@ -245,3 +245,4 @@ else:
 
     st.sidebar.markdown("---")
     st.sidebar.caption("LabSmartAI • v1.0")
+
