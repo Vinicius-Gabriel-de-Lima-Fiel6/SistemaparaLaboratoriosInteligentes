@@ -49,22 +49,28 @@ st.markdown("""
             object-fit: cover;
         }
         
-       /* Botão de 3 pontos (Popover) - PRETO FIXO */
+       /* Botão de 3 pontos (Opções) - TEXTO PRETO FIXO */
         div[data-testid="stPopover"] > button {
-            background-color: #28a745 !important; /* Fundo verde fixo */
-            color: #000000 !important;           /* Texto preto fixo */
+            background-color: #28a745 !important; /* Cor de fundo fixa */
+            color: #000000 !important;           /* Cor do texto/ícone fixa */
             border: none !important;
             width: 100%;
+            opacity: 1 !important;               /* Garante que não fique semi-transparente */
         }
 
-        /* Remove a mudança de cor quando passa o mouse ou clica */
+        /* Bloqueia qualquer mudança de cor ao passar o mouse ou clicar */
         div[data-testid="stPopover"] > button:hover, 
-        div[data-testid="stPopover"] > button:active, 
+        div[data-testid="stPopover"] > button:active,
         div[data-testid="stPopover"] > button:focus {
-            background-color: #28a745 !important; /* Mantém o verde */
-            color: #000000 !important;           /* Mantém o preto */
+            color: #000000 !important;
+            background-color: #28a745 !important;
             border: none !important;
-            outline: none !important;
+            box-shadow: none !important;
+        }
+
+        /* Garante que o ícone (setinha ou pontos) também seja preto */
+        div[data-testid="stPopover"] svg {
+            fill: #000000 !important;
         }
         hr { border-top: 2px solid #28a745 !important; }
         </style>
@@ -219,6 +225,7 @@ else:
 
     st.sidebar.markdown("---")
     st.sidebar.caption("LabSmartAI • v1.0")
+
 
 
 
