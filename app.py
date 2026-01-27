@@ -4,10 +4,10 @@ import sys
 import auth_db as db 
 from supabase import create_client
 
-# Garante que o caminho do projeto está no sistema
+
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-# Configuração da Página
+
 st.set_page_config(
     page_title="LabSmartAI", 
     page_icon="🧪", 
@@ -15,11 +15,11 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- CARREGAR CSS EXTERNO ---
+
 with open("style.css", "r", encoding="utf-8") as f:
     st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
-# --- CONEXÃO SUPABASE ---
+
 supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 
 def tela_acesso():
@@ -111,7 +111,7 @@ else:
 
     clean_selection = selection.split(" ", 1)[-1]
 
-    # --- ROTEAMENTO DE TELAS ---
+
     
     if clean_selection == "Dashboard":
         st.title(f"🚀 Painel de Controle - {org_atual}")
@@ -168,7 +168,7 @@ else:
     elif clean_selection == "Laboratório":
         st.title("🧪 Central do Laboratório")
         
-        # Definindo as sub-áreas dentro do Laboratório
+       
         if role in ["Tecnico", "ADM"]:
             sub_tabs = st.tabs(["📦 Estoque Atual", "⚗️ Cadastro de Substâncias", "🛠️ Equipamentos"])
             with sub_tabs[0]: show_estoque()
@@ -188,3 +188,4 @@ else:
 
     st.sidebar.markdown("---")
     st.sidebar.caption("LabSmartAI V.Beta")
+
