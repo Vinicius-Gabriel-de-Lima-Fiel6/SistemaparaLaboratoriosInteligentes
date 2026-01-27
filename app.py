@@ -15,24 +15,47 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- CSS GLOBAL (Correção Cirúrgica de Contraste) ---
+# --- CSS GLOBAL (REGRAS DE FORÇA BRUTA PARA O CONTRASTE) ---
 st.markdown("""
         <style>
         .stApp { background-color: #f8f9fa; color: #212529; }
         [data-testid="stSidebar"] { background-color: #000000 !important; color: #ffffff !important; }
         
-        /* 1. SEPARAÇÃO: Texto das abas e labels em BRANCO */
-        [data-testid="stSidebar"] p, [data-testid="stSidebar"] label, [data-testid="stSidebar"] span { 
+        /* 1. TEXTOS GERAIS DA SIDEBAR EM BRANCO */
+        [data-testid="stSidebar"] p, 
+        [data-testid="stSidebar"] label, 
+        [data-testid="stSidebar"] span:not(.st-emotion-cache-1vt4581) { 
             color: #ffffff !important; 
         }
         
-        /* 2. SEPARAÇÃO: Texto dos botões da sidebar em PRETO */
-        [data-testid="stSidebar"] .stButton button {
+        /* 2. BOTÕES VERDES (Texto Preto Fixo) */
+        [data-testid="stSidebar"] .stButton button,
+        [data-testid="stSidebar"] div[data-testid="stPopover"] > button {
             background-color: #28a745 !important;
-            color: #000000 !important;
+            border: none !important;
+            width: 100% !important;
         }
 
-        /* Estilo do Cartão Postal conforme sua imagem */
+        /* 3. A SOLUÇÃO DEFINITIVA: CAÇA O TEXTO BRANCO DENTRO DE QUALQUER BOTÃO E MUDA PARA PRETO */
+        /* Isso ataca o parágrafo 'Opções' que você viu na imagem */
+        [data-testid="stSidebar"] button p, 
+        [data-testid="stSidebar"] button span, 
+        [data-testid="stSidebar"] button div,
+        [data-testid="stSidebar"] button svg {
+            color: #000000 !important;
+            fill: #000000 !important;
+            -webkit-text-fill-color: #000000 !important; /* Força em navegadores Chrome/Edge */
+        }
+
+        /* Mantém preto absoluto mesmo no hover */
+        [data-testid="stSidebar"] button:hover p, 
+        [data-testid="stSidebar"] button:hover span, 
+        [data-testid="stSidebar"] button:hover svg {
+            color: #000000 !important;
+            fill: #000000 !important;
+        }
+
+        /* Cartão de Usuário */
         .user-card {
             background: #111;
             border: 1px solid #28a745;
@@ -47,29 +70,6 @@ st.markdown("""
             border: 2px solid #28a745;
             margin: 10px auto;
             object-fit: cover;
-        }
-        
-        /* CORREÇÃO DO BOTÃO POPOVER (OPÇÕES) - RESOLVENDO O TEXTO BRANCO NA IMAGEM */
-        div[data-testid="stPopover"] > button {
-            background-color: #28a745 !important; /* Fundo Verde para leitura */
-            border: none !important;
-            width: 100%;
-        }
-
-        /* Força o texto e ícone de dentro do popover a serem PRETOS */
-        div[data-testid="stPopover"] > button p, 
-        div[data-testid="stPopover"] > button span,
-        div[data-testid="stPopover"] > button svg {
-            color: #000000 !important;
-            fill: #000000 !important;
-        }
-
-        /* Mantém o preto fixo mesmo passando o mouse (Hover) */
-        div[data-testid="stPopover"] > button:hover p,
-        div[data-testid="stPopover"] > button:hover span,
-        div[data-testid="stPopover"] > button:hover svg {
-            color: #000000 !important;
-            fill: #000000 !important;
         }
           
         hr { border-top: 2px solid #28a745 !important; }
@@ -114,7 +114,6 @@ if 'selection' not in st.session_state:
 if not st.session_state.logado:
     tela_acesso()
 else:
-    # IMPORTAÇÃO DOS MÓDULOS (Original)
     try:
         from substancias import show_substances
         from ControleEstoque import show_estoque
@@ -133,9 +132,7 @@ else:
     role = user.get('role', 'Visualizador')
     org_atual = user.get('org_name')
     
-    # --- SIDEBAR (Mantendo sua estrutura exata) ---
     with st.sidebar:
-        # Seu User Card transformado em "Postal"
         st.markdown(f"""
             <div class="user-card">
                 <small style="font-weight: 800; font-size: 0.7rem; color: #28a745;">ORGANIZAÇÃO</small><br>
@@ -149,10 +146,8 @@ else:
             </div>
         """, unsafe_allow_html=True)
 
-        # O Menu de 3 Pontos (Popover)
         with st.popover("⋮ Opções"):
             st.write("👤 Perfil do Usuário")
-            
             if st.button("⚙️ Configurações Gerais", use_container_width=True):
                 st.session_state.selection = "Configurações"
                 st.rerun()
@@ -163,7 +158,6 @@ else:
 
         st.write("") 
         
-        # Sua lógica de abas original
         abas = ["🏠 Dashboard", "🤖 IA & Visão", "🧪 Tabelas Químicas", "🧮 Calculadora Química", "📊 Gráficos"]
         if role in ["Tecnico", "ADM"]:
             abas.extend(["⚗️ Cadastro de Substâncias", "📦 Estoque"])
@@ -175,7 +169,6 @@ else:
 
     clean_selection = selection.split(" ", 1)[-1]
 
-    # DASHBOARD
     if clean_selection == "Dashboard":
         st.title(f"🚀 Painel de Controle - {org_atual}")
         
@@ -188,15 +181,11 @@ else:
         except:
             total_itens, total_equip, total_analises = 0, 0, 0
 
-        limite_alerta = 100 
-        cor_estoque = "inverse" if total_itens < limite_alerta else "normal"
-        delta_label = f"-{limite_alerta - total_itens} un. (Crítico)" if total_itens < limite_alerta else "Estoque Operacional"
-
         m1, m2, m3, m4 = st.columns(4)
-        m1.metric("Itens no Estoque", f"{total_itens:,}".replace(",", "."), delta=delta_label, delta_color=cor_estoque)
+        m1.metric("Itens no Estoque", f"{total_itens:,}".replace(",", "."), delta="Operacional")
         m2.metric("Equipamentos", total_equip, "Ativos")
-        m3.metric("Registros Ativos", total_analises, "Banco de Dados")
-        m4.metric("Usuário Atual", user['username'], f"Acesso {role}")
+        m3.metric("Registros", total_analises, "Total")
+        m4.metric("Usuário", user['username'], f"Nível {role}")
 
         st.markdown("---")
         st.subheader("Atalhos do Sistema")
@@ -212,7 +201,6 @@ else:
             if st.button("🧮 Calculadora de Soluções"):
                 st.session_state.selection = "🧮 Calculadora Química"; st.rerun()
 
-    # NAVEGAÇÃO DOS MÓDULOS
     elif clean_selection == "IA & Visão": ia.show_chatbot()
     elif clean_selection == "Tabelas Químicas": show_tabelas()
     elif clean_selection == "Calculadora Química": show_calculadora()
