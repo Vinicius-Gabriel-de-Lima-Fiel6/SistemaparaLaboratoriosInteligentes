@@ -4,21 +4,18 @@ import sys
 import auth_db as db 
 from supabase import create_client
 
-
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-
+# Substituí o ícone "🧪" pelo link da logo na aba do navegador
 st.set_page_config(
     page_title="LabSmartAI", 
-    page_icon="🧪", 
+    page_icon="https://i.ibb.co/6cKPZ5Pr/Gemini-Generated-Image-jes56ljes56ljes5.png", 
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-
 with open("style.css", "r", encoding="utf-8") as f:
     st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-
 
 supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 
@@ -26,7 +23,8 @@ def tela_acesso():
     col1, col2, col3 = st.columns([1, 1.2, 1])
     with col2:
         st.write("")
-        st.markdown("<h1 style='text-align: center; font-size: 3.5rem;'>🧪</h1>", unsafe_allow_html=True)
+        # Alteração: Removido o emoji e adicionada a imagem da logo centralizada
+        st.image("https://i.ibb.co/6cKPZ5Pr/Gemini-Generated-Image-jes56ljes56ljes5.png", use_container_width=True)
         st.markdown("<h1 style='text-align: center;'>LabSmartAI</h1>", unsafe_allow_html=True)
         
         st.subheader("Login Administrativo")
@@ -111,8 +109,6 @@ else:
 
     clean_selection = selection.split(" ", 1)[-1]
 
-
-    
     if clean_selection == "Dashboard":
         st.title(f"🚀 Painel de Controle - {org_atual}")
         
@@ -135,7 +131,6 @@ else:
         st.markdown("---")
         st.subheader("Atalhos e Guias Rápidos")
         
-        # Linha 1 de Atalhos (Acessível a todos)
         c1, c2, c3 = st.columns(3)
         with c1:
             if st.button("🤖 Central de IA", use_container_width=True):
@@ -147,7 +142,6 @@ else:
             if st.button("🧮 Calculadora de Soluções", use_container_width=True):
                 st.session_state.selection = "🧮 Calculadora Química"; st.rerun()
 
-        # Linha 2 de Atalhos (Baseada em Permissão)
         st.write("")
         ca, cb, cc = st.columns(3)
         with ca:
@@ -168,7 +162,6 @@ else:
     elif clean_selection == "Laboratório":
         st.title("💼 Central do Laboratório")
         
-       
         if role in ["Tecnico", "ADM"]:
             sub_tabs = st.tabs(["📦 Estoque Atual", "⚗️ Cadastro de Substâncias", "🛠️ Equipamentos"])
             with sub_tabs[0]: show_estoque()
@@ -176,7 +169,7 @@ else:
             with sub_tabs[2]: show_equipamentos()
         else:
             st.info("Você tem permissão apenas para visualização do estoque.")
-            show_estoque() # Visualizador vê apenas a tabela de estoque (conforme lógica do módulo)
+            show_estoque()
 
     elif clean_selection == "IA & Visão": ia.show_chatbot()
     elif clean_selection == "Tabelas Químicas": show_tabelas()
@@ -188,6 +181,3 @@ else:
 
     st.sidebar.markdown("---")
     st.sidebar.caption("LabSmartAI V.Beta")
-
-
-
