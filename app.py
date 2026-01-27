@@ -199,12 +199,12 @@ else:
     elif clean_selection == "Cadastro de Substâncias": show_substances()
     elif clean_selection == "Estoque": show_estoque()
     elif clean_selection == "Equipamentos": show_equipamentos()
-    elif st.session_state.selection == "Configurações": show_configuracoes(supabase, user)
     elif clean_selection == "Gestão de Equipe": show_config_empresa()
     elif clean_selection == "Relatórios": relatorios.show_reports(supabase)
 
     st.sidebar.markdown("---")
     st.sidebar.caption("LabSmartAI • v1.0")
+
 
 
 
