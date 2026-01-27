@@ -49,14 +49,23 @@ st.markdown("""
             object-fit: cover;
         }
         
-        /* Botão de 3 pontos (Popover) - Altere a cor do texto aqui */
+       /* Botão de 3 pontos (Popover) - PRETO FIXO */
         div[data-testid="stPopover"] > button {
-            background-color: transparent !important;
-            border: 1px solid #333 !important;
-            color: #000000 !important; /* <--- MUDE AQUI (Ex: #000000 para preto ou #ffffff para branco) */
+            background-color: #28a745 !important; /* Fundo verde fixo */
+            color: #000000 !important;           /* Texto preto fixo */
+            border: none !important;
             width: 100%;
         }
 
+        /* Remove a mudança de cor quando passa o mouse ou clica */
+        div[data-testid="stPopover"] > button:hover, 
+        div[data-testid="stPopover"] > button:active, 
+        div[data-testid="stPopover"] > button:focus {
+            background-color: #28a745 !important; /* Mantém o verde */
+            color: #000000 !important;           /* Mantém o preto */
+            border: none !important;
+            outline: none !important;
+        }
         hr { border-top: 2px solid #28a745 !important; }
         </style>
     """, unsafe_allow_html=True)
@@ -210,6 +219,7 @@ else:
 
     st.sidebar.markdown("---")
     st.sidebar.caption("LabSmartAI • v1.0")
+
 
 
 
