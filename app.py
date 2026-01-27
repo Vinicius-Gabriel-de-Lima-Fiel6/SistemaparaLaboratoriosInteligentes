@@ -4,10 +4,10 @@ import sys
 import auth_db as db 
 from supabase import create_client
 
-
+# Garante que o caminho do projeto está no sistema
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-
+# Configuração da Página
 st.set_page_config(
     page_title="LabSmartAI", 
     page_icon="🧪", 
@@ -15,83 +15,100 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-
+# --- CSS GLOBAL (Preto, Branco e Verde Esmeralda) ---
 st.markdown("""
     <style>
-    /* 1. VARIÁVEIS DE CORES - PALETA ESMERALDA PROFISSIONAL */
+    /* 1. VARIÁVEIS DE CORES */
     :root {
         --bg-black: #000000;
         --bg-card: #0d1117;
-        --emerald-primary: #10b981; /* Verde Esmeralda vibrante mas elegante */
-        --emerald-dark: #065f46;
+        --emerald-primary: #10b981;
         --emerald-light: #34d399;
         --text-white: #ffffff;
         --text-gray: #9ca3af;
         --border-color: #30363d;
     }
 
-    /* 2. FUNDO E GERAL */
+    /* 2. CONFIGURAÇÕES GERAIS DA APP */
     .stApp {
         background-color: var(--bg-black) !important;
-        color: var(--text-white);
+        color: var(--text-white) !important;
     }
 
-    /* 3. SIDEBAR (PRETO TOTAL) */
+    /* FORÇAR TODOS OS TÍTULOS E TEXTOS PARA BRANCO */
+    h1, h2, h3, h4, h5, h6, p, span, label, .stMarkdown {
+        color: var(--text-white) !important;
+        font-family: 'Inter', sans-serif;
+    }
+
+    /* 3. SIDEBAR */
     [data-testid="stSidebar"] {
         background-color: var(--bg-black) !important;
         border-right: 1px solid var(--border-color) !important;
     }
+    
+    /* Corrigindo rádio buttons e textos da sidebar */
+    [data-testid="stSidebar"] .stRadio label {
+        color: var(--text-white) !important;
+    }
 
-    /* 4. BOTÕES (VERDE ESMERALDA) */
+    /* 4. BOTÕES (VERDE ESMERALDA) - CORRIGINDO PISQUE E CORES ESTRANHAS */
     div.stButton > button {
         width: 100%;
         background-color: var(--emerald-primary) !important;
         color: white !important;
         border: none !important;
-        border-radius: 6px !important;
+        border-radius: 8px !important;
         padding: 0.6rem !important;
         font-weight: 600 !important;
-        transition: all 0.2s ease !important;
+        transition: all 0.2s ease-in-out !important;
     }
 
     div.stButton > button:hover {
         background-color: var(--emerald-light) !important;
+        box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4) !important;
         transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
     }
 
-    /* 5. EXPANDERS (Aquele do Marketplace) */
+    div.stButton > button:active, div.stButton > button:focus {
+        background-color: var(--emerald-dark) !important;
+        color: white !important;
+        outline: none !important;
+        border: none !important;
+    }
+
+    /* 5. EXPANDERS (Menu de Compra/Abas internas) */
     .streamlit-expanderHeader {
         background-color: var(--bg-card) !important;
         color: var(--text-white) !important;
         border: 1px solid var(--border-color) !important;
         border-radius: 8px !important;
     }
-
+    
     .streamlit-expanderContent {
         background-color: var(--bg-black) !important;
         border: 1px solid var(--border-color) !important;
         border-top: none !important;
     }
 
-    /* 6. CARDS DE USUÁRIO E MÉTRICAS */
+    /* 6. CARDS E MÉTRICAS */
     .user-card, div[data-testid="metric-container"] {
         background-color: var(--bg-card) !important;
         border: 1px solid var(--border-color) !important;
-        border-radius: 10px !important;
+        border-radius: 12px !important;
         padding: 15px !important;
     }
 
-    /* Títulos e Valores das Métricas */
-    div[data-testid="stMetricLabel"] > div {
-        color: var(--text-gray) !important;
-    }
     div[data-testid="stMetricValue"] > div {
         color: var(--emerald-primary) !important;
         font-weight: 700;
     }
+    
+    div[data-testid="stMetricLabel"] > div {
+        color: var(--text-gray) !important;
+    }
 
-    /* 7. INPUTS (TEXTO E SENHA) */
+    /* 7. INPUTS E CAMPOS DE TEXTO */
     .stTextInput input {
         background-color: var(--bg-black) !important;
         color: white !important;
@@ -101,19 +118,15 @@ st.markdown("""
 
     .stTextInput input:focus {
         border-color: var(--emerald-primary) !important;
+        box-shadow: 0 0 5px var(--emerald-primary);
     }
 
-    /* 8. CABEÇALHOS */
-    h1, h2, h3 {
-        color: var(--text-white) !important;
-        font-family: 'Inter', sans-serif;
-    }
-
-    /* Ajuste para o link button (Cadastro) */
+    /* 8. ELEMENTOS DE LINK */
     div.stLinkButton > a {
         background-color: transparent !important;
         color: var(--text-gray) !important;
         border: 1px solid var(--border-color) !important;
+        text-align: center;
         transition: 0.3s;
     }
     
@@ -124,14 +137,6 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-
-if 'logado' not in st.session_state:
-    st.session_state.logado = False
-if 'user_data' not in st.session_state:
-    st.session_state.user_data = None
-if 'selection' not in st.session_state:
-    st.session_state.selection = "🏠 Dashboard"
-
 # --- CONEXÃO SUPABASE ---
 supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 
@@ -140,7 +145,7 @@ def tela_acesso():
     with col2:
         st.write("")
         st.markdown("<h1 style='text-align: center; font-size: 3.5rem;'>🧪</h1>", unsafe_allow_html=True)
-        st.markdown("<h1 style='text-align: center; color: #2D3748 !important;'>LabSmartAI</h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align: center;'>LabSmartAI</h1>", unsafe_allow_html=True)
         
         st.subheader("Login Administrativo")
         email_input = st.text_input("E-mail Profissional", key="l_email")
@@ -155,17 +160,22 @@ def tela_acesso():
             else:
                 st.error("Dados incorretos.")
         
-     
         st.markdown("---")
-        st.markdown("<p style='text-align: center; color: #4A5568 !important;'>Se não tiver uma conta, clique abaixo:</p>", unsafe_allow_html=True)
-        
-        # Altere o link "https://seulink.com" conforme sua necessidade
-        st.link_button("Cadastro Empresarial","https://cadastro-de-empresas-e7bkusdk4tsdchmx89fh8c.streamlit.app/", use_container_width=True)
+        st.markdown("<p style='text-align: center; color: var(--text-gray);'>Se não tiver uma conta, clique abaixo:</p>", unsafe_allow_html=True)
+        st.link_button("Cadastro Empresarial", "https://cadastro-de-empresas-e7bkusdk4tsdchmx89fh8c.streamlit.app/", use_container_width=True)
+
+# --- FLUXO PRINCIPAL ---
+if 'logado' not in st.session_state:
+    st.session_state.logado = False
+if 'user_data' not in st.session_state:
+    st.session_state.user_data = None
+if 'selection' not in st.session_state:
+    st.session_state.selection = "🏠 Dashboard"
 
 if not st.session_state.logado:
     tela_acesso()
 else:
-    # --- IMPORTAÇÃO DOS MÓDULOS ---
+    # IMPORTAÇÃO DOS MÓDULOS
     try:
         from substancias import show_substances
         from ControleEstoque import show_estoque
@@ -183,14 +193,14 @@ else:
     role = user.get('role', 'Visualizador')
     org_atual = user.get('org_name')
     
-    # --- SIDEBAR E NAVEGAÇÃO ---
+    # SIDEBAR
     st.sidebar.markdown(f"""
         <div class="user-card">
-            <small style="font-weight: 800; font-size: 0.7rem;">ORGANIZAÇÃO</small><br>
+            <small style="font-weight: 800; font-size: 0.7rem; color: var(--emerald-primary);">ORGANIZAÇÃO</small><br>
             <span style="font-size: 1rem; font-weight: 700;">{org_atual}</span><br>
-            <div style="margin-top: 10px; border-top: 1px solid #CBD5E0; padding-top: 5px;">
+            <div style="margin-top: 10px; border-top: 1px solid var(--border-color); padding-top: 5px;">
                 <span style="font-size: 0.9rem;">{user['username']}</span><br>
-                <span style="background: #000000; font-size: 0.7rem; padding: 2px 8px; border-radius: 10px;">{role}</span>
+                <span style="background: var(--emerald-primary); color: white; font-size: 0.7rem; padding: 2px 8px; border-radius: 10px;">{role}</span>
             </div>
         </div>
     """, unsafe_allow_html=True)
@@ -210,7 +220,7 @@ else:
 
     clean_selection = selection.split(" ", 1)[-1]
 
-
+    # DASHBOARD
     if clean_selection == "Dashboard":
         st.title(f"🚀 Painel de Controle - {org_atual}")
         
@@ -223,14 +233,9 @@ else:
         except:
             total_itens, total_equip, total_analises = 0, 0, 0
 
-        # --- LÓGICA DE COR PARA ESTOQUE BAIXO ---
         limite_alerta = 100 
-        if total_itens < limite_alerta:
-            cor_estoque = "inverse" # Vermelho no Streamlit para deltas negativos
-            delta_label = f"-{limite_alerta - total_itens} un. (Crítico)"
-        else:
-            cor_estoque = "normal" # Verde/Padrão
-            delta_label = "Estoque Operacional"
+        cor_estoque = "inverse" if total_itens < limite_alerta else "normal"
+        delta_label = f"-{limite_alerta - total_itens} un. (Crítico)" if total_itens < limite_alerta else "Estoque Operacional"
 
         m1, m2, m3, m4 = st.columns(4)
         m1.metric("Itens no Estoque", f"{total_itens:,}".replace(",", "."), delta=delta_label, delta_color=cor_estoque)
@@ -241,7 +246,6 @@ else:
         st.markdown("---")
         st.subheader("Atalhos do Sistema")
         
-        # Linha 1 de Atalhos
         c1, c2, c3 = st.columns(3)
         with c1:
             if st.button("🤖 Central de IA"):
@@ -253,51 +257,16 @@ else:
             if st.button("🧮 Calculadora de Soluções"):
                 st.session_state.selection = "🧮 Calculadora Química"; st.rerun()
 
-       
-        c4, c5, c6 = st.columns(3)
-        with c4:
-            if st.button("📊 Painel de Gráficos"):
-                st.session_state.selection = "📊 Gráficos"; st.rerun()
-        with c5:
-            if role in ["Tecnico", "ADM"]:
-                if st.button("📦 Gestão de Estoque"):
-                    st.session_state.selection = "📦 Estoque"; st.rerun()
-        with c6:
-            if role == "ADM":
-                if st.button("📄 Gerador de Relatórios"):
-                    st.session_state.selection = "📄 Relatórios"; st.rerun()
-
-    # --- NAVEGAÇÃO PARA OUTROS MÓDULOS ---
-    elif clean_selection == "IA & Visão":
-        ia.show_chatbot()
-    elif clean_selection == "Tabelas Químicas":
-        show_tabelas()
-    elif clean_selection == "Calculadora Química":
-        show_calculadora()
-    elif clean_selection == "Gráficos":
-        show_graficos()
-    elif clean_selection == "Cadastro de Substâncias":
-        show_substances()
-    elif clean_selection == "Estoque":
-        show_estoque()
-    elif clean_selection == "Equipamentos":
-        show_equipamentos()
-    elif clean_selection == "Gestão de Equipe":
-        show_config_empresa()
-    elif clean_selection == "Relatórios":
-        relatorios.show_reports(supabase)
+    # NAVEGAÇÃO DOS MÓDULOS
+    elif clean_selection == "IA & Visão": ia.show_chatbot()
+    elif clean_selection == "Tabelas Químicas": show_tabelas()
+    elif clean_selection == "Calculadora Química": show_calculadora()
+    elif clean_selection == "Gráficos": show_graficos()
+    elif clean_selection == "Cadastro de Substâncias": show_substances()
+    elif clean_selection == "Estoque": show_estoque()
+    elif clean_selection == "Equipamentos": show_equipamentos()
+    elif clean_selection == "Gestão de Equipe": show_config_empresa()
+    elif clean_selection == "Relatórios": relatorios.show_reports(supabase)
 
     st.sidebar.markdown("---")
     st.sidebar.caption("LabSmartAI • v1.0")
-
-
-
-
-
-
-
-
-
-
-
-
