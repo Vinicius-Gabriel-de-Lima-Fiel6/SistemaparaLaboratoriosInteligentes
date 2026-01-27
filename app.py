@@ -131,7 +131,7 @@ else:
         # O Menu de 3 Pontos (Popover) que você pediu
         with st.popover("⋮ Opções"):
             st.write("👤 Perfil do Usuário")
-            st.write("⚙️ Configurações do Sistema")
+            
             if st.button("⚙️ Configurações Gerais", use_container_width=True):
                 st.session_state.selection = "Configurações" # Define um estado temporário
                 st.rerun()
@@ -200,9 +200,9 @@ else:
     elif clean_selection == "Estoque": show_estoque()
     elif clean_selection == "Equipamentos": show_equipamentos()
     elif clean_selection == "Gestão de Equipe": show_config_empresa()
-    elif st.session_state.selection == "Configurações": show_configuracoes(supabase, user)
     elif clean_selection == "Relatórios": relatorios.show_reports(supabase)
 
     st.sidebar.markdown("---")
     st.sidebar.caption("LabSmartAI • v1.0")
+
 
