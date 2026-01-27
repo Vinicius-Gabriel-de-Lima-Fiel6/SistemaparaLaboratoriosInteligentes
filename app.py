@@ -158,7 +158,7 @@ else:
             <span style="font-size: 1rem; font-weight: 700;">{org_atual}</span><br>
             <div style="margin-top: 10px; border-top: 1px solid #CBD5E0; padding-top: 5px;">
                 <span style="font-size: 0.9rem;">{user['username']}</span><br>
-                <span style="background: #38A169; font-size: 0.7rem; padding: 2px 8px; border-radius: 10px;">{role}</span>
+                <span style="background: #000000; font-size: 0.7rem; padding: 2px 8px; border-radius: 10px;">{role}</span>
             </div>
         </div>
     """, unsafe_allow_html=True)
@@ -257,6 +257,7 @@ else:
 
     st.sidebar.markdown("---")
     st.sidebar.caption("LabSmartAI • v1.0")
+
 
 
 
