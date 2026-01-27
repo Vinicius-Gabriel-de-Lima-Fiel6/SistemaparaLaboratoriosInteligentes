@@ -101,7 +101,7 @@ else:
         st.write("") 
         
         # Menu Simplificado (Lógica de Agrupamento)
-        abas = ["🏠 Dashboard", "🤖 IA & Visão", "🧪 Laboratório", "🧪 Tabelas Químicas", "🧮 Calculadora Química", "📊 Gráficos"]
+        abas = ["🏠 Dashboard", "🤖 IA & Visão", "💼 Laboratório", "⚛️ Tabelas Químicas", "🧮 Calculadora Química", "📊 Gráficos"]
         
         if role == "ADM":
             abas.extend(["👥 Gestão de Equipe", "📄 Relatórios"])
@@ -141,8 +141,8 @@ else:
             if st.button("🤖 Central de IA", use_container_width=True):
                 st.session_state.selection = "🤖 IA & Visão"; st.rerun()
         with c2:
-            if st.button("🧪 Tabelas e Reagentes", use_container_width=True):
-                st.session_state.selection = "🧪 Tabelas Químicas"; st.rerun()
+            if st.button("⚛️ Tabelas e Reagentes", use_container_width=True):
+                st.session_state.selection = "⚛️ Tabelas Químicas"; st.rerun()
         with c3:
             if st.button("🧮 Calculadora de Soluções", use_container_width=True):
                 st.session_state.selection = "🧮 Calculadora Química"; st.rerun()
@@ -157,7 +157,7 @@ else:
         if role in ["Tecnico", "ADM"]:
             with cb:
                 if st.button("📦 Abrir Estoque", use_container_width=True):
-                    st.session_state.selection = "🧪 Laboratório"; st.rerun()
+                    st.session_state.selection = "💼 Laboratório"; st.rerun()
             with cc:
                 if st.button("⚗️ Novo Cadastro", use_container_width=True):
                     st.session_state.selection = "💼 Laboratório"; st.rerun()
@@ -188,5 +188,6 @@ else:
 
     st.sidebar.markdown("---")
     st.sidebar.caption("LabSmartAI V.Beta")
+
 
 
