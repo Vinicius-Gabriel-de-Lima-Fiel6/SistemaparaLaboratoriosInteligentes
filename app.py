@@ -16,11 +16,8 @@ st.set_page_config(
 )
 
 # --- CARREGAR CSS EXTERNO ---
-def load_css(file_name):
-    with open(file_name) as f:
-        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-
-load_css("style.css")
+with open("style.css", "r", encoding="utf-8") as f:
+    st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
 # --- CONEXÃO SUPABASE ---
 supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
@@ -60,7 +57,6 @@ if 'selection' not in st.session_state:
 if not st.session_state.logado:
     tela_acesso()
 else:
-    # IMPORTAÇÃO DOS MÓDULOS (Original)
     try:
         from substancias import show_substances
         from ControleEstoque import show_estoque
@@ -79,7 +75,6 @@ else:
     role = user.get('role', 'Visualizador')
     org_atual = user.get('org_name')
     
-    # --- SIDEBAR (Mantendo sua estrutura exata) ---
     with st.sidebar:
         st.markdown(f"""
             <div class="user-card">
@@ -94,10 +89,8 @@ else:
             </div>
         """, unsafe_allow_html=True)
 
-        # O Menu de 3 Pontos (Popover)
         with st.popover("⋮ Opções"):
             st.write("👤 Perfil do Usuário")
-            
             if st.button("⚙️ Configurações Gerais", use_container_width=True):
                 st.session_state.selection = "Configurações"
                 st.rerun()
@@ -119,7 +112,6 @@ else:
 
     clean_selection = selection.split(" ", 1)[-1]
 
-    # DASHBOARD
     if clean_selection == "Dashboard":
         st.title(f"🚀 Painel de Controle - {org_atual}")
         
@@ -132,8 +124,35 @@ else:
         except:
             total_itens, total_equip, total_analises = 0, 0, 0
 
-        limite_alerta = 100 
-        cor_estoque = "inverse" if total_itens < limite_alerta else "normal"
-        delta_label = f"-{limite_alerta - total_itens} un. (Crítico)" if total_itens < limite_alerta else "Estoque Operacional"
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("Itens no Estoque", f"{total_itens:,}".replace(",", "."), delta="Operacional")
+        m2.metric("Equipamentos", total_equip, "Ativos")
+        m3.metric("Registros", total_analises, "Total")
+        m4.metric("Usuário", user['username'], f"Nível {role}")
 
-        m1, m2, m3, m4 = st.columns(
+        st.markdown("---")
+        st.subheader("Atalhos do Sistema")
+        
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            if st.button("🤖 Central de IA"):
+                st.session_state.selection = "🤖 IA & Visão"; st.rerun()
+        with c2:
+            if st.button("🧪 Tabelas e Reagentes"):
+                st.session_state.selection = "🧪 Tabelas Químicas"; st.rerun()
+        with c3:
+            if st.button("🧮 Calculadora de Soluções"):
+                st.session_state.selection = "🧮 Calculadora Química"; st.rerun()
+
+    elif clean_selection == "IA & Visão": ia.show_chatbot()
+    elif clean_selection == "Tabelas Químicas": show_tabelas()
+    elif clean_selection == "Calculadora Química": show_calculadora()
+    elif clean_selection == "Gráficos": show_graficos()
+    elif clean_selection == "Cadastro de Substâncias": show_substances()
+    elif clean_selection == "Estoque": show_estoque()
+    elif clean_selection == "Equipamentos": show_equipamentos()
+    elif clean_selection == "Gestão de Equipe": show_config_empresa()
+    elif clean_selection == "Relatórios": relatorios.show_reports(supabase)
+
+    st.sidebar.markdown("---")
+    st.sidebar.caption("LabSmartAI • v1.0")
