@@ -18,72 +18,108 @@ st.set_page_config(
 
 st.markdown("""
     <style>
+    /* 1. VARIÁVEIS DE CORES - PALETA ESMERALDA PROFISSIONAL */
     :root {
-        --bg-dark: #0a0e17;
-        --primary-cyan: #00f2fe;
-        --glow-color: rgba(0, 242, 254, 0.5);
+        --bg-black: #000000;
+        --bg-card: #0d1117;
+        --emerald-primary: #10b981; /* Verde Esmeralda vibrante mas elegante */
+        --emerald-dark: #065f46;
+        --emerald-light: #34d399;
         --text-white: #ffffff;
+        --text-gray: #9ca3af;
+        --border-color: #30363d;
     }
 
-    /* 1. ESTILIZAÇÃO DOS BOTÕES (MELHORADA) */
+    /* 2. FUNDO E GERAL */
+    .stApp {
+        background-color: var(--bg-black) !important;
+        color: var(--text-white);
+    }
+
+    /* 3. SIDEBAR (PRETO TOTAL) */
+    [data-testid="stSidebar"] {
+        background-color: var(--bg-black) !important;
+        border-right: 1px solid var(--border-color) !important;
+    }
+
+    /* 4. BOTÕES (VERDE ESMERALDA) */
     div.stButton > button {
         width: 100%;
-        background-color: rgba(0, 242, 254, 0.05) !important; /* Fundo levemente azulado */
-        color: var(--primary-cyan) !important;
-        border: 2px solid var(--primary-cyan) !important;
-        border-radius: 10px !important;
-        padding: 0.6rem 1rem !important;
-        font-weight: 700 !important;
-        text-transform: uppercase;
-        letter-spacing: 1.5px;
-        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
-        box-shadow: inset 0 0 5px var(--glow-color); /* Brilho interno */
+        background-color: var(--emerald-primary) !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 6px !important;
+        padding: 0.6rem !important;
+        font-weight: 600 !important;
+        transition: all 0.2s ease !important;
     }
 
-    /* Efeito Hover (Passar o Mouse) */
     div.stButton > button:hover {
-        background-color: var(--primary-cyan) !important;
-        color: var(--bg-dark) !important;
-        box-shadow: 0 0 20px var(--primary-cyan) !important; /* Brilho externo forte */
-        transform: translateY(-2px);
+        background-color: var(--emerald-light) !important;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
     }
 
-    /* Efeito Active (Ao clicar) */
-    div.stButton > button:active {
-        transform: scale(0.98);
-        box-shadow: 0 0 5px var(--primary-cyan) !important;
+    /* 5. EXPANDERS (Aquele do Marketplace) */
+    .streamlit-expanderHeader {
+        background-color: var(--bg-card) !important;
+        color: var(--text-white) !important;
+        border: 1px solid var(--border-color) !important;
+        border-radius: 8px !important;
     }
 
-    /* 2. CORREÇÃO DE LINKS E BOTÕES DE LINK */
+    .streamlit-expanderContent {
+        background-color: var(--bg-black) !important;
+        border: 1px solid var(--border-color) !important;
+        border-top: none !important;
+    }
+
+    /* 6. CARDS DE USUÁRIO E MÉTRICAS */
+    .user-card, div[data-testid="metric-container"] {
+        background-color: var(--bg-card) !important;
+        border: 1px solid var(--border-color) !important;
+        border-radius: 10px !important;
+        padding: 15px !important;
+    }
+
+    /* Títulos e Valores das Métricas */
+    div[data-testid="stMetricLabel"] > div {
+        color: var(--text-gray) !important;
+    }
+    div[data-testid="stMetricValue"] > div {
+        color: var(--emerald-primary) !important;
+        font-weight: 700;
+    }
+
+    /* 7. INPUTS (TEXTO E SENHA) */
+    .stTextInput input {
+        background-color: var(--bg-black) !important;
+        color: white !important;
+        border: 1px solid var(--border-color) !important;
+        border-radius: 6px !important;
+    }
+
+    .stTextInput input:focus {
+        border-color: var(--emerald-primary) !important;
+    }
+
+    /* 8. CABEÇALHOS */
+    h1, h2, h3 {
+        color: var(--text-white) !important;
+        font-family: 'Inter', sans-serif;
+    }
+
+    /* Ajuste para o link button (Cadastro) */
     div.stLinkButton > a {
         background-color: transparent !important;
-        color: var(--text-white) !important;
-        border: 1px solid rgba(255, 255, 255, 0.2) !important;
-        border-radius: 8px;
-        text-decoration: none;
-        display: flex;
-        justify-content: center;
-        padding: 0.5rem;
+        color: var(--text-gray) !important;
+        border: 1px solid var(--border-color) !important;
         transition: 0.3s;
     }
     
     div.stLinkButton > a:hover {
-        border-color: var(--primary-cyan) !important;
-        color: var(--primary-cyan) !important;
-        background-color: rgba(0, 242, 254, 0.1) !important;
-    }
-
-    /* 3. INPUTS (PARA NÃO FICAREM "RUINS" NO ESCURO) */
-    .stTextInput input {
-        background-color: #06090f !important;
-        color: white !important;
-        border: 1px solid rgba(0, 242, 254, 0.3) !important;
-        border-radius: 8px !important;
-    }
-
-    .stTextInput input:focus {
-        border-color: var(--primary-cyan) !important;
-        box-shadow: 0 0 10px var(--glow-color) !important;
+        border-color: var(--emerald-primary) !important;
+        color: var(--emerald-primary) !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -253,6 +289,7 @@ else:
 
     st.sidebar.markdown("---")
     st.sidebar.caption("LabSmartAI • v1.0")
+
 
 
 
