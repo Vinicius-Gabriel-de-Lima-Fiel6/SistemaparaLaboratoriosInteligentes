@@ -1,43 +1,33 @@
-/* Fundo Geral da Aplicação */
-.stApp { 
-    background-color: #f8f9fa; 
-    color: #212529; 
-}
+/* --- CSS GLOBAL (REGRAS DE FORÇA BRUTA PARA O CONTRASTE) --- */
+.stApp { background-color: #f8f9fa; color: #212529; }
+[data-testid="stSidebar"] { background-color: #000000 !important; color: #ffffff !important; }
 
-/* Sidebar - Fundo Preto */
-[data-testid="stSidebar"] { 
-    background-color: #000000 !important; 
-    color: #ffffff !important; 
-}
-
-/* 1. TEXTOS GERAIS DA SIDEBAR (Abas e Labels em Branco) */
+/* 1. TEXTOS GERAIS DA SIDEBAR EM BRANCO */
 [data-testid="stSidebar"] p, 
 [data-testid="stSidebar"] label, 
-[data-testid="stSidebar"] span { 
+[data-testid="stSidebar"] span:not(.st-emotion-cache-1vt4581) { 
     color: #ffffff !important; 
 }
 
-/* 2. BOTÕES DE AÇÃO (Fundo Verde, Texto Preto) */
+/* 2. BOTÕES VERDES (Texto Preto Fixo) */
 [data-testid="stSidebar"] .stButton button,
 [data-testid="stSidebar"] div[data-testid="stPopover"] > button {
     background-color: #28a745 !important;
     border: none !important;
     width: 100% !important;
-    transition: all 0.3s ease;
 }
 
-/* 3. FORÇA O TEXTO E ÍCONE DENTRO DOS BOTÕES A SEREM PRETOS (FIXO) */
-/* Resolve o erro de visibilidade do "Opções" */
+/* 3. A SOLUÇÃO DEFINITIVA: CAÇA O TEXTO BRANCO DENTRO DE QUALQUER BOTÃO E MUDA PARA PRETO */
 [data-testid="stSidebar"] button p, 
 [data-testid="stSidebar"] button span, 
 [data-testid="stSidebar"] button div,
 [data-testid="stSidebar"] button svg {
     color: #000000 !important;
     fill: #000000 !important;
-    -webkit-text-fill-color: #000000 !important;
+    -webkit-text-fill-color: #000000 !important; /* Força em navegadores Chrome/Edge */
 }
 
-/* Mantém as cores mesmo ao passar o mouse (Hover) */
+/* Mantém preto absoluto mesmo no hover */
 [data-testid="stSidebar"] button:hover p, 
 [data-testid="stSidebar"] button:hover span, 
 [data-testid="stSidebar"] button:hover svg {
@@ -45,7 +35,7 @@
     fill: #000000 !important;
 }
 
-/* Cartão do Usuário (Estilo Postal) */
+/* Cartão de Usuário */
 .user-card {
     background: #111;
     border: 1px solid #28a745;
@@ -54,18 +44,12 @@
     text-align: center;
     margin-bottom: 10px;
 }
-
 .profile-img {
-    width: 75px; 
-    height: 75px;
+    width: 75px; height: 75px;
     border-radius: 50%;
     border: 2px solid #28a745;
     margin: 10px auto;
     object-fit: cover;
 }
-
-/* Linha divisória verde */
-hr { 
-    border-top: 2px solid #28a745 !important; 
-    opacity: 0.6;
-}
+    
+hr { border-top: 2px solid #28a745 !important; }
