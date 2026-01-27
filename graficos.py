@@ -70,6 +70,25 @@ BIBLIOTECA_CIENTIFICA = {
 def show_graficos():
     st.set_page_config(page_title="SmartGraphs Ultra", layout="wide")
     
+    # --- CSS PARA FORÇAR BOTÕES DA SIDEBAR VERDES COM TEXTO PRETO ---
+    st.markdown("""
+        <style>
+        /* Seleciona apenas botões dentro da sidebar */
+        section[data-testid="stSidebar"] .stButton button {
+            background-color: #00FF00 !important; /* Verde Puro */
+            color: #000000 !important;            /* Texto Preto */
+            border-radius: 5px;
+            border: none;
+            font-weight: bold;
+        }
+        /* Efeito de hover para feedback visual */
+        section[data-testid="stSidebar"] .stButton button:hover {
+            background-color: #00CC00 !important; /* Verde um pouco mais escuro */
+            color: #000000 !important;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
     if 'plots' not in st.session_state:
         st.session_state.plots = []
 
@@ -114,6 +133,7 @@ def show_graficos():
         cor = st.color_picker("Cor do Plot", "#00FFAA")
         nome_serie = st.text_input("Identificação do Ensaio", f"Lote {len(st.session_state.plots)+1}")
 
+        # Botão Plotar (Sidebar)
         if st.button("🚀 Plotar e Analisar", use_container_width=True):
             try:
                 x_val = np.linspace(alcance[0], alcance[1], 1000)
@@ -129,6 +149,7 @@ def show_graficos():
             except Exception as e:
                 st.error(f"Erro no processamento: {e}")
 
+        # Botão Resetar (Sidebar)
         if st.button("🗑️ Resetar Bancada", use_container_width=True):
             st.session_state.plots = []
             st.rerun()
@@ -143,11 +164,11 @@ def show_graficos():
         fig.update_layout(template="plotly_dark", height=700, xaxis_title="Eixo de Controle", yaxis_title="Resposta Científica")
         st.plotly_chart(fig, use_container_width=True)
         
-        # Exportação consertada
         df_exp = pd.DataFrame()
         for p in st.session_state.plots:
             df_exp = pd.concat([df_exp, pd.DataFrame({f"{p['nome']}_X": p['x'], f"{p['nome']}_Y": p['y']})], axis=1)
         
+        # Este botão de exportação fica fora da sidebar e manterá o estilo padrão do Streamlit
         st.download_button("📥 Exportar Dados Brutos (CSV)", df_exp.to_csv(index=False).encode('utf-8'), 
                            "lab_data.csv", "text/csv", use_container_width=True)
     else:
