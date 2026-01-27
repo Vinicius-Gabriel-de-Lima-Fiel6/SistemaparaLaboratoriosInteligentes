@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 from groq import Groq
 from datetime import datetime
 
-# Configurações de Conexão e API
+
 url = st.secrets["SUPABASE_URL"]
 key = st.secrets["SUPABASE_KEY"]
 supabase = create_client(url, key)
@@ -43,7 +43,7 @@ def show_estoque():
             df['Status'] = df['quantidade'].apply(lambda x: "🔴 ESGOTADO" if x <= 0 else ("🟡 BAIXO" if x < 10 else "🟢 OK"))
             df = df.sort_values(by=['prioridade', 'nome'], ascending=[True, True])
 
-            st.title(f"🚀 Gestão de Insumos | {org_usuario}")
+          
             
             # --- HEADER: MÉTRICAS E ROSCA COM PLANO DE FUNDO ---
             m1, m2, m3, m4 = st.columns([1, 1, 1, 2])
@@ -71,7 +71,7 @@ def show_estoque():
             ])
 
             with tab_inv:
-                # --- NOVO: MÓDULO DE ENTRADA DE MATERIAL (INCREMENTO) ---
+           
                 with st.expander("📥 RECEBIMENTO DE COMPRAS (Entrada no Estoque)", expanded=False):
                     c_in1, c_in2, c_in3, c_in4 = st.columns([2, 1, 1, 1])
                     with c_in1:
@@ -167,7 +167,7 @@ def show_estoque():
 
             with tab_llama:
                 st.subheader("🤖 Consultor de estoque")
-                # Llama agora analisa também o valor financeiro do estoque
+           
                 valor_total = (df['quantidade'] * df['preco_unitario']).sum()
                 contexto = f"Empresa: {org_usuario}. Valor Total em Estoque: R$ {valor_total:.2f}. Dados: {df[['nome', 'quantidade', 'unidade', 'preco_unitario']].to_string()}"
                 pre_prompt = f"Gerente Lab. Analise: {contexto}"
@@ -184,4 +184,5 @@ def show_estoque():
     busca_livre = st.text_input("Busca Externa:")
     if busca_livre:
         st.link_button("🔍 Buscar na Web", f"https://www.google.com/search?q=comprar+{urllib.parse.quote(busca_livre)}")
+
 
