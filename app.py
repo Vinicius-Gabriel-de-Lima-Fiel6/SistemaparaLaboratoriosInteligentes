@@ -160,13 +160,13 @@ else:
                     st.session_state.selection = "🧪 Laboratório"; st.rerun()
             with cc:
                 if st.button("⚗️ Novo Cadastro", use_container_width=True):
-                    st.session_state.selection = "🧪 Laboratório"; st.rerun()
+                    st.session_state.selection = "💼 Laboratório"; st.rerun()
         else:
             with cb:
                 st.button("🔒 Estoque (Restrito)", disabled=True, use_container_width=True)
 
     elif clean_selection == "Laboratório":
-        st.title("🧪 Central do Laboratório")
+        st.title("💼 Central do Laboratório")
         
        
         if role in ["Tecnico", "ADM"]:
@@ -188,4 +188,5 @@ else:
 
     st.sidebar.markdown("---")
     st.sidebar.caption("LabSmartAI V.Beta")
+
 
