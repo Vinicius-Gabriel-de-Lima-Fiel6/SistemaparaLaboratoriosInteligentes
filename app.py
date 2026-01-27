@@ -129,7 +129,7 @@ else:
                 <img src="https://api.dicebear.com/7.x/avataaars/svg?seed={user['username']}" class="profile-img">
                 <div style="margin-top: 5px;">
                     <span style="font-size: 0.9rem;">{user['username']}</span><br>
-                    <span style="background: #28a745; color: green; font-size: 0.7rem; padding: 2px 8px; border-radius: 10px;">{role}</span>
+                    <span style="background: #28a745; color: white; font-size: 0.7rem; padding: 2px 8px; border-radius: 10px;">{role}</span>
                 </div>
             </div>
         """, unsafe_allow_html=True)
@@ -210,4 +210,5 @@ else:
 
     st.sidebar.markdown("---")
     st.sidebar.caption("LabSmartAI • v1.0")
+
 
