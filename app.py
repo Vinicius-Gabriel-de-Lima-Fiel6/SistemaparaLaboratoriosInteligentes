@@ -40,7 +40,7 @@ st.markdown("""
         border-radius: 8px;
         background-color: #FFFFFF;
         color: #1A202C;
-        border: 1px solid #A0AEC0;
+        border: 1px solid #38A169;
         padding: 0.5rem;
         font-weight: 700;
         box-shadow: 0 2px 4px rgba(0,0,0,0.05);
@@ -48,8 +48,8 @@ st.markdown("""
     }
     
     .stButton>button:hover {
-        background-color: #38A169;
-        border-color: #000000;
+        background-color: #A0AEC0;
+        border-color: #A0AEC0;
         transform: translateY(-1px);
     }
 
@@ -236,6 +236,7 @@ else:
 
     st.sidebar.markdown("---")
     st.sidebar.caption("LabSmartAI • v1.0")
+
 
 
 
