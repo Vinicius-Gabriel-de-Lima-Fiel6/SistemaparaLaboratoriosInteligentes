@@ -18,76 +18,84 @@ st.set_page_config(
 
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-    
+    /* 1. VARIÁVEIS DE CORES */
+    :root {
+        --bg-primary: #000000;
+        --bg-secondary: #1A202C;
+        --accent-green: #38A169;
+        --accent-green-hover: #2F855A;
+        --ui-gray-light: #CBD5E0;
+        --ui-gray-medium: #A0AEC0;
+        --text-bright: #FFFFFF;
+        --text-muted: #CBD5E0;
+        --card-bg: #F7FAFC;
+    }
+
+    /* 2. CLASSES UTILITÁRIAS */
+    .main-header {
+        font-family: 'Inter', sans-serif;
+        color: var(--ui-gray-light) !important;
+        text-align: center;
+        font-weight: 700;
+    }
+
+    .sub-text {
+        color: var(--text-muted) !important;
+        font-size: 0.9rem;
+    }
+
+    /* 3. RESET E FUNDO DA APP */
     .stApp {
-        background-color: #000000;
-        color: #1A202C;
+        background-color: var(--bg-primary);
+        color: var(--text-bright);
     }
 
+    /* 4. SIDEBAR */
     [data-testid="stSidebar"] {
-        background-color: #000000;
-        border-right: 2px solid ;
-    }
-    
-    h1{
-        font-family: 'Inter', sans-serif;
-        color: #000000 !important;
-    }
-    h2{
-        font-family: 'Inter', sans-serif;
-        color: #000000 !important;
-    }
-    h3{
-        font-family: 'Inter', sans-serif;
-        color: #000000 !important;
-    }
-    span{
-        font-family: 'Inter', sans-serif;
-        color: #000000 !important;
-    }   
-    p{
-    font-family: 'Inter', sans-serif;
-    color: #FFFFFF !important;
-    }
-    
-     label {
-        font-family: 'Inter', sans-serif;
-        color: #FFFFFF !important;
+        background-color: var(--bg-secondary);
+        border-right: 1px solid var(--ui-gray-medium);
     }
 
+    /* 5. INPUTS E LABELS */
+    label, p, span {
+        color: var(--text-bright) !important;
+    }
+
+    /* 6. BOTÕES ESTILIZADOS */
     .stButton>button {
         width: 100%;
         border-radius: 8px;
-        background-color: #000000;
-        color: #1A202C;
-        border: 1px solid #38A169;
+        background-color: transparent;
+        color: var(--accent-green) !important;
+        border: 2px solid var(--accent-green);
         padding: 0.5rem;
         font-weight: 700;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        transition: all 0.2s ease;
+        transition: all 0.3s ease;
     }
-    
+
     .stButton>button:hover {
-        background-color: #A0AEC0;
-        border-color: #A0AEC0;
-        transform: translateY(-1px);
+        background-color: var(--accent-green);
+        color: white !important;
+        border-color: var(--accent-green);
+        box-shadow: 0 0 15px rgba(56, 161, 105, 0.4);
     }
 
-    div[data-testid="metric-container"] {
-        background-color: #F7FAFC;
-        border: 1px solid #A0AEC0;
-        padding: 15px;
-        border-radius: 10px;
-    }
-
-    .user-card {
-        background: #F7FAFC;
+    /* 7. CARDS E MÉTRICAS */
+    div[data-testid="metric-container"], .user-card {
+        background-color: var(--bg-secondary) !important;
+        border: 1px solid var(--ui-gray-medium) !important;
         padding: 15px;
         border-radius: 12px;
-        border: 1px solid #A0AEC0;
-        margin-bottom: 20px;
-        box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+    }
+
+    /* Ajuste específico para o texto dentro dos cards de métrica */
+    div[data-testid="stMetricValue"] {
+        color: var(--accent-green) !important;
+    }
+    
+    div[data-testid="stMetricLabel"] {
+        color: var(--ui-gray-light) !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -257,6 +265,7 @@ else:
 
     st.sidebar.markdown("---")
     st.sidebar.caption("LabSmartAI • v1.0")
+
 
 
 
