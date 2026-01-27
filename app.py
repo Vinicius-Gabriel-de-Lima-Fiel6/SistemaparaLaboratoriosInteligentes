@@ -15,52 +15,16 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- CSS GLOBAL ---
+# --- CSS GLOBAL (Ajustado para visibilidade sem bold) ---
 st.markdown("""
         <style>
-        /* Fundo Geral */
         .stApp { background-color: #f8f9fa; color: #212529; }
+        [data-testid="stSidebar"] { background-color: #000000 !important; color: #ffffff !important; }
         
-        /* Sidebar Base */
-        [data-testid="stSidebar"] { 
-            background-color: #000000 !important; 
-        }
+        /* Mantém textos gerais em branco */
+        [data-testid="stSidebar"] * { color: #ffffff !important; }
 
-        /* 1. TEXTOS DAS ABAS DE NAVEGAÇÃO (Brancos e Visíveis) */
-        [data-testid="stSidebar"] .stRadio label p {
-            color: #ffffff !important;
-            font-size: 0.95rem !important;
-            font-weight: 500 !important;
-        }
-        
-        /* Título "NAVEGAÇÃO" */
-        [data-testid="stSidebar"] [data-testid="stWidgetLabel"] p {
-            color: #28a745 !important;
-            font-weight: bold !important;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        /* 2. BOTÕES DE AÇÃO (Fundo Verde, Texto PRETO para contraste) */
-        [data-testid="stSidebar"] .stButton button, 
-        div[data-testid="stPopoverContent"] .stButton button {
-            background-color: #28a745 !important;
-            color: #000000 !important;
-            font-weight: bold !important;
-            border-radius: 8px !important;
-            border: none !important;
-            width: 100%;
-        }
-
-        /* 3. BOTÃO DE OPÇÕES (3 Pontos) */
-        div[data-testid="stPopover"] > button {
-            background-color: transparent !important;
-            border: 1px solid #333 !important;
-            color: #28a745 !important;
-            width: 100% !important;
-        }
-
-        /* 4. CARTÃO DO USUÁRIO (Texto Branco) */
+        /* Estilo do Cartão Postal conforme sua imagem */
         .user-card {
             background: #111;
             border: 1px solid #28a745;
@@ -69,9 +33,6 @@ st.markdown("""
             text-align: center;
             margin-bottom: 10px;
         }
-        .user-card span, .user-card small {
-            color: #ffffff !important;
-        }
         .profile-img {
             width: 75px; height: 75px;
             border-radius: 50%;
@@ -79,9 +40,28 @@ st.markdown("""
             margin: 10px auto;
             object-fit: cover;
         }
+        
+        /* Botão de 3 pontos (Popover) */
+        div[data-testid="stPopover"] > button {
+            background-color: transparent !important;
+            border: 1px solid #333 !important;
+            color: #28a745 !important;
+            width: 100%;
+        }
 
-        /* Linha divisória verde */
-        hr { border-top: 1px solid #28a745 !important; opacity: 0.5; }
+        /* AJUSTE SOLICITADO: Botões da sidebar com texto preto para leitura, sem Bold */
+        [data-testid="stSidebar"] .stButton button {
+            background-color: #28a745 !important;
+            color: #000000 !important; /* Texto em preto para contraste */
+            font-weight: normal !important; /* Remove o Bold */
+        }
+
+        /* Garante que os textos do Radio (Abas) apareçam em branco */
+        [data-testid="stSidebar"] .stRadio label p {
+            color: #ffffff !important;
+        }
+
+        hr { border-top: 2px solid #28a745 !important; }
         </style>
     """, unsafe_allow_html=True)
 
@@ -109,7 +89,7 @@ def tela_acesso():
                 st.error("Dados incorretos.")
         
         st.markdown("---")
-        st.markdown("<p style='text-align: center; color: gray;'>Se não tiver uma conta, clique abaixo:</p>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; color: var(--text-gray);'>Se não tiver uma conta, clique abaixo:</p>", unsafe_allow_html=True)
         st.link_button("Cadastro Empresarial", "https://cadastro-de-empresas-e7bkusdk4tsdchmx89fh8c.streamlit.app/", use_container_width=True)
 
 # --- FLUXO PRINCIPAL ---
@@ -123,7 +103,7 @@ if 'selection' not in st.session_state:
 if not st.session_state.logado:
     tela_acesso()
 else:
-    # Módulos
+    # IMPORTAÇÃO DOS MÓDULOS (Original)
     try:
         from substancias import show_substances
         from ControleEstoque import show_estoque
@@ -142,6 +122,7 @@ else:
     role = user.get('role', 'Visualizador')
     org_atual = user.get('org_name')
     
+    # --- SIDEBAR ---
     with st.sidebar:
         st.markdown(f"""
             <div class="user-card">
@@ -151,13 +132,15 @@ else:
                 <img src="https://api.dicebear.com/7.x/avataaars/svg?seed={user['username']}" class="profile-img">
                 <div style="margin-top: 5px;">
                     <span style="font-size: 0.9rem;">{user['username']}</span><br>
-                    <span style="background: #28a745; color: black; font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; font-weight: bold;">{role}</span>
+                    <span style="background: #28a745; color: white; font-size: 0.7rem; padding: 2px 8px; border-radius: 10px;">{role}</span>
                 </div>
             </div>
         """, unsafe_allow_html=True)
 
+        # Popover
         with st.popover("⋮ Opções"):
             st.write("👤 Perfil do Usuário")
+            
             if st.button("⚙️ Configurações Gerais", use_container_width=True):
                 st.session_state.selection = "Configurações"
                 st.rerun()
@@ -179,12 +162,40 @@ else:
 
     clean_selection = selection.split(" ", 1)[-1]
 
-    # --- LÓGICA DE PÁGINAS ---
+    # DASHBOARD
     if clean_selection == "Dashboard":
         st.title(f"🚀 Painel de Controle - {org_atual}")
-        # ... (seu código de métricas continua aqui)
-        st.info("Bem-vindo ao sistema.")
-    
+        
+        try:
+            res_sub = supabase.table("substancias").select("quantidade").eq("org_name", org_atual).execute()
+            total_itens = sum([i['quantidade'] for i in res_sub.data]) if res_sub.data else 0
+            res_eq = supabase.table("equipamentos").select("id", count="exact").eq("org_name", org_atual).execute()
+            total_equip = res_eq.count if res_eq.count else 0
+            total_analises = len(res_sub.data)
+        except:
+            total_itens, total_equip, total_analises = 0, 0, 0
+
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("Itens no Estoque", f"{total_itens:,}".replace(",", "."), delta="Estoque Operacional")
+        m2.metric("Equipamentos", total_equip, "Ativos")
+        m3.metric("Registros Ativos", total_analises, "Banco de Dados")
+        m4.metric("Usuário Atual", user['username'], f"Acesso {role}")
+
+        st.markdown("---")
+        st.subheader("Atalhos do Sistema")
+        
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            if st.button("🤖 Central de IA"):
+                st.session_state.selection = "🤖 IA & Visão"; st.rerun()
+        with c2:
+            if st.button("🧪 Tabelas e Reagentes"):
+                st.session_state.selection = "🧪 Tabelas Químicas"; st.rerun()
+        with c3:
+            if st.button("🧮 Calculadora de Soluções"):
+                st.session_state.selection = "🧮 Calculadora Química"; st.rerun()
+
+    # NAVEGAÇÃO DOS MÓDULOS
     elif clean_selection == "IA & Visão": ia.show_chatbot()
     elif clean_selection == "Tabelas Químicas": show_tabelas()
     elif clean_selection == "Calculadora Química": show_calculadora()
