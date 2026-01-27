@@ -49,11 +49,11 @@ st.markdown("""
             object-fit: cover;
         }
         
-        /* Botão de 3 pontos (Popover) */
+        /* Botão de 3 pontos (Popover) - Altere a cor do texto aqui */
         div[data-testid="stPopover"] > button {
-            background-color: green !important;
+            background-color: transparent !important;
             border: 1px solid #333 !important;
-            color: #28a745 !important;
+            color: #000000 !important; /* <--- MUDE AQUI (Ex: #000000 para preto ou #ffffff para branco) */
             width: 100%;
         }
 
@@ -210,6 +210,7 @@ else:
 
     st.sidebar.markdown("---")
     st.sidebar.caption("LabSmartAI • v1.0")
+
 
 
 
