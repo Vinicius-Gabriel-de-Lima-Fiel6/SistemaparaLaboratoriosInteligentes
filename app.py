@@ -15,12 +15,11 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# FUNÇÃO PARA CARREGAR O CSS EXTERNO
+# --- CARREGAR CSS EXTERNO ---
 def load_css(file_name):
     with open(file_name) as f:
         st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
-# Aplica o CSS do arquivo separado
 load_css("style.css")
 
 # --- CONEXÃO SUPABASE ---
@@ -47,7 +46,7 @@ def tela_acesso():
                 st.error("Dados incorretos.")
         
         st.markdown("---")
-        st.markdown("<p style='text-align: center; color: gray;'>Se não tiver uma conta, clique abaixo:</p>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; color: var(--text-gray);'>Se não tiver uma conta, clique abaixo:</p>", unsafe_allow_html=True)
         st.link_button("Cadastro Empresarial", "https://cadastro-de-empresas-e7bkusdk4tsdchmx89fh8c.streamlit.app/", use_container_width=True)
 
 # --- FLUXO PRINCIPAL ---
@@ -61,7 +60,7 @@ if 'selection' not in st.session_state:
 if not st.session_state.logado:
     tela_acesso()
 else:
-    # IMPORTAÇÃO DOS MÓDULOS
+    # IMPORTAÇÃO DOS MÓDULOS (Original)
     try:
         from substancias import show_substances
         from ControleEstoque import show_estoque
@@ -80,8 +79,8 @@ else:
     role = user.get('role', 'Visualizador')
     org_atual = user.get('org_name')
     
+    # --- SIDEBAR (Mantendo sua estrutura exata) ---
     with st.sidebar:
-        # User Card
         st.markdown(f"""
             <div class="user-card">
                 <small style="font-weight: 800; font-size: 0.7rem; color: #28a745;">ORGANIZAÇÃO</small><br>
@@ -90,14 +89,15 @@ else:
                 <img src="https://api.dicebear.com/7.x/avataaars/svg?seed={user['username']}" class="profile-img">
                 <div style="margin-top: 5px;">
                     <span style="font-size: 0.9rem;">{user['username']}</span><br>
-                    <span style="background: #28a745; color: black; font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; font-weight: bold;">{role}</span>
+                    <span style="background: #28a745; color: white; font-size: 0.7rem; padding: 2px 8px; border-radius: 10px;">{role}</span>
                 </div>
             </div>
         """, unsafe_allow_html=True)
 
-        # Popover Opções
+        # O Menu de 3 Pontos (Popover)
         with st.popover("⋮ Opções"):
             st.write("👤 Perfil do Usuário")
+            
             if st.button("⚙️ Configurações Gerais", use_container_width=True):
                 st.session_state.selection = "Configurações"
                 st.rerun()
@@ -108,7 +108,6 @@ else:
 
         st.write("") 
         
-        # Abas de Navegação
         abas = ["🏠 Dashboard", "🤖 IA & Visão", "🧪 Tabelas Químicas", "🧮 Calculadora Química", "📊 Gráficos"]
         if role in ["Tecnico", "ADM"]:
             abas.extend(["⚗️ Cadastro de Substâncias", "📦 Estoque"])
@@ -120,21 +119,21 @@ else:
 
     clean_selection = selection.split(" ", 1)[-1]
 
-    # Lógica de Páginas
+    # DASHBOARD
     if clean_selection == "Dashboard":
         st.title(f"🚀 Painel de Controle - {org_atual}")
-        # Aqui entra sua lógica de métricas original...
-        st.info(f"Bem-vindo, {user['username']}. Você está logado como {role}.")
+        
+        try:
+            res_sub = supabase.table("substancias").select("quantidade").eq("org_name", org_atual).execute()
+            total_itens = sum([i['quantidade'] for i in res_sub.data]) if res_sub.data else 0
+            res_eq = supabase.table("equipamentos").select("id", count="exact").eq("org_name", org_atual).execute()
+            total_equip = res_eq.count if res_eq.count else 0
+            total_analises = len(res_sub.data)
+        except:
+            total_itens, total_equip, total_analises = 0, 0, 0
 
-    elif clean_selection == "IA & Visão": ia.show_chatbot()
-    elif clean_selection == "Tabelas Químicas": show_tabelas()
-    elif clean_selection == "Calculadora Química": show_calculadora()
-    elif clean_selection == "Gráficos": show_graficos()
-    elif clean_selection == "Cadastro de Substâncias": show_substances()
-    elif clean_selection == "Estoque": show_estoque()
-    elif clean_selection == "Equipamentos": show_equipamentos()
-    elif clean_selection == "Gestão de Equipe": show_config_empresa()
-    elif clean_selection == "Relatórios": relatorios.show_reports(supabase)
+        limite_alerta = 100 
+        cor_estoque = "inverse" if total_itens < limite_alerta else "normal"
+        delta_label = f"-{limite_alerta - total_itens} un. (Crítico)" if total_itens < limite_alerta else "Estoque Operacional"
 
-    st.sidebar.markdown("---")
-    st.sidebar.caption("LabSmartAI • v1.0")
+        m1, m2, m3, m4 = st.columns(
