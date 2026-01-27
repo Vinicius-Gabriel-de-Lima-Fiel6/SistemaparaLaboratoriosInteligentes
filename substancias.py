@@ -6,12 +6,12 @@ import qrcode
 from io import BytesIO
 import zipfile
 
-# --- CONFIGURAÇÃO DA PÁGINA ---
+
 url = st.secrets["SUPABASE_URL"]
 key = st.secrets["SUPABASE_KEY"]
 supabase = create_client(url, key)
 
-# URL Base do seu sistema (ajuste se o endereço mudar)
+
 URL_SISTEMA = "https://sistemadeqrcodes.streamlit.app/"
 
 def render_hommel(saude, fogo, reat, esp):
@@ -27,14 +27,14 @@ def render_hommel(saude, fogo, reat, esp):
     """, unsafe_allow_html=True)
 
 def show_substances():
-    st.header("🔬 Cadastro e Gerenciamento de Substâncias")
+   
     
     user_data = st.session_state.get('user_data', {})
     org_usuario = user_data.get('org_name', 'Default')
     role_usuario = user_data.get('role', 'Visualizador')
     username_atual = user_data.get('username', 'Usuário')
 
-    # --- 1. CADASTRO DE SUBSTÂNCIAS ---
+  
     with st.container(border=True):
         st.subheader("Cadastrar Novo Item")
         if role_usuario == "Visualizador":
@@ -181,3 +181,4 @@ def show_substances():
 
 if __name__ == "__main__":
     show_substances()
+
