@@ -132,7 +132,7 @@ def show_substances():
                             # 1. ATUALIZA ESTOQUE
                             supabase.table("substancias").update({"quantidade": nova_qtd}).eq("id", row_atual['id']).execute()
                             
-                            # 2. REGISTRA LOG DE ESTOQUE (MANTIDO)
+                            # 2. REGISTRA LOG DE ESTOQUE
                             supabase.table("logs_estoque").insert({
                                 "usuario": username_atual, "substancia": sub_usada,
                                 "quantidade_antiga": float(row_atual['quantidade']), 
@@ -149,14 +149,14 @@ def show_substances():
                                 num_v = vid_selecionada.split(" - ")[-1]
                                 id_v_save = df_vidrarias[df_vidrarias['numeracao'] == num_v].iloc[0]['vid']
 
-                            # 5. SALVA ANOTAÇÃO (IMPORTANTE: REMOVIDO 'id' PARA EVITAR DUPLICIDADE)
+                            # 5. SALVA ANOTAÇÃO (NOME DA COLUNA ALTERADO PARA 'id' CONFORME SOLICITADO)
                             supabase.table("anotacoes_processos").insert({
                                 "data_procedimento": str(data_proc), 
                                 "usuario": username_atual,
                                 "substancia_id": int(row_atual['id']), 
                                 "quantidade_usada": float(qtd_usada),
                                 "lote_reagente": lote_ref, 
-                                "vid": id_v_save, # Salva o ID da vidraria na coluna correta
+                                "id": id_v_save, # AQUI FOI ALTERADO DE 'vid' PARA 'id'
                                 "procedimento_texto": explicacao, 
                                 "parecer_ia": parecer, 
                                 "org_name": org_usuario
@@ -215,7 +215,6 @@ def show_substances():
                         "saude": s_saude, "fogo": s_fogo, "reatividade": s_reat,
                         "especial": s_esp, "instrucoes": instrucoes
                     }).execute()
-                    # LOG DE ENTRADA
                     supabase.table("logs_estoque").insert({
                         "usuario": username_atual, "substancia": nome,
                         "quantidade_antiga": 0.0, "quantidade_nova": float(quantidade), "org_name": org_usuario
@@ -258,7 +257,6 @@ def show_substances():
                     if col_b.button("Atualizar", use_container_width=True):
                         old_q = df[df['nome'] == sub_ed]['quantidade'].values[0]
                         supabase.table("substancias").update({"quantidade": n_qtd}).eq("nome", sub_ed).execute()
-                        # LOG DE AJUSTE MANUAL
                         supabase.table("logs_estoque").insert({
                             "usuario": username_atual, "substancia": sub_ed, 
                             "quantidade_antiga": float(old_q), "quantidade_nova": float(n_qtd), "org_name": org_usuario
