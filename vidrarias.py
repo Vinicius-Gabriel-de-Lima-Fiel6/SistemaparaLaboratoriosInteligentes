@@ -46,25 +46,28 @@ def render_vidrarias():
 
         if not df.empty:
             st.subheader("📋 Inventário de Vidrarias")
-            st.dataframe(df[['vid', 'tipo', 'capacidade', 'numeracao']], use_container_width=True, hide_index=True)
+            # AJUSTE: Mudamos 'vid' para 'id'
+            st.dataframe(df[['id', 'tipo', 'capacidade', 'numeracao']], use_container_width=True, hide_index=True)
 
-            # --- ALTERAÇÃO E EXCLUSÃO ---
             if role_usuario in ["ADM", "Tecnico"]:
                 col_edit, col_del = st.columns(2)
 
                 with col_edit:
                     with st.expander("🔄 Alterar Vidraria"):
-                        id_edit = st.selectbox("Selecione o ID para editar", options=df['vid'].tolist(), key="edit_vid")
+                        # AJUSTE: Mudamos 'vid' para 'id'
+                        id_edit = st.selectbox("Selecione o ID para editar", options=df['id'].tolist(), key="edit_vid")
                         novo_tipo = st.selectbox("Novo Tipo", ["Béquer", "Erlenmeyer", "Balão Volumétrico", "Pipeta", "Proveta", "Bureta", "Outros"], key="n_tipo")
                         nova_cap = st.text_input("Nova Capacidade", key="n_cap")
                         if st.button("Confirmar Alteração", use_container_width=True):
-                            supabase.table("vidrarias").update({"tipo": novo_tipo, "capacidade": nova_cap}).eq("vid", id_edit).execute()
+                            # AJUSTE: eq("id", id_edit)
+                            supabase.table("vidrarias").update({"tipo": novo_tipo, "capacidade": nova_cap}).eq("id", id_edit).execute()
                             st.success("Alterado!")
                             st.rerun()
 
                 with col_del:
                     with st.expander("🗑️ Excluir Vidraria"):
-                        id_del = st.selectbox("Selecione o ID para remover", options=df['vid'].tolist(), key="del_vid")
+                        # AJUSTE: Mudamos 'vid' para 'id'
+                        id_del = st.selectbox("Selecione o ID para remover", options=df['id'].tolist(), key="del_vid")
                         if st.button("Remover Permanentemente", type="primary", use_container_width=True):
                             supabase.table("vidrarias").delete().eq("id", id_del).execute()
                             st.rerun()
@@ -73,12 +76,8 @@ def render_vidrarias():
             st.subheader("🖼️ Gerar QR Code")
             vid_sel = st.selectbox("Escolha a vidraria para o QR:", options=df['numeracao'].tolist())
             det = df[df['numeracao'] == vid_sel].iloc[0]
-            qr = qrcode.make(f"{URL_SISTEMA}?vid={det['vid']}")
+            # AJUSTE: O link do QR Code continua mandando 'vid' para o portal saber que é vidraria
+            qr = qrcode.make(f"{URL_SISTEMA}?vid={det['id']}") 
             buf = BytesIO(); qr.save(buf, format="PNG")
             st.image(buf.getvalue(), width=150)
             st.download_button("Baixar QR Code", buf.getvalue(), f"qr_vidraria_{det['numeracao']}.png")
-
-        else:
-            st.info("Nenhuma vidraria cadastrada.")
-    except Exception as e:
-        st.error(f"Erro ao carregar vidrarias: {e}")
