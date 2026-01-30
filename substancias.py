@@ -93,8 +93,9 @@ def show_substances():
     role_usuario = user_data.get('role', 'Visualizador')
     username_atual = user_data.get('username', 'Usuario')
 
-    # --- SEÇÃO DE ANOTAÇÕES E PROCEDIMENTOS ---
     st.title("📋 Registro de Processos e Análises")
+    
+    # --- FORMULÁRIO DE ANOTAÇÃO ---
     with st.expander("📝 Nova Anotação / Uso de Reagente", expanded=False):
         try:
             res_sub = supabase.table("substancias").select("nome, quantidade, id").eq("org_name", org_usuario).execute()
@@ -118,9 +119,9 @@ def show_substances():
                     vid_selecionada = st.selectbox("Vidraria Utilizada", options=vid_list)
                     qtd_usada = st.number_input("Quantidade Utilizada", min_value=0.0, step=0.01)
                     
-                explicacao = st.text_area("Descricao do Procedimento (Metodologia e Resultados)")
+                explicacao = st.text_area("Descricao do Procedimento")
                 
-                if st.button("🚀 Finalizar e Salvar no Banco", use_container_width=True):
+                if st.button("🚀 Finalizar e Salvar", use_container_width=True):
                     if qtd_usada > 0:
                         row_atual = df_reagentes[df_reagentes['nome'] == sub_usada].iloc[0]
                         nova_qtd = float(row_atual['quantidade']) - float(qtd_usada)
@@ -128,49 +129,45 @@ def show_substances():
                         if nova_qtd < 0:
                             st.error("Estoque insuficiente!")
                         else:
-                            # 1. ATUALIZA ESTOQUE NA TABELA SUBSTANCIAS
+                            # 1. ATUALIZA ESTOQUE
                             supabase.table("substancias").update({"quantidade": nova_qtd}).eq("id", row_atual['id']).execute()
                             
-                            # 2. LOG DE ESTOQUE (OBRIGATÓRIO)
+                            # 2. REGISTRA LOG DE ESTOQUE (MANTIDO)
                             supabase.table("logs_estoque").insert({
-                                "usuario": username_atual, 
-                                "substancia": sub_usada,
+                                "usuario": username_atual, "substancia": sub_usada,
                                 "quantidade_antiga": float(row_atual['quantidade']), 
-                                "quantidade_nova": nova_qtd, 
-                                "org_name": org_usuario
+                                "quantidade_nova": nova_qtd, "org_name": org_usuario
                             }).execute()
                             
-                            # 3. PARECER IA
-                            with st.spinner("Llama analisando dados..."):
-                                parecer = gerar_parecer_ia(f"Uso de {qtd_usada} de {sub_usada}. Projeto: {projeto_nome}. Procedimento: {explicacao}")
+                            # 3. GERA PARECER IA
+                            with st.spinner("Llama analisando..."):
+                                parecer = gerar_parecer_ia(f"Uso de {qtd_usada} de {sub_usada}. Procedimento: {explicacao}")
                             
-                            # 4. CAPTURA O 'VID' DA VIDRARIA
+                            # 4. BUSCA O ID DA VIDRARIA (VID)
                             id_v_save = None
                             if vid_selecionada != "Nenhuma":
                                 num_v = vid_selecionada.split(" - ")[-1]
                                 id_v_save = df_vidrarias[df_vidrarias['numeracao'] == num_v].iloc[0]['vid']
 
-                            # 5. SALVA ANOTAÇÃO (COLUNA 'id' CONFORME SOLICITADO)
+                            # 5. SALVA ANOTAÇÃO (IMPORTANTE: REMOVIDO 'id' PARA EVITAR DUPLICIDADE)
                             supabase.table("anotacoes_processos").insert({
                                 "data_procedimento": str(data_proc), 
                                 "usuario": username_atual,
                                 "substancia_id": int(row_atual['id']), 
                                 "quantidade_usada": float(qtd_usada),
                                 "lote_reagente": lote_ref, 
-                                "id": id_v_save, # Referência da vidraria
+                                "vid": id_v_save, # Salva o ID da vidraria na coluna correta
                                 "procedimento_texto": explicacao, 
                                 "parecer_ia": parecer, 
                                 "org_name": org_usuario
                             }).execute()
 
-                            # 6. GERAÇÃO DE PDF
                             st.session_state['pdf_report'] = exportar_pdf({
                                 "projeto": projeto_nome, "data": str(data_proc), "usuario": username_atual,
-                                "substancia": sub_usada, "lote": lote_ref, "vidraria": vid_selecionada,
-                                "quantidade": qtd_usada, "procedimento": explicacao
+                                "substancia": sub_usada, "quantidade": qtd_usada, "procedimento": explicacao
                             }, parecer)
                             st.session_state['last_sub'] = sub_usada
-                            st.success("Tudo salvo com sucesso: Estoque abatido, Log registrado e Anotacao criada!")
+                            st.success("Sucesso! Estoque atualizado e log gerado.")
                             st.rerun()
 
                 if 'pdf_report' in st.session_state:
@@ -182,8 +179,8 @@ def show_substances():
             st.error(f"Erro no modulo de anotacoes: {e}")
 
     st.divider()
-    
-    # --- 1. CADASTRO ---
+
+    # --- 1. CADASTRO DE SUBSTÂNCIAS ---
     with st.container(border=True):
         st.subheader("Cadastrar Novo Item")
         if role_usuario == "Visualizador":
@@ -218,13 +215,12 @@ def show_substances():
                         "saude": s_saude, "fogo": s_fogo, "reatividade": s_reat,
                         "especial": s_esp, "instrucoes": instrucoes
                     }).execute()
-                    
-                    # LOG DE NOVO CADASTRO
+                    # LOG DE ENTRADA
                     supabase.table("logs_estoque").insert({
                         "usuario": username_atual, "substancia": nome,
                         "quantidade_antiga": 0.0, "quantidade_nova": float(quantidade), "org_name": org_usuario
                     }).execute()
-                    st.success("Cadastrado e Log de entrada gerado!")
+                    st.success("Cadastrado!")
                     st.rerun()
 
     st.divider()
@@ -255,20 +251,18 @@ def show_substances():
                     with st.popover("💡 Ajuda", use_container_width=True): st.write("Use o CSV no Excel Online.")
 
             if role_usuario in ["ADM", "Tecnico"]:
-                with st.expander("🔄 Atualizar Estoque Manualmente"):
+                with st.expander("🔄 Atualizar Estoque Manual"):
                     col_s, col_v, col_b = st.columns([2, 1, 1])
                     sub_ed = col_s.selectbox("Substancia", options=df['nome'].tolist(), key="ed_stock")
                     n_qtd = col_v.number_input("Nova Qtd", min_value=0.0)
                     if col_b.button("Atualizar", use_container_width=True):
                         old_q = df[df['nome'] == sub_ed]['quantidade'].values[0]
                         supabase.table("substancias").update({"quantidade": n_qtd}).eq("nome", sub_ed).execute()
-                        
-                        # LOG DE ATUALIZAÇÃO MANUAL
+                        # LOG DE AJUSTE MANUAL
                         supabase.table("logs_estoque").insert({
                             "usuario": username_atual, "substancia": sub_ed, 
                             "quantidade_antiga": float(old_q), "quantidade_nova": float(n_qtd), "org_name": org_usuario
                         }).execute()
-                        st.success("Estoque atualizado e log gerado!")
                         st.rerun()
 
             st.subheader("🛡️ Seguranca")
@@ -283,12 +277,12 @@ def show_substances():
                 st.image(b_ind.getvalue(), width=100)
                 st.download_button("📥 QR", b_ind.getvalue(), "qr.png")
 
-            with st.expander("📜 Logs de Estoque (Ultimos 5)"):
+            with st.expander("📜 Logs Recentes"):
                 l_res = supabase.table("logs_estoque").select("*").eq("org_name", org_usuario).order("created_at", desc=True).limit(5).execute()
                 if l_res.data: st.table(pd.DataFrame(l_res.data)[['created_at', 'usuario', 'substancia', 'quantidade_nova']])
 
             if role_usuario in ["ADM", "Tecnico"]:
-                with st.expander("🗑️ Remover do Sistema"):
+                with st.expander("🗑️ Remover"):
                     id_rem = st.selectbox("ID p/ remover", options=df['id'].tolist())
                     if st.button("Confirmar Exclusao", type="primary"):
                         supabase.table("substancias").delete().eq("id", id_rem).execute()
