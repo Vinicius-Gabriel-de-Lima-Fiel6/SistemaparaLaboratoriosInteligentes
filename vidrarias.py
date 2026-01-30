@@ -1,29 +1,84 @@
 import streamlit as st
 import pandas as pd
 from supabase import create_client
+import qrcode
+from io import BytesIO
+
+# Configuração Supabase
+url = st.secrets["SUPABASE_URL"]
+key = st.secrets["SUPABASE_KEY"]
+supabase = create_client(url, key)
+URL_SISTEMA = "https://sistemadeqrcodes.streamlit.app/"
 
 def render_vidrarias():
-    url, key = st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"]
-    supabase = create_client(url, key)
-    org_usuario = st.session_state.get('user_data', {}).get('org_name', 'Default')
+    user_data = st.session_state.get('user_data', {})
+    org_usuario = user_data.get('org_name', 'Default')
+    role_usuario = user_data.get('role', 'Visualizador')
 
-    st.header("🧪 Inventário de Vidrarias")
-    
-    with st.expander("➕ Cadastrar Nova Vidraria"):
-        c1, c2 = st.columns(2)
-        tipo = c1.selectbox("Tipo", ["Béquer", "Erlenmeyer", "Proveta", "Balão Volumétrico", "Outro"])
-        num = c2.text_input("Numeração/Patrimônio")
-        cap = c1.text_input("Capacidade (ex: 500ml)")
-        est = c2.selectbox("Estado", ["Novo", "Bom", "Desgastado"])
-        
-        if st.button("Salvar Vidraria"):
-            supabase.table("vidrarias").insert({
-                "tipo": tipo, "numeracao": num, "capacidade": cap, 
-                "estado": est, "org_name": org_usuario
-            }).execute()
-            st.success("Vidraria registrada!")
-            st.rerun()
+    st.title("⚗️ Gestão de Vidrarias")
 
-    res = supabase.table("vidrarias").select("*").eq("org_name", org_usuario).execute()
-    if res.data:
-        st.dataframe(pd.DataFrame(res.data)[['numeracao', 'tipo', 'capacidade', 'estado', 'status']], use_container_width=True)
+    # --- 1. CADASTRO ---
+    with st.container(border=True):
+        st.subheader("Cadastrar Nova Vidraria")
+        if role_usuario == "Visualizador":
+            st.warning("Apenas visualização permitida.")
+        else:
+            c1, c2, c3 = st.columns(3)
+            tipo = c1.selectbox("Tipo de Vidraria", ["Béquer", "Erlenmeyer", "Balão Volumétrico", "Pipeta", "Proveta", "Bureta", "Outros"])
+            capacidade = c2.text_input("Capacidade (ex: 250ml)")
+            numeracao = c3.text_input("Numeração/Patrimônio")
+            
+            if st.button("➕ Adicionar Vidraria", use_container_width=True):
+                if tipo and numeracao:
+                    supabase.table("vidrarias").insert({
+                        "tipo": tipo, "capacidade": capacidade, 
+                        "numeracao": numeracao, "org_name": org_usuario
+                    }).execute()
+                    st.success(f"{tipo} cadastrado com sucesso!")
+                    st.rerun()
+
+    st.divider()
+
+    # --- 2. LISTAGEM E AÇÕES ---
+    try:
+        res = supabase.table("vidrarias").select("*").eq("org_name", org_usuario).execute()
+        df = pd.DataFrame(res.data)
+
+        if not df.empty:
+            st.subheader("📋 Inventário de Vidrarias")
+            st.dataframe(df[['id', 'tipo', 'capacidade', 'numeracao']], use_container_width=True, hide_index=True)
+
+            # --- ALTERAÇÃO E EXCLUSÃO ---
+            if role_usuario in ["ADM", "Tecnico"]:
+                col_edit, col_del = st.columns(2)
+
+                with col_edit:
+                    with st.expander("🔄 Alterar Vidraria"):
+                        id_edit = st.selectbox("Selecione o ID para editar", options=df['id'].tolist(), key="edit_vid")
+                        novo_tipo = st.selectbox("Novo Tipo", ["Béquer", "Erlenmeyer", "Balão Volumétrico", "Pipeta", "Proveta", "Bureta", "Outros"], key="n_tipo")
+                        nova_cap = st.text_input("Nova Capacidade", key="n_cap")
+                        if st.button("Confirmar Alteração", use_container_width=True):
+                            supabase.table("vidrarias").update({"tipo": novo_tipo, "capacidade": nova_cap}).eq("id", id_edit).execute()
+                            st.success("Alterado!")
+                            st.rerun()
+
+                with col_del:
+                    with st.expander("🗑️ Excluir Vidraria"):
+                        id_del = st.selectbox("Selecione o ID para remover", options=df['id'].tolist(), key="del_vid")
+                        if st.button("Remover Permanentemente", type="primary", use_container_width=True):
+                            supabase.table("vidrarias").delete().eq("id", id_del).execute()
+                            st.rerun()
+            
+            # --- QR CODE INDIVIDUAL ---
+            st.subheader("🖼️ Gerar QR Code")
+            vid_sel = st.selectbox("Escolha a vidraria para o QR:", options=df['numeracao'].tolist())
+            det = df[df['numeracao'] == vid_sel].iloc[0]
+            qr = qrcode.make(f"{URL_SISTEMA}?vid={det['id']}")
+            buf = BytesIO(); qr.save(buf, format="PNG")
+            st.image(buf.getvalue(), width=150)
+            st.download_button("Baixar QR Code", buf.getvalue(), f"qr_vidraria_{det['numeracao']}.png")
+
+        else:
+            st.info("Nenhuma vidraria cadastrada.")
+    except Exception as e:
+        st.error(f"Erro ao carregar vidrarias: {e}")
