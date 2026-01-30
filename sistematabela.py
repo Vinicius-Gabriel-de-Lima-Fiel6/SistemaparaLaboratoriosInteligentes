@@ -70,7 +70,7 @@ def show_tabelas():
                 with st.spinner("Analisando bases científicas..."):
                     chat = client.chat.completions.create(
                         messages=[{"role": "user", "content": f"Aja como um consultor técnico sênior em química e farmácia. Analise com rigor: {pergunta}"}],
-                        model="llama3-70b-8192"
+                        model="llama-3.3-70b-versatile"
                     )
                     st.markdown("---")
                     st.markdown("#### Parecer do Agente:")
@@ -80,3 +80,4 @@ def show_tabelas():
 
 if __name__ == "__main__":
     show_tabelas()
+
