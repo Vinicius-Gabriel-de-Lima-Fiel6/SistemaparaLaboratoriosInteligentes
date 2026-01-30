@@ -19,11 +19,10 @@ URL_SISTEMA = "https://sistemadeqrcodes.streamlit.app/"
 def limpar_texto_pdf(txt):
     """Remove caracteres especiais que quebram o PDF (latin-1)"""
     if not txt: return ""
-    # Substitui caracteres tipográficos da IA por caracteres padrão
     substituicoes = {
         '\u2212': '-', '\u2013': '-', '\u2014': '-', 
         '\u201c': '"', '\u201d': '"', '\u2018': "'", '\u2019': "'",
-        '\xb0': ' graus' # Trata o símbolo de grau se necessário
+        '\xb0': ' graus'
     }
     for char, rep in substituicoes.items():
         txt = txt.replace(char, rep)
@@ -53,7 +52,7 @@ def gerar_parecer_ia(dados_processo):
         return f"Erro ao gerar parecer: {str(e)}"
 
 def exportar_pdf(dados, parecer_ia):
-    """Gera o relatório final em formato PDF com tratamento de caracteres"""
+    """Gera o relatório final em formato PDF"""
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", 'B', 16)
@@ -98,9 +97,8 @@ def show_substances():
     st.title("📋 Registro de Processos e Análises")
     with st.expander("📝 Nova Anotação / Uso de Reagente", expanded=False):
         try:
-            # Busca de dados relacionais
             res_sub = supabase.table("substancias").select("nome, quantidade, id").eq("org_name", org_usuario).execute()
-            # ALTERAÇÃO REALIZADA: Selecionando 'vid' em vez de 'id' para a tabela vidrarias
+            # Fiel ao banco: usando 'vid'
             res_vid = supabase.table("vidrarias").select("vid, tipo, numeracao").eq("org_name", org_usuario).execute()
             res_proj = supabase.table("projetos").select("id, nome").eq("org_name", org_usuario).eq("status", "Ativo").execute()
             
@@ -123,7 +121,7 @@ def show_substances():
                     
                 explicacao = st.text_area("Descricao do Procedimento (Metodologia e Resultados)")
                 
-                if st.button("🚀 Finalizar e Salvar no Banco", key="btn_salvar_proc", use_container_width=True):
+                if st.button("🚀 Finalizar e Salvar no Banco", use_container_width=True):
                     if qtd_usada > 0:
                         row_atual = df_reagentes[df_reagentes['nome'] == sub_usada].iloc[0]
                         nova_qtd = float(row_atual['quantidade']) - float(qtd_usada)
@@ -131,35 +129,31 @@ def show_substances():
                         if nova_qtd < 0:
                             st.error("Estoque insuficiente!")
                         else:
-                            # 1. Atualiza Estoque
                             supabase.table("substancias").update({"quantidade": nova_qtd}).eq("id", row_atual['id']).execute()
                             
-                            # 2. Registra Log de Auditoria
                             supabase.table("logs_estoque").insert({
                                 "usuario": username_atual, "substancia": sub_usada,
                                 "quantidade_antiga": float(row_atual['quantidade']), 
                                 "quantidade_nova": nova_qtd, "org_name": org_usuario
                             }).execute()
                             
-                            # 3. Parecer IA
                             with st.spinner("Llama analisando dados..."):
                                 parecer = gerar_parecer_ia(f"Uso de {qtd_usada} de {sub_usada}. Projeto: {projeto_nome}. Procedimento: {explicacao}")
                             
-                            # 4. Salvar na Tabela de Anotacoes (Rastreabilidade)
+                            # Ajuste de Fidelidade: Usando 'vid' para salvar a relação
                             id_v_save = None
                             if vid_selecionada != "Nenhuma":
                                 num_v = vid_selecionada.split(" - ")[-1]
-                                # ALTERAÇÃO REALIZADA: Acessando a coluna 'vid' conforme solicitado
                                 id_v_save = df_vidrarias[df_vidrarias['numeracao'] == num_v].iloc[0]['vid']
 
                             supabase.table("anotacoes_processos").insert({
                                 "data_procedimento": str(data_proc), "usuario": username_atual,
                                 "substancia_id": int(row_atual['id']), "quantidade_usada": float(qtd_usada),
-                                "lote_reagente": lote_ref, "vidraria_id": id_v_save,
+                                "lote_reagente": lote_ref, 
+                                "vid": id_v_save, # Alterado de vidraria_id para vid para bater com seu banco
                                 "procedimento_texto": explicacao, "parecer_ia": parecer, "org_name": org_usuario
                             }).execute()
 
-                            # 5. Salva PDF no session_state para persistência
                             st.session_state['pdf_report'] = exportar_pdf({
                                 "projeto": projeto_nome, "data": str(data_proc), "usuario": username_atual,
                                 "substancia": sub_usada, "lote": lote_ref, "vidraria": vid_selecionada,
