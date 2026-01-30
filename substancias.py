@@ -5,14 +5,59 @@ from datetime import datetime
 import qrcode
 from io import BytesIO
 import zipfile
+from fpdf import FPDF # Nova biblioteca para PDF
+import requests # Para chamadas da API Groq
 
-
+# Configurações iniciais mantidas
 url = st.secrets["SUPABASE_URL"]
 key = st.secrets["SUPABASE_KEY"]
 supabase = create_client(url, key)
-
-
 URL_SISTEMA = "https://sistemadeqrcodes.streamlit.app/"
+
+# --- FUNÇÕES DE APOIO E IA ---
+
+def gerar_parecer_ia(dados_processo):
+    """Gera parecer técnico usando Llama 3.3-70B via Groq API"""
+    api_key = st.secrets.get("GROQ_API_KEY")
+    if not api_key:
+        return "Parecer de IA indisponível: Chave de API não configurada."
+    
+    url_groq = "https://api.groq.com/openai/v1/chat/completions"
+    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+    
+    prompt = f"Como um especialista em química laboratorial, forneça um parecer técnico sobre o seguinte procedimento: {dados_processo}. Seja formal, conciso e aponte possíveis riscos ou observações de qualidade."
+    
+    payload = {
+        "model": "llama-3.3-70b-versatile",
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0.5
+    }
+    
+    try:
+        response = requests.post(url_groq, json=payload, headers=headers)
+        return response.json()['choices'][0]['message']['content']
+    except Exception as e:
+        return f"Erro ao gerar parecer: {str(e)}"
+
+def exportar_pdf(dados, parecer_ia):
+    """Gera o relatório final em formato PDF profissional"""
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", 'B', 16)
+    pdf.cell(200, 10, txt="Relatório de Procedimento Laboratorial", ln=True, align='C')
+    
+    pdf.set_font("Arial", size=11)
+    pdf.ln(10)
+    for key, value in dados.items():
+        pdf.multi_cell(0, 10, txt=f"{key.capitalize()}: {value}", border=0)
+    
+    pdf.ln(5)
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(200, 10, txt="Parecer Técnico (IA Llama-3.3-70B):", ln=True)
+    pdf.set_font("Arial", size=10)
+    pdf.multi_cell(0, 7, txt=parecer_ia)
+    
+    return pdf.output(dest='S').encode('latin-1', 'replace')
 
 def render_hommel(saude, fogo, reat, esp):
     st.markdown(f"""
@@ -27,14 +72,70 @@ def render_hommel(saude, fogo, reat, esp):
     """, unsafe_allow_html=True)
 
 def show_substances():
-   
-    
     user_data = st.session_state.get('user_data', {})
     org_usuario = user_data.get('org_name', 'Default')
     role_usuario = user_data.get('role', 'Visualizador')
     username_atual = user_data.get('username', 'Usuário')
 
-  
+    # --- NOVO: SEÇÃO DE ANOTAÇÕES E PROCEDIMENTOS (FUNCIONALIDADE ACRESCENTADA) ---
+    st.title("📋 Registro de Processos e Análises")
+    with st.expander("📝 Nova Anotação / Uso de Reagente", expanded=False):
+        try:
+            res_sub = supabase.table("substancias").select("nome, quantidade, id").eq("org_name", org_usuario).execute()
+            df_reagentes = pd.DataFrame(res_sub.data)
+            
+            if not df_reagentes.empty:
+                col_an1, col_an2 = st.columns(2)
+                with col_an1:
+                    data_proc = st.date_input("Data do Procedimento", datetime.now())
+                    sub_usada = st.selectbox("Substância Utilizada", options=df_reagentes['nome'].tolist())
+                    lote_ref = st.text_input("Lote do Reagente")
+                with col_an2:
+                    vidraria_num = st.text_input("Numeração da Vidraria")
+                    qtd_usada = st.number_input("Quantidade Utilizada", min_value=0.0, step=0.01)
+                    
+                explicacao = st.text_area("Descrição do Procedimento (Como foi feito e resultados)")
+                
+                if st.button("🚀 Finalizar e Abater Estoque", use_container_width=True):
+                    if qtd_usada > 0:
+                        # Lógica de Subtração Automática
+                        row_atual = df_reagentes[df_reagentes['nome'] == sub_usada].iloc[0]
+                        nova_qtd_estoque = float(row_atual['quantidade']) - float(qtd_usada)
+                        
+                        if nova_qtd_estoque < 0:
+                            st.error("Erro: Quantidade em estoque insuficiente.")
+                        else:
+                            # 1. Atualiza Estoque
+                            supabase.table("substancias").update({"quantidade": nova_qtd_estoque}).eq("id", row_atual['id']).execute()
+                            
+                            # 2. Registra Log
+                            supabase.table("logs_estoque").insert({
+                                "usuario": username_atual, "substancia": sub_usada,
+                                "quantidade_antiga": float(row_atual['quantidade']), "quantidade_nova": nova_qtd_estoque, "org_name": org_usuario
+                            }).execute()
+                            
+                            # 3. Salva Análise/Anotação para Exportação
+                            dados_relatorio = {
+                                "data": str(data_proc), "usuario": username_atual, "substancia": sub_usada,
+                                "lote": lote_ref, "vidraria": vidraria_num, "quantidade_usada": qtd_usada, "procedimento": explicacao
+                            }
+                            
+                            # Gerar Parecer IA
+                            with st.spinner("IA processando parecer técnico..."):
+                                parecer = gerar_parecer_ia(f"Uso de {qtd_usada} de {sub_usada}. Procedimento: {explicacao}")
+                            
+                            # Exportação em PDF
+                            pdf_bytes = exportar_pdf(dados_relatorio, parecer)
+                            st.success("Estoque atualizado e relatório gerado!")
+                            st.download_button("📥 Baixar Relatório Final (PDF)", data=pdf_bytes, file_name=f"analise_{sub_usada}_{datetime.now().strftime('%Y%m%d')}.pdf", mime="application/pdf")
+            else:
+                st.info("Nenhum reagente disponível para uso.")
+        except Exception as e:
+            st.error(f"Erro no módulo de anotações: {e}")
+
+    st.divider()
+    
+    # --- 1. CADASTRO (LÓGICA ORIGINAL MANTIDA) ---
     with st.container(border=True):
         st.subheader("Cadastrar Novo Item")
         if role_usuario == "Visualizador":
@@ -82,7 +183,7 @@ def show_substances():
 
     st.divider()
 
-    # --- 2. EXIBIÇÃO DO INVENTÁRIO ---
+    # --- 2. EXIBIÇÃO DO INVENTÁRIO (LÓGICA ORIGINAL MANTIDA) ---
     try:
         response = supabase.table("substancias").select("*").eq("org_name", org_usuario).execute()
         df = pd.DataFrame(response.data)
@@ -102,8 +203,6 @@ def show_substances():
                 buf_zip = BytesIO()
                 with zipfile.ZipFile(buf_zip, 'w') as zf:
                     for _, row in df.iterrows():
-                        # MELHORIA: O QR Code agora aponta para a URL com o ID do item
-                        # Exemplo: https://sistemadeqrcodes.streamlit.app/?id=123
                         qr_link = f"{URL_SISTEMA}?id={row['id']}"
                         img_qr = qrcode.make(qr_link)
                         img_buf = BytesIO(); img_qr.save(img_buf, format="PNG")
@@ -112,7 +211,7 @@ def show_substances():
                 col_exp3.download_button(label="🖼️ Gerar Todos QR Codes", data=buf_zip.getvalue(), file_name=f"qrcodes_{org_usuario}.zip", mime="application/zip", use_container_width=True)
                 with col_exp4:
                     with st.popover("💡 Como analisar no Excel?", use_container_width=True):
-                        st.write("1. Clique em Baixar. 2. Abra o Excel Online. 3. Vá em Arquivo > Abrir e envie o CSV.")
+                        st.write("1. Clique em Baixar. 2. Abrir o Excel Online. 3. Vá em Arquivo > Abrir e envie o CSV.")
 
             if role_usuario in ["ADM", "Tecnico"]:
                 with st.expander("🔄 Atualizar Quantidade em Estoque"):
@@ -137,14 +236,12 @@ def show_substances():
                 st.warning(f"**Instruções de Emergência:**\n\n{detalhes.get('instrucoes', 'Não informadas.')}")
                 st.caption(f"CAS: {detalhes.get('cas', 'N/A')}")
             with col_qr:
-                # MELHORIA: QR Code individual também com link dinâmico
                 qr_link_individual = f"{URL_SISTEMA}?id={detalhes['id']}"
                 qr = qrcode.make(qr_link_individual)
                 buf = BytesIO(); qr.save(buf, format="PNG")
                 st.image(buf.getvalue(), caption="Scan para Detalhes", width=120)
                 st.download_button("📥 Baixar QR", buf.getvalue(), f"qr_{detalhes['nome']}.png", "image/png")
             
-            # --- HISTÓRICO RECENTE ---
             with st.expander("📜 Histórico Recente de Alterações"):
                 logs_res = (
                     supabase.table("logs_estoque")
@@ -181,4 +278,3 @@ def show_substances():
 
 if __name__ == "__main__":
     show_substances()
-
