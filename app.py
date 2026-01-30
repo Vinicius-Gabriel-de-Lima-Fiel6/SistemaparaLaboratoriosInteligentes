@@ -8,7 +8,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # Configuração da página
 st.set_page_config(
-    page_title="LabSmartAI", 
+    page_title="SynapseLab", 
     page_icon="https://i.ibb.co/6cKPZ5Pr/Gemini-Generated-Image-jes56ljes56ljes5.png", 
     layout="wide",
     initial_sidebar_state="expanded"
@@ -195,3 +195,4 @@ else:
 
     st.sidebar.markdown("---")
     st.sidebar.caption("LabSmartAI V.Beta")
+
