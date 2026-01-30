@@ -3,7 +3,7 @@ import os
 from groq import Groq
 
 def show_tabelas():
-    # Inicialização segura da IA Groq
+    # Inicialização do Agente IA
     client = None
     try:
         api_key = os.environ.get("GROQ_API_KEY")
@@ -12,72 +12,93 @@ def show_tabelas():
     except Exception:
         pass
 
-    st.title("🏛️ Central de Inteligência e Bases de Dados")
+    st.title("🏛️ Hub de Inteligência Científica")
+    st.markdown("---")
 
-    # --- ORGANIZAÇÃO EM NÍVEIS ---
-    # O Selectbox permite escala infinita de tabelas sem poluir a UI
-    categoria = st.selectbox("📂 ESCOLHA A ÁREA TÉCNICA:", [
-        "QUÍMICA: Tabelas e Termodinâmica",
-        "SAÚDE: Regulação e Farmacologia",
-        "IA: Agente de Consultoria e Risco"
-    ])
+    # --- NÍVEL 1: NAVEGAÇÃO POR SISTEMA (Menu Lateral ou Superior) ---
+    with st.sidebar:
+        st.header("📂 Navegação")
+        sistema = st.radio(
+            "Selecione o Sistema:",
+            ["Dashboard Inicial", "Química Fundamental", "Saúde e Regulação", "Agente Consultor"]
+        )
 
-    st.divider()
+    # --- LÓGICA DE RENDERIZAÇÃO ESTRUTURADA ---
 
-    # --- ÁREA QUÍMICA ---
-    if categoria == "QUÍMICA: Tabelas e Termodinâmica":
-        sub = st.radio("Base de Dados:", ["CRQ-SP (Clicável)", "NIST (Termofísica)", "PubChem (Segurança)"], horizontal=True)
+    if sistema == "Dashboard Inicial":
+        st.subheader("Bem-vindo à Central de Bases de Dados")
+        st.info("Selecione um sistema no menu lateral para carregar as ferramentas de análise.")
         
-        if sub == "CRQ-SP (Clicável)":
-            st.markdown("### Tabela Periódica Interativa")
-            # Tabela solicitada: funciona como ferramenta de clique
+        c1, c2 = st.columns(2)
+        with c1:
+            st.write("🧪 **Sistemas Químicos:** Tabela Periódica, NIST, PubChem.")
+        with c2:
+            st.write("🏥 **Sistemas de Saúde:** ANVISA, AlphaFold, Protocolos MS.")
+
+    elif sistema == "Química Fundamental":
+        st.subheader("🧪 Sistemas de Análise Química")
+        
+        # Menu Suspenso de Ferramentas
+        ferramenta = st.selectbox("Escolha a Base de Dados:", [
+            "Tabela Periódica Interativa (CRQ-SP)",
+            "Termodinâmica e Reatividade (NIST)",
+            "Propriedades de Compostos (PubChem)"
+        ])
+
+        if "CRQ-SP" in ferramenta:
+            st.markdown("#### Matriz Atômica Clicável")
+            
             st.components.v1.iframe("https://crqsp.org.br/tabelaperiodica/", height=900, scrolling=True)
             
-        elif sub == "NIST (Termofísica)":
-            st.markdown("### NIST Chemistry WebBook")
-            st.write("Referência para constantes físicas e reações.")
-            st.components.v1.iframe("https://webbook.nist.gov/chemistry/name-ser/", height=700)
+        elif "NIST" in ferramenta:
+            st.markdown("#### Constantes Termodinâmicas")
             
-        elif sub == "PubChem (Segurança)":
-            st.markdown("### Portal PubChem (NIH)")
-            st.write("Base para MSDS, Toxicidade e Fórmulas.")
-            st.link_button("Acessar Base Internacional PubChem", "https://pubchem.ncbi.nlm.nih.gov/")
+            st.components.v1.iframe("https://webbook.nist.gov/chemistry/name-ser/", height=800)
+            
+        elif "PubChem" in ferramenta:
+            st.markdown("#### Base de Dados PubChem")
+            st.write("Acesso a estruturas e toxicologia.")
+            st.link_button("🚀 Abrir PubChem em Nova Aba", "https://pubchem.ncbi.nlm.nih.gov/")
 
-    # --- ÁREA DA SAÚDE ---
-    elif categoria == "SAÚDE: Regulação e Farmacologia":
-        tab1, tab2, tab3 = st.tabs(["📜 ANVISA (RDC 344)", "🧬 Bioquímica (AlphaFold)", "🏥 Protocolos MS"])
+    elif sistema == "Saúde e Regulação":
+        st.subheader("🏥 Sistemas de Saúde e Normativas")
         
-        with tab1:
-            st.markdown("### Monitoramento Legislativo (DOU)")
-            st.components.v1.iframe("https://www.in.gov.br/consulta/-/buscar/dou?q=RDC+344", height=700)
+        base_saude = st.selectbox("Selecione a Base:", [
+            "Monitor Legislativo (ANVISA RDC 344)",
+            "Biologia Estrutural (AlphaFold)",
+            "Diretrizes Terapêuticas (PCDT)"
+        ])
+
+        if "ANVISA" in base_saude:
+            st.components.v1.iframe("https://www.in.gov.br/consulta/-/buscar/dou?q=RDC+344", height=800)
+        
+        elif "AlphaFold" in base_saude:
+            st.markdown("#### Modelagem de Proteínas")
             
-        with tab2:
-            st.markdown("### Predição Estrutural AlphaFold")
-            st.components.v1.iframe("https://alphafold.ebi.ac.uk/", height=700)
+
+[Image of the structure of a protein molecule]
+
+            st.components.v1.iframe("https://alphafold.ebi.ac.uk/", height=800)
             
-        with tab3:
-            st.markdown("### Protocolos Clínicos e Diretrizes")
+        elif "PCDT" in base_saude:
             st.components.v1.iframe("https://www.gov.br/saude/pt-br/assuntos/protocolos-clinicos-e-diretrizes-terapeuticas-pcdt", height=800)
 
-    # --- AGENTE IA ---
-    elif categoria == "IA: Agente de Consultoria e Risco":
-        st.markdown("### 🤖 Agente Llama-3 (Expert em Farmacologia)")
+    elif sistema == "Agente Consultor":
+        st.subheader("🤖 Agente Llama-3: Auditoria e Risco")
         
-        pergunta = st.text_area("Descreva a dúvida técnica ou cruzamento de dados:", placeholder="Ex: Riscos da mistura de hipoclorito com amônia...")
+        pergunta = st.text_area("Descreva o caso técnico para análise profunda:", placeholder="Ex: Avaliação de risco em descarte de efluentes com alta concentração de metais pesados...")
         
-        if st.button("EXECUTAR CONSULTA IA"):
+        if st.button("🔍 Executar Parecer Técnico"):
             if client and pergunta:
-                with st.spinner("Analisando bases científicas..."):
+                with st.spinner("Analisando bases..."):
                     chat = client.chat.completions.create(
-                        messages=[{"role": "user", "content": f"Aja como um consultor técnico sênior em química e farmácia. Analise com rigor: {pergunta}"}],
-                        model="llama-3.3-70b-versatile"
+                        messages=[{"role": "user", "content": f"Aja como um doutor em química e farmacologia. Forneça uma análise técnica e segura: {pergunta}"}],
+                        model="llama3-70b-8192"
                     )
-                    st.markdown("---")
-                    st.markdown("#### Parecer do Agente:")
-                    st.write(chat.choices[0].message.content)
+                    st.success("Análise Concluída")
+                    st.markdown(chat.choices[0].message.content)
             else:
-                st.warning("IA indisponível ou pergunta vazia.")
+                st.warning("IA não configurada ou pergunta ausente.")
 
 if __name__ == "__main__":
     show_tabelas()
-
