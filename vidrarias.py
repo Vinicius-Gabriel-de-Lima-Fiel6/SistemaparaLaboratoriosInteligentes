@@ -46,7 +46,7 @@ def render_vidrarias():
 
         if not df.empty:
             st.subheader("📋 Inventário de Vidrarias")
-            st.dataframe(df[['id', 'tipo', 'capacidade', 'numeracao']], use_container_width=True, hide_index=True)
+            st.dataframe(df[['vid', 'tipo', 'capacidade', 'numeracao']], use_container_width=True, hide_index=True)
 
             # --- ALTERAÇÃO E EXCLUSÃO ---
             if role_usuario in ["ADM", "Tecnico"]:
@@ -54,17 +54,17 @@ def render_vidrarias():
 
                 with col_edit:
                     with st.expander("🔄 Alterar Vidraria"):
-                        id_edit = st.selectbox("Selecione o ID para editar", options=df['id'].tolist(), key="edit_vid")
+                        id_edit = st.selectbox("Selecione o ID para editar", options=df['vid'].tolist(), key="edit_vid")
                         novo_tipo = st.selectbox("Novo Tipo", ["Béquer", "Erlenmeyer", "Balão Volumétrico", "Pipeta", "Proveta", "Bureta", "Outros"], key="n_tipo")
                         nova_cap = st.text_input("Nova Capacidade", key="n_cap")
                         if st.button("Confirmar Alteração", use_container_width=True):
-                            supabase.table("vidrarias").update({"tipo": novo_tipo, "capacidade": nova_cap}).eq("id", id_edit).execute()
+                            supabase.table("vidrarias").update({"tipo": novo_tipo, "capacidade": nova_cap}).eq("vid", id_edit).execute()
                             st.success("Alterado!")
                             st.rerun()
 
                 with col_del:
                     with st.expander("🗑️ Excluir Vidraria"):
-                        id_del = st.selectbox("Selecione o ID para remover", options=df['id'].tolist(), key="del_vid")
+                        id_del = st.selectbox("Selecione o ID para remover", options=df['vid'].tolist(), key="del_vid")
                         if st.button("Remover Permanentemente", type="primary", use_container_width=True):
                             supabase.table("vidrarias").delete().eq("id", id_del).execute()
                             st.rerun()
@@ -73,7 +73,7 @@ def render_vidrarias():
             st.subheader("🖼️ Gerar QR Code")
             vid_sel = st.selectbox("Escolha a vidraria para o QR:", options=df['numeracao'].tolist())
             det = df[df['numeracao'] == vid_sel].iloc[0]
-            qr = qrcode.make(f"{URL_SISTEMA}?vid={det['id']}")
+            qr = qrcode.make(f"{URL_SISTEMA}?vid={det['vid']}")
             buf = BytesIO(); qr.save(buf, format="PNG")
             st.image(buf.getvalue(), width=150)
             st.download_button("Baixar QR Code", buf.getvalue(), f"qr_vidraria_{det['numeracao']}.png")
