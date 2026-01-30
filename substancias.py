@@ -100,7 +100,7 @@ def show_substances():
         try:
             # Busca de dados relacionais
             res_sub = supabase.table("substancias").select("nome, quantidade, id").eq("org_name", org_usuario).execute()
-            res_vid = supabase.table("vidrarias").select("id, tipo, numeracao").eq("org_name", org_usuario).execute()
+            res_vid = supabase.table("vidrarias").select("vid, tipo, numeracao").eq("org_name", org_usuario).execute()
             res_proj = supabase.table("projetos").select("id, nome").eq("org_name", org_usuario).eq("status", "Ativo").execute()
             
             df_reagentes = pd.DataFrame(res_sub.data)
@@ -288,4 +288,5 @@ def show_substances():
 
 if __name__ == "__main__":
     show_substances()
+
 
