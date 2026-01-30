@@ -32,14 +32,19 @@ def render_vidrarias():
             if st.button("➕ Adicionar ao Inventário", use_container_width=True):
                 if tipo and numeracao:
                     try:
-                        supabase.table("vidrarias").insert({
-                            "tipo": tipo, 
-                            "capacidade": capacidade, 
-                            "numeracao": numeracao, 
-                            "org_name": org_usuario
-                        }).execute()
-                        st.success(f"{tipo} ({numeracao}) cadastrado com sucesso!")
-                        st.rerun()
+                        # Verificação básica de duplicidade de numeração
+                        check = supabase.table("vidrarias").select("id").eq("numeracao", numeracao).eq("org_name", org_usuario).execute()
+                        if check.data:
+                            st.error(f"A numeração '{numeracao}' já existe nesta organização.")
+                        else:
+                            supabase.table("vidrarias").insert({
+                                "tipo": tipo, 
+                                "capacidade": capacidade, 
+                                "numeracao": numeracao, 
+                                "org_name": org_usuario
+                            }).execute()
+                            st.success(f"{tipo} ({numeracao}) cadastrado com sucesso!")
+                            st.rerun()
                     except Exception as e:
                         st.error(f"Erro ao salvar: {e}")
                 else:
@@ -49,31 +54,30 @@ def render_vidrarias():
 
     # --- 2. LISTAGEM E GESTÃO ---
     try:
-        # Busca apenas as vidrarias da organização do usuário
         res = supabase.table("vidrarias").select("*").eq("org_name", org_usuario).execute()
         df = pd.DataFrame(res.data)
 
         if not df.empty:
             st.subheader("📋 Inventário Atual")
             
-            # Exibição da Tabela
+            # UX: Reorganizando as colunas para a Numeração vir primeiro
             st.dataframe(
-                df[['id', 'tipo', 'capacidade', 'numeracao']], 
+                df[['numeracao', 'tipo', 'capacidade']], 
                 use_container_width=True, 
                 hide_index=True
             )
 
-            # --- AÇÕES DE EDIÇÃO E EXCLUSÃO (Somente ADM/Tecnico) ---
             if role_usuario in ["ADM", "Tecnico"]:
                 st.write("")
                 col_edit, col_del = st.columns(2)
 
                 with col_edit:
                     with st.expander("🔄 Alterar Dados"):
-                        id_edit = st.selectbox("ID para editar", options=df['id'].tolist(), key="sel_edit")
+                        # UX: Seleciona pela Numeração em vez do ID oculto
+                        num_edit = st.selectbox("Selecione a Numeração para editar", options=df['numeracao'].tolist(), key="sel_edit")
                         
-                        # Busca dados atuais para preencher os campos
-                        dados_atuais = df[df['id'] == id_edit].iloc[0]
+                        # Localiza os dados atuais no DF
+                        dados_atuais = df[df['numeracao'] == num_edit].iloc[0]
                         
                         novo_tipo = st.selectbox("Novo Tipo", ["Béquer", "Erlenmeyer", "Balão Volumétrico", "Pipeta", "Proveta", "Bureta", "Outros"], index=0)
                         nova_cap = st.text_input("Nova Capacidade", value=dados_atuais['capacidade'])
@@ -82,16 +86,17 @@ def render_vidrarias():
                             supabase.table("vidrarias").update({
                                 "tipo": novo_tipo, 
                                 "capacidade": nova_cap
-                            }).eq("id", id_edit).execute()
+                            }).eq("numeracao", num_edit).eq("org_name", org_usuario).execute()
                             st.success("Item atualizado!")
                             st.rerun()
 
                 with col_del:
                     with st.expander("🗑️ Excluir Item"):
-                        id_del = st.selectbox("ID para remover", options=df['id'].tolist(), key="sel_del")
-                        st.warning(f"Tem certeza que deseja remover o item ID {id_del}?")
+                        # UX: Seleciona pela Numeração para remover
+                        num_del = st.selectbox("Selecione a Numeração para remover", options=df['numeracao'].tolist(), key="sel_del")
+                        st.warning(f"Tem certeza que deseja remover o item '{num_del}'?")
                         if st.button("Confirmar Exclusão", type="primary", use_container_width=True):
-                            supabase.table("vidrarias").delete().eq("id", id_del).execute()
+                            supabase.table("vidrarias").delete().eq("numeracao", num_del).eq("org_name", org_usuario).execute()
                             st.rerun()
         else:
             st.info("Nenhuma vidraria encontrada para esta organização.")
