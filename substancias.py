@@ -227,7 +227,7 @@ def show_substances():
 
         if not df.empty:
             st.subheader(f"📋 Inventario: {org_usuario}")
-            st.dataframe(df[['id', 'nome', 'cas', 'quantidade', 'estoque_minimo', 'validade']], use_container_width=True, hide_index=True)
+            st.dataframe(df[['id', 'nome', 'cas', 'quantidade', 'estoque_minimo', 'validade','unidade_medida']], use_container_width=True, hide_index=True)
 
             with st.container(border=True):
                 st.markdown("### 📊 Exportacao")
@@ -288,3 +288,4 @@ def show_substances():
 
 if __name__ == "__main__":
     show_substances()
+
