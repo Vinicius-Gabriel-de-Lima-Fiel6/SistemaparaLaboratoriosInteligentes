@@ -8,7 +8,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # Configuração da página
 st.set_page_config(
-    page_title="LabSmartAI", 
+    page_title="SynapseLab", 
     page_icon="https://i.ibb.co/6cKPZ5Pr/Gemini-Generated-Image-jes56ljes56ljes5.png", 
     layout="wide",
     initial_sidebar_state="expanded"
@@ -25,7 +25,6 @@ def tela_acesso():
         st.write("")
         
         # --- LOGO REDONDA E MENOR ---
-        # Definimos o tamanho (200px) e o border-radius (50%) via HTML/CSS
         logo_url = "https://i.ibb.co/6cKPZ5Pr/Gemini-Generated-Image-jes56ljes56ljes5.png"
         st.markdown(
             f"""
@@ -72,6 +71,8 @@ else:
     # --- IMPORTAÇÃO DE MÓDULOS ---
     try:
         from substancias import show_substances
+        from vidrarias import show_vidrarias        # NOVA LINHA ADICIONADA
+        from projetos import show_projetos            # NOVA LINHA ADICIONADA
         from ControleEstoque import show_estoque
         from equipamentos import show_equipamentos
         from calculadora import show_calculadora
@@ -115,7 +116,8 @@ else:
 
         st.write("") 
         
-        abas = ["🏠 Dashboard", "🤖 IA & Visão", "💼 Laboratório", "⚛️ Tabelas Químicas", "🧮 Calculadora Química", "📊 Gráficos"]
+        # LISTA DE ABAS ATUALIZADA COM VIDRARIAS E PROJETOS
+        abas = ["🏠 Dashboard", "🤖 IA & Visão", "💼 Laboratório", "⚗️ Vidrarias", "📁 Projetos", "⚛️ Tabelas Químicas", "🧮 Calculadora Química", "📊 Gráficos"]
         
         if role == "ADM":
             abas.extend(["👥 Gestão de Equipe", "📄 Relatórios"])
@@ -185,6 +187,13 @@ else:
             st.info("Você tem permissão apenas para visualização do estoque.")
             show_estoque()
 
+    # NOVAS CONDIÇÕES DE DIRECIONAMENTO
+    elif clean_selection == "Vidrarias":
+        show_vidrarias()
+
+    elif clean_selection == "Projetos":
+        show_projetos()
+
     elif clean_selection == "IA & Visão": ia.show_chatbot()
     elif clean_selection == "Tabelas Químicas": show_tabelas()
     elif clean_selection == "Calculadora Química": show_calculadora()
@@ -194,4 +203,4 @@ else:
     elif clean_selection == "Configurações": show_configuracoes()
 
     st.sidebar.markdown("---")
-    st.sidebar.caption("LabSmartAI V.Beta")
+    st.sidebar.caption("SynapseLab V.Beta")
