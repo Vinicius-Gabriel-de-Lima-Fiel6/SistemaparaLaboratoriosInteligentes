@@ -179,10 +179,13 @@ else:
     elif clean_selection == "Laboratório":
         st.title("💼 Central do Laboratório")
         if role in ["Tecnico", "ADM"]:
-            sub_tabs = st.tabs(["📦 Estoque Atual", "⚗️ Cadastro de Substâncias", "🛠️ Equipamentos"])
+            sub_tabs = st.tabs(["📦 Estoque Atual", "⚗️ Cadastro de Substâncias", "🛠️ Equipamentos","🧪 Vidrarias","📋 Projetos"])
             with sub_tabs[0]: show_estoque()
             with sub_tabs[1]: show_substances()
             with sub_tabs[2]: show_equipamentos()
+            with sub_tabs[3]: render_vidrarias()
+            with sub_tabs[4]: render_projetos()
+            
         else:
             st.info("Você tem permissão apenas para visualização do estoque.")
             show_estoque()
@@ -197,5 +200,6 @@ else:
 
     st.sidebar.markdown("---")
     st.sidebar.caption("SynapseLab V.Beta")
+
 
 
