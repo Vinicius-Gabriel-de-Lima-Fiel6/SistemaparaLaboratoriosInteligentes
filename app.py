@@ -77,6 +77,8 @@ else:
         from calculadora import show_calculadora
         from sistematabela import show_tabelas
         from graficos import show_graficos
+        from vidrarias import *
+        from projetos import *
         from config_empresa import show_config_empresa 
         import ia
         from configurações import show_configuracoes
@@ -194,5 +196,6 @@ else:
     elif clean_selection == "Configurações": show_configuracoes()
 
     st.sidebar.markdown("---")
-    st.sidebar.caption("LabSmartAI V.Beta")
+    st.sidebar.caption("SynapseLab V.Beta")
+
 
