@@ -8,7 +8,7 @@ import zipfile
 from fpdf import FPDF
 import requests
 
-# --- CONFIGURAÇÕES INICIAIS ---
+# Configurações iniciais
 url = st.secrets["SUPABASE_URL"]
 key = st.secrets["SUPABASE_KEY"]
 supabase = create_client(url, key)
@@ -17,6 +17,7 @@ URL_SISTEMA = "https://sistemadeqrcodes.streamlit.app/"
 # --- FUNÇÕES DE APOIO E IA ---
 
 def gerar_parecer_ia(dados_processo):
+    """Gera parecer técnico usando Llama 3.3-70B via Groq API"""
     api_key = st.secrets.get("GROQ_API_KEY")
     if not api_key:
         return "Parecer de IA indisponível: Chave de API não configurada."
@@ -39,6 +40,7 @@ def gerar_parecer_ia(dados_processo):
         return f"Erro ao gerar parecer: {str(e)}"
 
 def exportar_pdf(dados, parecer_ia):
+    """Gera o relatório final em formato PDF profissional"""
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", 'B', 16)
@@ -47,7 +49,7 @@ def exportar_pdf(dados, parecer_ia):
     pdf.set_font("Arial", size=11)
     pdf.ln(10)
     for key, value in dados.items():
-        pdf.multi_cell(0, 10, txt=f"{key.replace('_', ' ').capitalize()}: {value}", border=0)
+        pdf.multi_cell(0, 10, txt=f"{key.capitalize()}: {value}", border=0)
     
     pdf.ln(5)
     pdf.set_font("Arial", 'B', 12)
@@ -69,21 +71,18 @@ def render_hommel(saude, fogo, reat, esp):
     </div>
     """, unsafe_allow_html=True)
 
-# --- MÓDULO PRINCIPAL ---
-
 def show_substances():
     user_data = st.session_state.get('user_data', {})
     org_usuario = user_data.get('org_name', 'Default')
     role_usuario = user_data.get('role', 'Visualizador')
     username_atual = user_data.get('username', 'Usuário')
 
-    st.title("📋 Registro de Processos e Análises")
-
     # --- NOVO: SEÇÃO DE ANOTAÇÕES E PROCEDIMENTOS ---
+    st.title("📋 Registro de Processos e Análises")
     with st.expander("📝 Nova Anotação / Uso de Reagente", expanded=False):
         try:
-            # Carregar dados relacionais
-            res_sub = supabase.table("substancias").select("id, nome, quantidade").eq("org_name", org_usuario).execute()
+            # Carregar dados para selects
+            res_sub = supabase.table("substancias").select("nome, quantidade, id").eq("org_name", org_usuario).execute()
             res_vid = supabase.table("vidrarias").select("id, tipo, numeracao").eq("org_name", org_usuario).execute()
             res_proj = supabase.table("projetos").select("id, nome").eq("org_name", org_usuario).eq("status", "Ativo").execute()
             
@@ -95,88 +94,77 @@ def show_substances():
                 col_an1, col_an2 = st.columns(2)
                 with col_an1:
                     data_proc = st.date_input("Data do Procedimento", datetime.now())
-                    
-                    proj_options = ["Nenhum"] + df_projetos['nome'].tolist() if not df_projetos.empty else ["Nenhum"]
-                    projeto_sel = st.selectbox("Vincular ao Projeto", options=proj_options)
-                    
+                    proj_list = df_projetos['nome'].tolist() if not df_projetos.empty else ["Nenhum"]
+                    projeto_nome = st.selectbox("Vincular ao Projeto", options=proj_list)
                     sub_usada = st.selectbox("Substância Utilizada", options=df_reagentes['nome'].tolist())
                     lote_ref = st.text_input("Lote do Reagente")
                 with col_an2:
-                    vid_options = ["Nenhuma"] + [f"{v['tipo']} - {v['numeracao']}" for v in res_vid.data] if not df_vidrarias.empty else ["Nenhuma"]
-                    vid_sel = st.selectbox("Vidraria Utilizada", options=vid_options)
-                    
+                    vid_list = [f"{v['tipo']} - {v['numeracao']}" for v in res_vid.data] if not df_vidrarias.empty else ["Nenhuma"]
+                    vid_selecionada = st.selectbox("Vidraria Utilizada", options=vid_list)
                     qtd_usada = st.number_input("Quantidade Utilizada", min_value=0.0, step=0.01)
-                
+                    
                 explicacao = st.text_area("Descrição do Procedimento (Como foi feito e resultados)")
                 
-                if st.button("🚀 Finalizar e Sincronizar Tudo", use_container_width=True):
+                if st.button("🚀 Finalizar e Abater Estoque", use_container_width=True):
                     if qtd_usada > 0:
                         row_atual = df_reagentes[df_reagentes['nome'] == sub_usada].iloc[0]
                         nova_qtd_estoque = float(row_atual['quantidade']) - float(qtd_usada)
                         
                         if nova_qtd_estoque < 0:
-                            st.error("Erro: Quantidade insuficiente em estoque.")
+                            st.error("Erro: Estoque insuficiente.")
                         else:
-                            try:
-                                # 1. Atualiza Estoque
-                                supabase.table("substancias").update({"quantidade": nova_qtd_estoque}).eq("id", row_atual['id']).execute()
-                                
-                                # 2. Registra Log de Estoque
-                                supabase.table("logs_estoque").insert({
-                                    "usuario": username_atual, 
-                                    "substancia": sub_usada,
-                                    "quantidade_antiga": float(row_atual['quantidade']), 
-                                    "quantidade_nova": nova_qtd_estoque, 
-                                    "org_name": org_usuario
-                                }).execute()
-                                
-                                # 3. Gerar Parecer IA
-                                with st.spinner("IA processando parecer técnico..."):
-                                    parecer = gerar_parecer_ia(f"Projeto: {projeto_sel}. Substância: {sub_usada}. Procedimento: {explicacao}")
-                                
-                                # 4. Salvar Anotação no Banco (Persistência)
-                                id_vid = None
-                                if vid_sel != "Nenhuma":
-                                    num_v = vid_sel.split(" - ")[-1]
-                                    id_vid = df_vidrarias[df_vidrarias['numeracao'] == num_v].iloc[0]['id']
+                            # 1. Atualiza Estoque
+                            supabase.table("substancias").update({"quantidade": nova_qtd_estoque}).eq("id", row_atual['id']).execute()
+                            
+                            # 2. Registra Log
+                            supabase.table("logs_estoque").insert({
+                                "usuario": username_atual, "substancia": sub_usada,
+                                "quantidade_antiga": float(row_atual['quantidade']), "quantidade_nova": nova_qtd_estoque, "org_name": org_usuario
+                            }).execute()
+                            
+                            # 3. Parecer IA
+                            with st.spinner("IA processando parecer..."):
+                                parecer = gerar_parecer_ia(f"Uso de {qtd_usada} de {sub_usada}. Projeto: {projeto_nome}. Procedimento: {explicacao}")
+                            
+                            # 4. Salvar na Tabela de Anotações (Persistência no Banco)
+                            id_vidraria = None
+                            if vid_selecionada != "Nenhuma":
+                                num_v = vid_selecionada.split(" - ")[-1]
+                                id_vidraria = df_vidrarias[df_vidrarias['numeracao'] == num_v].iloc[0]['id']
 
-                                supabase.table("anotacoes_processos").insert({
-                                    "data_procedimento": str(data_proc),
-                                    "usuario": username_atual,
-                                    "substancia_id": int(row_atual['id']),
-                                    "quantidade_usada": float(qtd_usada),
-                                    "lote_reagente": lote_ref,
-                                    "vidraria_id": id_vid,
-                                    "procedimento_texto": explicacao,
-                                    "parecer_ia": parecer,
-                                    "org_name": org_usuario
-                                }).execute()
-                                
-                                # 5. Gerar PDF
-                                dados_pdf = {
-                                    "Projeto": projeto_sel, "Data": str(data_proc), "Analista": username_atual,
-                                    "Substância": sub_usada, "Lote": lote_ref, "Vidraria": vid_sel,
-                                    "Quantidade": qtd_usada, "Descrição": explicacao
-                                }
-                                pdf_bytes = exportar_pdf(dados_pdf, parecer)
-                                
-                                st.success("✅ Estoque atualizado, Log gerado e Anotação salva!")
-                                st.download_button("📥 Baixar Relatório PDF", data=pdf_bytes, file_name=f"analise_{sub_usada}.pdf")
-                                st.rerun()
-                            except Exception as e:
-                                st.error(f"Erro na sincronização: {e}")
+                            supabase.table("anotacoes_processos").insert({
+                                "data_procedimento": str(data_proc), "usuario": username_atual,
+                                "substancia_id": int(row_atual['id']), "quantidade_usada": float(qtd_usada),
+                                "lote_reagente": lote_ref, "vidraria_id": id_vidraria,
+                                "procedimento_texto": explicacao, "parecer_ia": parecer, "org_name": org_usuario
+                            }).execute()
+
+                            # 5. Guardar no Session State para o PDF não sumir
+                            st.session_state['pdf_report'] = exportar_pdf({
+                                "projeto": projeto_nome, "data": str(data_proc), "usuario": username_atual, 
+                                "substancia": sub_usada, "lote": lote_ref, "vidraria": vid_selecionada, 
+                                "quantidade": qtd_usada, "procedimento": explicacao
+                            }, parecer)
+                            st.session_state['last_sub'] = sub_usada
+                            st.success("Estoque atualizado e registro salvo!")
+
+                # Botão de download persistente (aparece se houver PDF gerado)
+                if 'pdf_report' in st.session_state:
+                    st.download_button("📥 Baixar Relatório Gerado (PDF)", data=st.session_state['pdf_report'], 
+                                     file_name=f"analise_{st.session_state['last_sub']}.pdf", mime="application/pdf", use_container_width=True)
+
             else:
-                st.info("Nenhum reagente cadastrado para uso.")
+                st.info("Nenhum reagente disponível.")
         except Exception as e:
-            st.error(f"Erro ao carregar dados de anotação: {e}")
+            st.error(f"Erro no módulo de anotações: {e}")
 
     st.divider()
     
-    # --- 1. CADASTRO DE NOVOS ITENS ---
+    # --- 1. CADASTRO (IGUAL AO SEU CÓDIGO INICIAL) ---
     with st.container(border=True):
-        st.subheader("Cadastrar Novo Item no Inventário")
+        st.subheader("Cadastrar Novo Item")
         if role_usuario == "Visualizador":
-            st.warning("Acesso apenas para visualização.")
+            st.warning("Seu perfil é apenas para visualização.")
         else:
             col1, col2, col3 = st.columns(3)
             with col1:
@@ -184,22 +172,22 @@ def show_substances():
                 finalidade = st.text_input("Finalidade")
             with col2:
                 concentracao = st.text_input("Concentração")
-                quantidade = st.number_input("Quantidade Inicial", min_value=0.0)
+                quantidade = st.number_input("Quantidade Atual", min_value=0.0)
             with col3:
-                estoque_minimo = st.number_input("Estoque Mínimo", min_value=0.0)
+                estoque_minimo = st.number_input("Estoque Mínimo (Alerta)", min_value=0.0)
                 validade = st.text_input("Validade (MM/AAAA)")
-                cas = st.text_input("Número CAS")
+                cas = st.text_input("Número CAS (Opcional)")
 
-            with st.expander("🛡️ Segurança (FISPQ)"):
-                cs1, cs2, cs3, cs4 = st.columns(4)
-                s_saude = cs1.slider("Saúde", 0, 4, 0)
-                s_fogo = cs2.slider("Fogo", 0, 4, 0)
-                s_reat = cs3.slider("Reatividade", 0, 4, 0)
-                s_esp = cs4.selectbox("Especial", ["", "W", "OX", "SA", "BIO"])
-                instrucoes = st.text_area("Primeiros Socorros")
+            with st.expander("🛡️ Informações de Segurança (FISPQ/MSDS)"):
+                c_s1, c_s2, c_s3, c_s4 = st.columns(4)
+                s_saude = c_s1.slider("Saúde", 0, 4, 0)
+                s_fogo = c_s2.slider("Fogo", 0, 4, 0)
+                s_reat = c_s3.slider("Reatividade", 0, 4, 0)
+                s_esp = c_s4.selectbox("Especial", ["", "W", "OX", "SA", "BIO"])
+                instrucoes = st.text_area("Instruções de Emergência / Primeiros Socorros")
                 
-            if st.button("➕ Adicionar ao Inventário", use_container_width=True):
-                if nome and quantidade >= 0:
+            if st.button("➕ Adicionar Substância", use_container_width=True):
+                if nome and quantidade:
                     data_insert = {
                         "nome": nome, "finalidade": finalidade, "concentracao": concentracao,
                         "quantidade": quantidade, "estoque_minimo": estoque_minimo,
@@ -208,64 +196,92 @@ def show_substances():
                         "especial": s_esp, "instrucoes": instrucoes
                     }
                     supabase.table("substancias").insert(data_insert).execute()
-                    
                     supabase.table("logs_estoque").insert({
-                        "usuario": username_atual, "substancia": f"CADASTRO: {nome}",
+                        "usuario": username_atual, "substancia": nome,
                         "quantidade_antiga": 0.0, "quantidade_nova": float(quantidade), "org_name": org_usuario
                     }).execute()
-                    st.success("Item cadastrado com sucesso!")
+                    st.success(f"'{nome}' cadastrado!")
                     st.rerun()
 
     st.divider()
 
-    # --- 2. EXIBIÇÃO E GESTÃO DO INVENTÁRIO ---
+    # --- 2. EXIBIÇÃO DO INVENTÁRIO (IGUAL AO SEU CÓDIGO INICIAL) ---
     try:
         response = supabase.table("substancias").select("*").eq("org_name", org_usuario).execute()
         df = pd.DataFrame(response.data)
 
         if not df.empty:
             st.subheader(f"📋 Inventário: {org_usuario}")
-            # Destaque para estoque baixo
-            df['Status'] = df.apply(lambda x: "🔴 Baixo" if x['quantidade'] <= x['estoque_minimo'] else "🟢 OK", axis=1)
-            cols_show = ['id', 'nome', 'quantidade', 'Status', 'validade', 'cas']
-            st.dataframe(df[cols_show], use_container_width=True, hide_index=True)
+            cols_ordem = ['id', 'nome', 'cas', 'quantidade', 'estoque_minimo', 'validade']
+            st.dataframe(df[cols_ordem], use_container_width=True, hide_index=True)
 
-            # Exportação
             with st.container(border=True):
-                st.markdown("### 📊 Exportação")
-                ce1, ce2, ce3 = st.columns(3)
-                ce1.download_button("📥 CSV", df.to_csv(index=False).encode('utf-8'), "inventario.csv", "text/csv", use_container_width=True)
+                st.markdown("### 📊 Exportação e Análise Externa")
+                col_exp1, col_exp2, col_exp3, col_exp4 = st.columns([1, 1, 1, 1])
+                csv = df.to_csv(index=False).encode('utf-8')
+                col_exp1.download_button(label="📥 Baixar Dados (CSV)", data=csv, file_name=f"inventario.csv", use_container_width=True)
+                col_exp2.link_button("🌐 Abrir Excel Online", "https://excel.new", use_container_width=True)
                 
                 buf_zip = BytesIO()
                 with zipfile.ZipFile(buf_zip, 'w') as zf:
                     for _, row in df.iterrows():
-                        qr_img = qrcode.make(f"{URL_SISTEMA}?id={row['id']}")
-                        b_qr = BytesIO(); qr_img.save(b_qr, format="PNG")
-                        zf.writestr(f"qr_{row['nome']}.png", b_qr.getvalue())
-                ce2.download_button("🖼️ ZIP QR Codes", buf_zip.getvalue(), "qrcodes.zip", use_container_width=True)
-                ce3.link_button("🌐 Excel Online", "https://excel.new", use_container_width=True)
+                        img_qr = qrcode.make(f"{URL_SISTEMA}?id={row['id']}")
+                        img_buf = BytesIO(); img_qr.save(img_buf, format="PNG")
+                        zf.writestr(f"qr_{row['nome'].replace(' ', '_')}.png", img_buf.getvalue())
+                col_exp3.download_button(label="🖼️ Gerar Todos QR Codes", data=buf_zip.getvalue(), file_name=f"qrcodes.zip", use_container_width=True)
+                with col_exp4:
+                    with st.popover("💡 Ajuda Excel", use_container_width=True):
+                        st.write("Abra o Excel Online e arraste o CSV baixado.")
 
-            # Segurança e Histórico Individual
-            st.subheader("🛡️ Ficha de Segurança")
-            sub_sel = st.selectbox("Visualizar item:", options=df['nome'].tolist())
-            det = df[df['nome'] == sub_sel].iloc[0]
-            
-            c1, c2, c3 = st.columns([1, 2, 1])
-            with c1: render_hommel(det['saude'], det['fogo'], det['reatividade'], det['especial'])
-            with c2: st.info(f"**Emergência:** {det.get('instrucoes', 'Sem dados.')}")
-            with c3:
-                qr_ind = qrcode.make(f"{URL_SISTEMA}?id={det['id']}")
-                b_ind = BytesIO(); qr_ind.save(b_ind, format="PNG")
-                st.image(b_ind.getvalue(), width=120)
+            if role_usuario in ["ADM", "Tecnico"]:
+                with st.expander("🔄 Atualizar Quantidade em Estoque"):
+                    col_sel, col_val, col_btn = st.columns([2, 1, 1])
+                    sub_para_editar = col_sel.selectbox("Escolha a substância", options=df['nome'].tolist(), key="edit_qty_p")
+                    nova_qtd = col_val.number_input("Nova Quantidade", min_value=0.0)
+                    if col_btn.button("Atualizar Estoque", use_container_width=True):
+                        qtd_antiga = df[df['nome'] == sub_para_editar]['quantidade'].values[0]
+                        supabase.table("substancias").update({"quantidade": nova_qtd}).eq("nome", sub_para_editar).execute()
+                        supabase.table("logs_estoque").insert({
+                            "usuario": username_atual, "substancia": sub_para_editar, 
+                            "quantidade_antiga": float(qtd_antiga), "quantidade_nova": float(nova_qtd), "org_name": org_usuario
+                        }).execute()
+                        st.rerun()
 
-            # Histórico de Logs (O que você pediu para manter)
-            with st.expander("📜 Histórico de Movimentações"):
-                logs_res = supabase.table("logs_estoque").select("*").eq("org_name", org_usuario).order("created_at", desc=True).limit(10).execute()
+            st.subheader("🛡️ Consulta de Segurança (FISPQ Digital)")
+            substancia_alvo = st.selectbox("Selecione um item:", options=df['nome'].tolist())
+            detalhes = df[df['nome'] == substancia_alvo].iloc[0]
+            col_v, col_t, col_q = st.columns([1, 2, 1])
+            with col_v: render_hommel(detalhes['saude'], detalhes['fogo'], detalhes['reatividade'], detalhes['especial'])
+            with col_t:
+                st.warning(f"**Instruções de Emergência:**\n\n{detalhes.get('instrucoes', 'N/A')}")
+                st.caption(f"CAS: {detalhes.get('cas', 'N/A')}")
+            with col_q:
+                qr = qrcode.make(f"{URL_SISTEMA}?id={detalhes['id']}")
+                buf = BytesIO(); qr.save(buf, format="PNG")
+                st.image(buf.getvalue(), width=120)
+                st.download_button("📥 Baixar QR", buf.getvalue(), f"qr_{detalhes['nome']}.png", "image/png")
+
+            with st.expander("📜 Histórico Recente de Alterações"):
+                logs_res = supabase.table("logs_estoque").select("*").eq("org_name", org_usuario).order("created_at", desc=True).limit(5).execute()
                 if logs_res.data:
-                    st.table(pd.DataFrame(logs_res.data)[['created_at', 'usuario', 'substancia', 'quantidade_nova']])
+                    log_df = pd.DataFrame(logs_res.data)
+                    st.table(log_df[['created_at', 'usuario', 'substancia', 'quantidade_antiga', 'quantidade_nova']])
 
+            if role_usuario in ["ADM", "Tecnico"]:
+                with st.expander("🗑️ Remover Substância"):
+                    id_del = st.selectbox("ID para remover", options=df['id'].tolist())
+                    item_del = df[df['id'] == id_del].iloc[0]
+                    if st.button("Confirmar Exclusão", type="primary"):
+                        supabase.table("logs_estoque").insert({
+                            "usuario": username_atual, "substancia": f"(REMOVIDO) {item_del['nome']}",
+                            "quantidade_antiga": float(item_del['quantidade']), "quantidade_nova": 0.0, "org_name": org_usuario
+                        }).execute()
+                        supabase.table("substancias").delete().eq("id", id_del).execute()
+                        st.rerun()
+        else:
+            st.info("Nenhuma substância cadastrada.")
     except Exception as e:
-        st.error(f"Erro de carregamento: {e}")
+        st.error(f"Erro ao carregar dados: {e}")
 
 if __name__ == "__main__":
     show_substances()
