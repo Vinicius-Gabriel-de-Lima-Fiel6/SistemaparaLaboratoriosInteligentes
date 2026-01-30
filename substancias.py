@@ -100,6 +100,7 @@ def show_substances():
         try:
             # Busca de dados relacionais
             res_sub = supabase.table("substancias").select("nome, quantidade, id").eq("org_name", org_usuario).execute()
+            # ALTERAÇÃO REALIZADA: Selecionando 'vid' em vez de 'id' para a tabela vidrarias
             res_vid = supabase.table("vidrarias").select("vid, tipo, numeracao").eq("org_name", org_usuario).execute()
             res_proj = supabase.table("projetos").select("id, nome").eq("org_name", org_usuario).eq("status", "Ativo").execute()
             
@@ -122,7 +123,7 @@ def show_substances():
                     
                 explicacao = st.text_area("Descricao do Procedimento (Metodologia e Resultados)")
                 
-                if st.button("🚀 Finalizar e Salvar no Banco", use_container_width=True):
+                if st.button("🚀 Finalizar e Salvar no Banco", key="btn_salvar_proc", use_container_width=True):
                     if qtd_usada > 0:
                         row_atual = df_reagentes[df_reagentes['nome'] == sub_usada].iloc[0]
                         nova_qtd = float(row_atual['quantidade']) - float(qtd_usada)
@@ -145,15 +146,16 @@ def show_substances():
                                 parecer = gerar_parecer_ia(f"Uso de {qtd_usada} de {sub_usada}. Projeto: {projeto_nome}. Procedimento: {explicacao}")
                             
                             # 4. Salvar na Tabela de Anotacoes (Rastreabilidade)
-                            id_v = None
+                            id_v_save = None
                             if vid_selecionada != "Nenhuma":
                                 num_v = vid_selecionada.split(" - ")[-1]
-                                id_v = df_vidrarias[df_vidrarias['numeracao'] == num_v].iloc[0]['id']
+                                # ALTERAÇÃO REALIZADA: Acessando a coluna 'vid' conforme solicitado
+                                id_v_save = df_vidrarias[df_vidrarias['numeracao'] == num_v].iloc[0]['vid']
 
                             supabase.table("anotacoes_processos").insert({
                                 "data_procedimento": str(data_proc), "usuario": username_atual,
                                 "substancia_id": int(row_atual['id']), "quantidade_usada": float(qtd_usada),
-                                "lote_reagente": lote_ref, "vidraria_id": id_v,
+                                "lote_reagente": lote_ref, "vidraria_id": id_v_save,
                                 "procedimento_texto": explicacao, "parecer_ia": parecer, "org_name": org_usuario
                             }).execute()
 
@@ -165,6 +167,7 @@ def show_substances():
                             }, parecer)
                             st.session_state['last_sub'] = sub_usada
                             st.success("Dados salvos e estoque abatido!")
+                            st.rerun()
 
                 if 'pdf_report' in st.session_state:
                     st.download_button("📥 Baixar Relatorio PDF", data=st.session_state['pdf_report'], 
@@ -288,5 +291,3 @@ def show_substances():
 
 if __name__ == "__main__":
     show_substances()
-
-
