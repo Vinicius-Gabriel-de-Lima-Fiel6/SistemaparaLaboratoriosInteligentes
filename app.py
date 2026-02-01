@@ -41,9 +41,6 @@ def tela_acesso():
             """, 
             unsafe_allow_html=True
         )
-        
-        st.markdown("<h1 style='text-align: center;'>LabSmartAI</h1>", unsafe_allow_html=True)
-        
         st.subheader("Login Administrativo")
         email_input = st.text_input("E-mail Profissional", key="l_email")
         senha_input = st.text_input("Senha de Acesso", type="password", key="l_pass")
@@ -200,6 +197,7 @@ else:
 
     st.sidebar.markdown("---")
     st.sidebar.caption("SynapseLab V.Beta")
+
 
 
 
