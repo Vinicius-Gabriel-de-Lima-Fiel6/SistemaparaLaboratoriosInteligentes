@@ -84,8 +84,6 @@ else:
     user = st.session_state.user_data
     role = user.get('role', 'Visualizador')
     org_atual = user.get('org_name')
-    
-    # Lógica de foto dinâmica para a Sidebar
     foto_sidebar = user.get('avatar_url') if user.get('avatar_url') else f"https://api.dicebear.com/7.x/avataaars/svg?seed={user['username']}"
     
     # --- SIDEBAR DE NAVEGAÇÃO ---
@@ -105,10 +103,10 @@ else:
 
         with st.popover("⋮ Opções"):
             if st.button("👤 Perfil do Usuário", use_container_width=True):
-                st.session_state.selection = "👤 Perfil"
+                st.session_state.selection = "Perfil"
                 st.rerun()
             if st.button("⚙️ Configurações Gerais", use_container_width=True):
-                st.session_state.selection = "⚙️ Configurações"
+                st.session_state.selection = "Configurações"
                 st.rerun()
             st.divider()
             if st.button("SAIR", use_container_width=True):
@@ -121,21 +119,29 @@ else:
         if role == "ADM":
             abas.extend(["👥 Gestão de Equipe", "📄 Relatórios"])
 
-        # Sincroniza o rádio com a seleção, incluindo Perfil/Configurações se necessário
-        opcoes_radio = abas.copy()
-        if st.session_state.selection not in opcoes_radio:
-            opcoes_radio.append(st.session_state.selection)
+        # Lógica de sincronização: Se a seleção for "Perfil" ou "Configurações", o rádio não deve bugar
+        radio_index = 0
+        if st.session_state.selection in abas:
+            radio_index = abas.index(st.session_state.selection)
+        
+        # O rádio atualiza a seleção, mas só se o usuário de fato clicar nele
+        query_nav = st.radio("NAVEGAÇÃO", abas, index=radio_index)
+        
+        if query_nav != st.session_state.selection and st.session_state.selection not in ["Perfil", "Configurações"]:
+            st.session_state.selection = query_nav
+        elif query_nav != abas[radio_index]: # Se o usuário clicou no rádio vindo de Perfil/Config
+            st.session_state.selection = query_nav
 
-        selection = st.radio("NAVEGAÇÃO", opcoes_radio, index=opcoes_radio.index(st.session_state.selection))
-        st.session_state.selection = selection
-
-    # --- ROTEAMENTO ---
-    if st.session_state.selection == "👤 Perfil":
+    # --- RENDERIZAÇÃO DAS TELAS ---
+    # Aqui usamos a variável st.session_state.selection como fonte da verdade
+    
+    if st.session_state.selection == "Perfil":
         show_perfil()
-    elif st.session_state.selection == "⚙️ Configurações":
+    elif st.session_state.selection == "Configurações":
         show_configuracoes()
     else:
-        clean_selection = selection.split(" ", 1)[-1]
+        # Pega o nome limpo (Ex: "Dashboard")
+        clean_selection = st.session_state.selection.split(" ", 1)[-1]
 
         if clean_selection == "Dashboard":
             st.title(f"🚀 Painel de Controle - {org_atual}")
