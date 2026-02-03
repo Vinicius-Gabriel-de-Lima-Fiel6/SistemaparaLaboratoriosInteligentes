@@ -2,7 +2,10 @@ pandas
 streamlit>=1.22.0
 altair<5
 unidecode
-ultralytics
+SpeechRecognition
+gTTS
+setuptools
+PyAudio
 requests
 opencv-python-headless
 scikit-learn
@@ -26,5 +29,6 @@ st-gsheets-connection
 postgrest
 pillow
 qrcode
+
 
 
