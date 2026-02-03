@@ -197,7 +197,3 @@ else:
 
     st.sidebar.markdown("---")
     st.sidebar.caption("SynapseLab V.Beta")
-
-
-
-
