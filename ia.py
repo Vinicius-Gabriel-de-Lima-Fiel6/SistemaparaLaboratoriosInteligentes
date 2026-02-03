@@ -94,7 +94,7 @@ def show_chatbot():
     if "messages_agente" not in st.session_state: st.session_state.messages_agente = []
     if "aba_atual" not in st.session_state: st.session_state.aba_atual = "Chat Científico"
 
-    st.subheader("🔬 LabSmart AI - Hub de Inteligência")
+    st.subheader("🔬 SynapseAI - Hub de Inteligência")
     aba = st.radio("Selecione o ambiente:", ["💬 Chat Científico", "👥 Squad de Agentes"], horizontal=True)
     st.session_state.aba_atual = aba
     st.divider()
@@ -174,3 +174,4 @@ def show_chatbot():
 
 if __name__ == "__main__":
     show_chatbot()
+
