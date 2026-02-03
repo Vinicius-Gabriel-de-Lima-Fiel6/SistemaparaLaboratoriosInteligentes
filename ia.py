@@ -1,11 +1,56 @@
 import streamlit as st
 import pandas as pd
 from groq import Groq
-from ultralytics import YOLO
+# ultralytics removido conforme solicitado
 from streamlit_webrtc import webrtc_streamer, VideoTransformerBase
 import PyPDF2
 import io
+import speech_recognition as sr  
+from gtts import gTTS            
+import base64                    
 
+# ==========================================
+# BLOCO DE VOZ (ESTABILIDADE SÊNIOR)
+# ==========================================
+def stt_escrita_ativa():
+    """Captura áudio do microfone com supressão de erro visual."""
+    recognizer = sr.Recognizer()
+    with sr.Microphone() as source:
+        try:
+            recognizer.adjust_for_ambient_noise(source, duration=0.8)
+            audio = recognizer.listen(source, timeout=5, phrase_time_limit=10)
+            texto = recognizer.recognize_google(audio, language='pt-BR')
+            return texto
+        except (sr.UnknownValueError, sr.WaitTimeoutError):
+            return None # Erro silencioso para não quebrar a UI
+        except sr.RequestError:
+            st.error("⚠️ Falha na conexão com serviço de voz.")
+            return None
+        except Exception:
+            return None
+
+def tts_reproduzir(texto):
+    """Converte texto em áudio via buffer de memória (Rápido)."""
+    try:
+        # Sanitização para leitura fluida
+        texto_limpo = texto.replace('*', '').replace('#', '').replace('_', '')
+        tts = gTTS(text=texto_limpo, lang='pt-BR')
+        fp = io.BytesIO()
+        tts.write_to_fp(fp)
+        fp.seek(0)
+        b64 = base64.b64encode(fp.read()).decode()
+        md = f"""
+            <audio autoplay="true">
+            <source src="data:audio/mp3;base64,{b64}" type="audio/mp3">
+            </audio>
+            """
+        st.components.v1.html(md, height=0)
+    except Exception as e:
+        pass # Falha no áudio não deve impedir a leitura do texto
+
+# ==========================================
+# BACKEND E LÓGICA (MANTIDOS)
+# ==========================================
 
 def inicializar_motor():
     if "GROQ_API_KEY" not in st.secrets:
@@ -15,12 +60,13 @@ def inicializar_motor():
 
 client_groq, modelo_ativo = inicializar_motor()
 
+# Classe mantida para evitar quebra em dependências futuras, 
+# mas sem lógica de processamento YOLO
 class VideoProcessor(VideoTransformerBase):
-    def __init__(self, model):
-        self.model = model
+    def __init__(self):
+        pass
     def transform(self, frame):
-        img = frame.to_ndarray(format="bgr24")
-        return self.model(img)[0].plot()
+        return frame.to_ndarray(format="bgr24")
 
 def extrair_texto(arquivo):
     if not arquivo: return None
@@ -54,7 +100,10 @@ def show_chatbot():
     if "messages_geral" not in st.session_state: st.session_state.messages_geral = []
     if "messages_agente" not in st.session_state: st.session_state.messages_agente = []
     if "aba_atual" not in st.session_state: st.session_state.aba_atual = "Chat Científico"
-    if "yolo_model" not in st.session_state: st.session_state.yolo_model = YOLO("yolov8n.pt")
+    
+    # ESTADOS DE VOZ
+    if "ultimo_audio_processado" not in st.session_state: st.session_state.ultimo_audio_processado = None
+    if "audio_ativado" not in st.session_state: st.session_state.audio_ativado = False
 
     st.subheader("🔬 LabSmart AI - Hub de Inteligência")
 
@@ -82,26 +131,34 @@ def show_chatbot():
         col_c1, col_t1 = st.columns([3, 1])
         with col_t1:
             st.write("### ⚙️ Ferramentas")
-            if st.toggle("🎥 Visão YOLO", key="tgl_v1"):
-                webrtc_streamer(key="stream_v1", video_processor_factory=lambda: VideoProcessor(st.session_state.yolo_model))
+            
+            # VISÃO REMOVIDA (Limpando Ultralytics)
+            st.info("ℹ️ Visão YOLO desativada.")
+            
+            # VOZ INTEGRADA
+            st.write("🎙️ **Voz**")
+            st.session_state.audio_ativado = st.toggle("Ouvir Respostas", value=False, key="tg_v_geral")
+            if st.button("🎤 Gravar Pergunta", key="btn_v_geral", use_container_width=True):
+                res_voz = stt_escrita_ativa()
+                if res_voz: st.session_state.ultimo_audio_processado = res_voz
+                else: st.warning("Silêncio detectado.")
+
             up_geral = st.file_uploader("📎 Base de Dados", type=["pdf", "csv", "txt"], key="up_v1")
-            if st.button("🗑️ Limpar Chat"):
+            if st.button("🗑️ Limpar Chat", use_container_width=True):
                 st.session_state.messages_geral = []
                 st.rerun()
             
             st.write("---")
-            st.write("🛠️ **Auxiliares**")
             ft_sel = st.selectbox("Selecionar:", list(dict_ferramentas.keys()), key="ft_geral")
-            
             if ft_sel == "AlphaFold":
-                sub_sel = st.selectbox("Tipo de AlphaFold:", list(dict_ferramentas["AlphaFold"]["sub"].keys()), key="sub_geral")
+                sub_sel = st.selectbox("Tipo:", list(dict_ferramentas["AlphaFold"]["sub"].keys()), key="sub_geral")
                 info = dict_ferramentas["AlphaFold"]["sub"][sub_sel]
             else:
                 info = dict_ferramentas[ft_sel]
 
             with st.popover("Ver Detalhes", use_container_width=True):
                 st.write(info["desc"])
-                st.link_button(f"Abrir {sub_sel if ft_sel == 'AlphaFold' else ft_sel}", info["url"], use_container_width=True)
+                st.link_button(f"Abrir", info["url"], use_container_width=True)
 
         with col_c1:
             chat_container = st.container(height=500, border=False)
@@ -113,44 +170,60 @@ def show_chatbot():
         with col_t2:
             st.write("### 👥 Squad")
             esp_nome = st.selectbox("Especialista:", ["Bioquímico Sênior", "Auditor de Qualidade", "Escritor Técnico"], key="sel_v2")
+            
+            # VOZ INTEGRADA NO SQUAD
+            st.write("🎙️ **Voz**")
+            st.session_state.audio_ativado = st.toggle("Ouvir Respostas", value=False, key="tg_v_ag")
+            if st.button("🎤 Falar com Squad", key="btn_v_ag", use_container_width=True):
+                res_voz = stt_escrita_ativa()
+                if res_voz: st.session_state.ultimo_audio_processado = res_voz
+
             up_agente = st.file_uploader("📎 Arquivo Técnico", type=["pdf", "csv", "txt"], key="up_v2")
-            if st.button("🗑️ Limpar Squad"):
+            if st.button("🗑️ Limpar Squad", use_container_width=True):
                 st.session_state.messages_agente = []
                 st.rerun()
 
             st.write("---")
-            st.write("🛠️ **Auxiliares**")
             ft_sel_ag = st.selectbox("Selecionar:", list(dict_ferramentas.keys()), key="ft_agente")
-            
             if ft_sel_ag == "AlphaFold":
-                sub_sel_ag = st.selectbox("Tipo de AlphaFold:", list(dict_ferramentas["AlphaFold"]["sub"].keys()), key="sub_agente")
+                sub_sel_ag = st.selectbox("Tipo:", list(dict_ferramentas["AlphaFold"]["sub"].keys()), key="sub_agente")
                 info_ag = dict_ferramentas["AlphaFold"]["sub"][sub_sel_ag]
             else:
                 info_ag = dict_ferramentas[ft_sel_ag]
 
             with st.popover("Ver Detalhes", use_container_width=True):
                 st.write(info_ag["desc"])
-                st.link_button(f"Abrir {sub_sel_ag if ft_sel_ag == 'AlphaFold' else ft_sel_ag}", info_ag["url"], use_container_width=True)
+                st.link_button(f"Abrir", info_ag["url"], use_container_width=True)
 
         with col_c2:
             chat_container = st.container(height=500, border=False)
             for m in st.session_state.messages_agente:
                 chat_container.chat_message(m["role"]).write(m["content"])
 
-    if prompt := st.chat_input("Digite sua mensagem para o ambiente selecionado..."):
+    # ENTRADA DE DADOS (TEXTO OU VOZ)
+    prompt_texto = st.chat_input("Mensagem técnica...")
+    prompt = prompt_texto or st.session_state.ultimo_audio_processado
+
+    if prompt:
+        st.session_state.ultimo_audio_processado = None
+        
         if st.session_state.aba_atual == "💬 Chat Científico":
             h_key = "messages_geral"
             dados = extrair_texto(up_geral) if 'up_geral' in locals() else None
-            persona = "Consultor Sênior em Engenharia, Medicina de Precisão e Auditoria Científica"
+            persona = "Consultor Sênior"
         else:
             h_key = "messages_agente"
             dados = extrair_texto(up_agente) if 'up_agente' in locals() else None
             persona = esp_nome
 
         st.session_state[h_key].append({"role": "user", "content": prompt})
-        with st.spinner(f"O {persona} está processando..."):
+        with st.spinner(f"Processando..."):
             resposta = responder_ia(prompt, st.session_state[h_key], dados, persona)
             st.session_state[h_key].append({"role": "assistant", "content": resposta})
+            
+            if st.session_state.audio_ativado:
+                tts_reproduzir(resposta)
+                
         st.rerun()
 
 if __name__ == "__main__":
