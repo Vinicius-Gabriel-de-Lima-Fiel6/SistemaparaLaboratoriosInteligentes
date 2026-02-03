@@ -85,6 +85,7 @@ else:
     role = user.get('role', 'Visualizador')
     org_atual = user.get('org_name')
     
+    # Lógica de foto dinâmica para a Sidebar
     foto_sidebar = user.get('avatar_url') if user.get('avatar_url') else f"https://api.dicebear.com/7.x/avataaars/svg?seed={user['username']}"
     
     # --- SIDEBAR DE NAVEGAÇÃO ---
@@ -104,10 +105,10 @@ else:
 
         with st.popover("⋮ Opções"):
             if st.button("👤 Perfil do Usuário", use_container_width=True):
-                st.session_state.selection = "Perfil_Aba"
+                st.session_state.selection = "👤 Perfil"
                 st.rerun()
             if st.button("⚙️ Configurações Gerais", use_container_width=True):
-                st.session_state.selection = "Config_Aba"
+                st.session_state.selection = "⚙️ Configurações"
                 st.rerun()
             st.divider()
             if st.button("SAIR", use_container_width=True):
@@ -120,22 +121,21 @@ else:
         if role == "ADM":
             abas.extend(["👥 Gestão de Equipe", "📄 Relatórios"])
 
-        # Se estamos numa aba especial, o rádio não deve forçar uma mudança a menos que o usuário clique nele
-        def reset_selection():
-            st.session_state.selection = st.session_state.temp_nav
+        # Sincroniza o rádio com a seleção, incluindo Perfil/Configurações se necessário
+        opcoes_radio = abas.copy()
+        if st.session_state.selection not in opcoes_radio:
+            opcoes_radio.append(st.session_state.selection)
 
-        # Valor inicial do rádio (Dashboard se estivermos em Perfil/Config)
-        idx = abas.index(st.session_state.selection) if st.session_state.selection in abas else 0
-        
-        selection = st.radio("NAVEGAÇÃO", abas, index=idx, key="temp_nav", on_change=reset_selection)
+        selection = st.radio("NAVEGAÇÃO", opcoes_radio, index=opcoes_radio.index(st.session_state.selection))
+        st.session_state.selection = selection
 
-    # --- ROTEAMENTO FINAL (A LÓGICA INFALÍVEL) ---
-    if st.session_state.selection == "Perfil_Aba":
+    # --- ROTEAMENTO ---
+    if st.session_state.selection == "👤 Perfil":
         show_perfil()
-    elif st.session_state.selection == "Config_Aba":
+    elif st.session_state.selection == "⚙️ Configurações":
         show_configuracoes()
     else:
-        clean_selection = st.session_state.selection.split(" ", 1)[-1]
+        clean_selection = selection.split(" ", 1)[-1]
 
         if clean_selection == "Dashboard":
             st.title(f"🚀 Painel de Controle - {org_atual}")
