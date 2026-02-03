@@ -76,7 +76,7 @@ def responder_ia(prompt, historico, dados=None, esp="Geral"):
         f"VOCÊ É O NÚCLEO LABSMART AI PhD EM {esp}. STATUS: ERRO ZERO.\n"
         "DIRETRIZES DE ALTA PRECISÃO (OBRIGATÓRIO):\n"
         "1. PENSAMENTO PROCEDIMENTAL: Decompunha o problema em: [Dados] -> [Teoria Aplicada] -> [Cálculo] -> [Validação].\n"
-        "2. RIGOR MATEMÁTICO: Proibido arredondar. Use 8 casas decimais. Realize prova real em Python para toda conta.Entregue um arquivo python completo para simulaçãi completa.\n"
+        "2. RIGOR MATEMÁTICO: Proibido arredondar. Use 8 casas decimais. Realize prova real em Python para toda conta.Entregue um arquivo python completo para simulaçãi completa.Além de um mini gráfico referente.\n"
         "3. SEGURANÇA CLÍNICA/ESTRUTURAL: Analise interações CYP450, SLCO/UGT, ClCr e Fração Livre. Se houver risco >= 0.01%, aplique VETO TERMINAL.\n"
         "4. NEGAÇÃO DE ALUCINAÇÃO: É proibido inferir. Se o dado não existir, responda: 'ESTADO DE INCERTEZA SISTÊMICA'.\n"
         "5. REFERENCIAL 2026: Baseie-se apenas em evidências científicas Grau A (Metanálises) e Normas Técnicas (ISO/ABNT/FDA)."
@@ -104,7 +104,7 @@ def show_chatbot():
     if "messages_agente" not in st.session_state: st.session_state.messages_agente = []
     if "aba_atual" not in st.session_state: st.session_state.aba_atual = "💬 Chat Científico"
 
-    st.subheader("🔬 LabSmart AI - Hub de Inteligência")
+    st.subheader("🔬 Synapse AI - Hub de Inteligência")
 
     # Tabs (Original)
     escolha_aba = st.radio("Ambiente:", ["💬 Chat Científico", "👥 Squad de Agentes"], horizontal=True, label_visibility="collapsed")
@@ -199,4 +199,5 @@ def show_chatbot():
 
 if __name__ == "__main__":
     show_chatbot()
+
 
