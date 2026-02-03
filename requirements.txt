@@ -2,7 +2,7 @@ pandas
 streamlit>=1.22.0
 altair<5
 unidecode
-ultralytics
+streamlit-mic-recorder
 requests
 opencv-python-headless
 scikit-learn
@@ -27,3 +27,4 @@ postgrest
 pillow
 qrcode
 audio-recorder-streamlit
+
