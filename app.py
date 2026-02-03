@@ -17,6 +17,18 @@ st.set_page_config(
 with open("style.css", "r", encoding="utf-8") as f:
     st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
+# --- INCLUSÃO: LÓGICA DE CORES DINÂMICAS ---
+if 'prefs' in st.session_state:
+    cor_user = st.session_state.prefs.get("cor_primaria", "#28a745")
+    st.markdown(f"""
+        <style>
+        :root {{ --primary-color: {cor_user}; }}
+        .stButton>button {{ border-color: {cor_user} !important; color: {cor_user} !important; }}
+        .stButton>button:hover {{ background-color: {cor_user} !important; color: white !important; }}
+        [data-testid="stMetricValue"] {{ color: {cor_user}; }}
+        </style>
+    """, unsafe_allow_html=True)
+
 supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 
 def tela_acesso():
@@ -62,6 +74,10 @@ def tela_acesso():
 if 'logado' not in st.session_state: st.session_state.logado = False
 if 'user_data' not in st.session_state: st.session_state.user_data = None
 if 'selection' not in st.session_state: st.session_state.selection = "🏠 Dashboard"
+
+# --- INCLUSÃO: INICIALIZAÇÃO DE PREFERÊNCIAS ---
+if 'prefs' not in st.session_state:
+    st.session_state.prefs = {"cor_primaria": "#28a745", "modulos_ocultos": [], "links_externos": []}
 
 if not st.session_state.logado:
     tela_acesso()
@@ -114,12 +130,17 @@ else:
 
         st.write("") 
         
-        abas = ["🏠 Dashboard", "🤖 IA & Visão", "💼 Laboratório", "⚛️ Tabelas Químicas", "🧮 Calculadora Química", "📊 Gráficos"]
+        # --- INCLUSÃO: FILTRAGEM DINÂMICA DE ABAS ---
+        abas_base = ["🏠 Dashboard", "🤖 IA & Visão", "💼 Laboratório", "⚛️ Tabelas Químicas", "🧮 Calculadora Química", "📊 Gráficos"]
+        modulos_ocultos = st.session_state.prefs.get("modulos_ocultos", [])
+        abas = [a for a in abas_base if a not in modulos_ocultos]
         
         if role == "ADM":
             abas.extend(["👥 Gestão de Equipe", "📄 Relatórios"])
 
-        selection = st.radio("NAVEGAÇÃO", abas, index=abas.index(st.session_state.selection) if st.session_state.selection in abas else 0)
+        # Garantia de que a seleção atual existe na lista filtrada para evitar erro de index
+        idx_selecionado = abas.index(st.session_state.selection) if st.session_state.selection in abas else 0
+        selection = st.radio("NAVEGAÇÃO", abas, index=idx_selecionado)
         st.session_state.selection = selection
 
     clean_selection = selection.split(" ", 1)[-1]
@@ -193,11 +214,9 @@ else:
     elif clean_selection == "Gráficos": show_graficos()
     elif clean_selection == "Gestão de Equipe": show_config_empresa()
     elif clean_selection == "Relatórios": relatorios.show_reports(supabase)
-    elif clean_selection == "Configurações": show_configuracoes()
+    elif clean_selection == "Configurações": 
+        # INCLUSÃO: PASSAGEM DE PARÂMETROS PARA A FUNÇÃO
+        show_configuracoes(supabase, user)
 
     st.sidebar.markdown("---")
     st.sidebar.caption("SynapseLab V.Beta")
-
-
-
-
