@@ -8,13 +8,13 @@ from audio_recorder_streamlit import audio_recorder
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Synapse AI", page_icon="🔬", layout="wide")
 
-# --- UI/UX: ESTILIZAÇÃO DO MENU SUSPENSO E BARRA DE CHAT ---
+# --- UI/UX: MELHORIA DE DESIGN (BARRA DE COMANDO SYNAPSE) ---
 st.markdown("""
     <style>
-    .block-container { padding-top: 1.5rem; }
+    .block-container { padding-top: 2rem; }
     .stChatFloatingInputContainer { bottom: 20px; background-color: transparent !important; }
     
-    /* Esconde labels para manter o design limpo */
+    /* Esconde labels padrão */
     div[data-testid="stFileUploader"] label { display: none; }
     
     /* Estilização do botão '+' (Popover) */
@@ -27,34 +27,19 @@ st.markdown("""
         display: flex;
         align-items: center;
         justify-content: center;
-    }
-    
-    /* Ajuste para o uploader dentro do popover */
-    section[data-testid="stFileUploadDropzone"] {
-        border: 1px dashed #ccc !important;
-        padding: 10px !important;
-        border-radius: 10px;
+        font-weight: bold;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- MOTORES E LÓGICA ---
+# --- LÓGICA DE MOTOR E PROCESSAMENTO (SUA LÓGICA ORIGINAL) ---
 def inicializar_motor():
     if "GROQ_API_KEY" not in st.secrets:
         return None, "Erro: Chave API ausente."
     client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-    return client, "llama-3.3-70b-versatile" #
+    return client, "llama-3.3-70b-versatile"
 
 client_groq, modelo_ativo = inicializar_motor()
-
-def transcrever_audio(audio_bytes):
-    if not audio_bytes: return None
-    try:
-        arquivo_audio = ("audio.wav", audio_bytes, "audio/wav")
-        return client_groq.audio.transcriptions.create(
-            file=arquivo_audio, model="whisper-large-v3", response_format="text"
-        )
-    except: return None
 
 def extrair_texto(arquivo):
     if not arquivo: return None
@@ -63,6 +48,15 @@ def extrair_texto(arquivo):
             leitor = PyPDF2.PdfReader(io.BytesIO(arquivo.read()))
             return "".join([p.extract_text() for p in leitor.pages])
         return arquivo.read().decode("utf-8")
+    except: return None
+
+def transcrever_audio(audio_bytes):
+    if not audio_bytes: return None
+    try:
+        arquivo_audio = ("audio.wav", audio_bytes, "audio/wav")
+        return client_groq.audio.transcriptions.create(
+            file=arquivo_audio, model="whisper-large-v3", response_format="text"
+        )
     except: return None
 
 def responder_ia(prompt, historico, dados=None, esp="Geral"):
@@ -85,7 +79,7 @@ def responder_ia(prompt, historico, dados=None, esp="Geral"):
 
 # --- INTERFACE PRINCIPAL ---
 def show_chatbot():
-    # Inicialização de Estados Originais
+    # Estados de Sessão Originais
     if "messages_geral" not in st.session_state: st.session_state.messages_geral = []
     if "messages_agente" not in st.session_state: st.session_state.messages_agente = []
     if "aba_atual" not in st.session_state: st.session_state.aba_atual = "Chat Científico"
@@ -96,7 +90,7 @@ def show_chatbot():
     st.session_state.aba_atual = escolha_aba
     st.divider()
 
-    # Dicionário de Ferramentas Original (Integral)
+    # Dicionário de Ferramentas Original (Mantido)
     dict_ferramentas = {
         "Lovable": {"desc": "Crie interfaces e protótipos de sistemas internos sem programar.", "url": "https://lovable.dev/"},
         "Gamma": {"desc": "Transforme dados em apresentações profissionais em segundos.", "url": "https://gamma.app/"},
@@ -105,82 +99,81 @@ def show_chatbot():
         "AlphaFold": {
             "desc": "Inteligência Artificial para predição de estruturas de proteínas.",
             "sub": {
-                "AlphaFold Protein Structure Database": {"desc": "Acesso a mais de 200 milhões de estruturas de proteínas já preditas.", "url": "https://alphafold.ebi.ac.uk/"},
-                "AlphaFold Server (Previsão)": {"desc": "Ferramenta para prever novas estruturas de proteínas e interações.", "url": "https://alphafoldserver.com/"},
-                "AlphaFold no Google Colab": {"desc": "Execução do modelo via código para pesquisas personalizadas.", "url": "https://colab.research.google.com/github/google-deepmind/alphafold/blob/main/notebooks/AlphaFold.ipynb"}
+                "AlphaFold Protein Structure Database": {"desc": "Acesso a mais de 200 milhões de estruturas.", "url": "https://alphafold.ebi.ac.uk/"},
+                "AlphaFold Server (Previsão)": {"desc": "Ferramenta para prever novas estruturas.", "url": "https://alphafoldserver.com/"},
+                "AlphaFold no Google Colab": {"desc": "Execução do modelo via código para pesquisas.", "url": "https://colab.research.google.com/github/google-deepmind/alphafold/blob/main/notebooks/AlphaFold.ipynb"}
             }
         }
     }
 
     # Estrutura de Abas Original (Colunas 3:1)
     if st.session_state.aba_atual == "💬 Chat Científico":
-        col_chat, col_tools = st.columns([3, 1])
-        with col_tools:
+        col_c, col_t = st.columns([3, 1])
+        with col_t:
             st.write("### ⚙️ Gestão")
-            if st.button("🗑️ Limpar Chat Científico", use_container_width=True):
+            if st.button("🗑️ Limpar Chat", use_container_width=True):
                 st.session_state.messages_geral = []
                 st.rerun()
-        with col_chat:
-            cont = st.container(height=500, border=False)
+        with col_c:
+            chat_container = st.container(height=500, border=False)
             for m in st.session_state.messages_geral:
-                cont.chat_message(m["role"]).write(m["content"])
+                chat_container.chat_message(m["role"]).write(m["content"])
     else:
-        col_chat, col_tools = st.columns([3, 1])
-        with col_tools:
+        col_c, col_t = st.columns([3, 1])
+        with col_t:
             st.write("### 👥 Squad")
-            esp_nome = st.selectbox("Especialista:", ["Bioquímico Sênior", "Auditor de Qualidade", "Escritor Técnico"])
+            esp_nome = st.selectbox("Especialista:", ["Bioquímico Sênior", "Auditor de Qualidade", "Escritor Técnico"], key="sel_esp")
             if st.button("🗑️ Limpar Squad", use_container_width=True):
                 st.session_state.messages_agente = []
                 st.rerun()
-        with col_chat:
-            cont = st.container(height=500, border=False)
+        with col_c:
+            chat_container = st.container(height=500, border=False)
             for m in st.session_state.messages_agente:
-                cont.chat_message(m["role"]).write(m["content"])
+                chat_container.chat_message(m["role"]).write(m["content"])
 
-    # --- BARRA DE COMANDO SYNAPSE (BOTÃO + MENU SUSPENSO) ---
+    # --- BARRA DE COMANDO MELHORADA (NOVA LÓGICA) ---
     st.divider()
     c_menu, c_input, c_audio = st.columns([0.4, 3, 0.4])
 
     with c_menu:
-        # O '+' agora contém a lógica de importação e ferramentas que ficavam espalhadas
+        # BOTÃO + COM MENU SUSPENSO (CONCENTRA UPLOAD E LINKS)
         with st.popover("➕", use_container_width=True):
-            st.markdown("### 📎 Anexar Arquivo")
-            up_file = st.file_uploader("Importar Base de Dados", type=["pdf", "csv", "txt"])
-            
+            st.markdown("### 📎 Importar Dados")
+            up_file = st.file_uploader("Upload PDF/CSV/TXT", type=["pdf", "csv", "txt"], key="synapse_up")
             st.divider()
-            st.markdown("### 🛠️ Links Auxiliares")
-            ft_sel = st.selectbox("Selecionar Ferramenta:", list(dict_ferramentas.keys()))
+            st.markdown("### 🛠️ Ferramentas")
+            ft_sel = st.selectbox("Selecione:", list(dict_ferramentas.keys()), key="ft_pop")
             if ft_sel == "AlphaFold":
-                sub_sel = st.selectbox("Tipo:", list(dict_ferramentas["AlphaFold"]["sub"].keys()))
-                info = dict_ferramentas["AlphaFold"]["sub"][sub_sel]
+                sub = st.selectbox("Tipo:", list(dict_ferramentas["AlphaFold"]["sub"].keys()), key="sub_pop")
+                info = dict_ferramentas["AlphaFold"]["sub"][sub]
             else:
                 info = dict_ferramentas[ft_sel]
-            
             st.caption(info["desc"])
-            st.link_button(f"Abrir {ft_sel}", info["url"], use_container_width=True)
+            st.link_button("Abrir Ferramenta", info["url"], use_container_width=True)
 
     with c_input:
-        prompt_txt = st.chat_input("Pergunte alguma coisa para o Synapse...")
+        prompt_txt = st.chat_input("Digite sua mensagem para o Synapse AI...")
 
     with c_audio:
-        audio_data = audio_recorder(text="", recording_color="#e74c3c", neutral_color="#4f4f4f", icon_size="2x")
+        # Microfone integrado à direita
+        audio_bytes = audio_recorder(text="", recording_color="#e74c3c", neutral_color="#4f4f4f", icon_size="2x")
 
-    # --- LÓGICA DE PROCESSAMENTO ---
+    # --- LÓGICA DE EXECUÇÃO ---
     final_prompt = None
-    if audio_data:
-        with st.spinner("Ouvindo..."):
-            final_prompt = transcrever_audio(audio_data)
+    if audio_bytes:
+        with st.spinner("🎙️"):
+            final_prompt = transcrever_audio(audio_bytes)
     elif prompt_txt:
         final_prompt = prompt_txt
 
     if final_prompt:
         h_key = "messages_geral" if st.session_state.aba_atual == "💬 Chat Científico" else "messages_agente"
-        dados_arquivo = extrair_texto(up_file) if 'up_file' in locals() and up_file else None
+        dados_contexto = extrair_texto(up_file) if 'up_file' in locals() and up_file else None
         persona = "Consultor Sênior Synapse PhD" if st.session_state.aba_atual == "💬 Chat Científico" else esp_nome
 
         st.session_state[h_key].append({"role": "user", "content": final_prompt})
         with st.spinner(f"Processando via {persona}..."):
-            resposta = responder_ia(final_prompt, st.session_state[h_key], dados_arquivo, persona)
+            resposta = responder_ia(final_prompt, st.session_state[h_key], dados_contexto, persona)
             st.session_state[h_key].append({"role": "assistant", "content": resposta})
         st.rerun()
 
