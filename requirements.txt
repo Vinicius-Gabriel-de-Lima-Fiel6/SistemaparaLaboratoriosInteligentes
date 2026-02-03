@@ -26,3 +26,4 @@ st-gsheets-connection
 postgrest
 pillow
 qrcode
+audio-recorder-streamlit
