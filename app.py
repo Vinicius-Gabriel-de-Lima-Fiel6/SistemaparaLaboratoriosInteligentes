@@ -6,7 +6,7 @@ from supabase import create_client
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-# Configuração da página
+# 1. CONFIGURAÇÃO DA PÁGINA
 st.set_page_config(
     page_title="SynapseLab", 
     page_icon="https://i.ibb.co/6cKPZ5Pr/Gemini-Generated-Image-jes56ljes56ljes5.png", 
@@ -14,7 +14,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- INICIALIZAÇÃO DE ESTADOS (Mover para o topo para garantir prefs) ---
+# 2. INICIALIZAÇÃO DE ESTADOS (Essencial para não dar erro)
 if 'logado' not in st.session_state: st.session_state.logado = False
 if 'user_data' not in st.session_state: st.session_state.user_data = None
 if 'selection' not in st.session_state: st.session_state.selection = "🏠 Dashboard"
@@ -25,19 +25,19 @@ if 'prefs' not in st.session_state:
         "links_externos": []
     }
 
-# Carregamento do CSS Base
+# 3. CARREGAMENTO DO CSS BASE E INJEÇÃO DA PALETA DO USUÁRIO
 with open("style.css", "r", encoding="utf-8") as f:
     st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
-# --- INCLUSÃO: INJEÇÃO DA PALETA SELECIONADA PELO USUÁRIO ---
 cor_user = st.session_state.prefs.get("cor_primaria", "#28a745")
 st.markdown(f"""
     <style>
-    :root {{ --primary-color: {cor_user}; }}
+    :root {{ --primary-color: {cor_user} !important; }}
     .stButton>button {{ border-color: {cor_user} !important; color: {cor_user} !important; }}
     .stButton>button:hover {{ background-color: {cor_user} !important; color: white !important; }}
-    [data-testid="stMetricValue"] {{ color: {cor_user}; }}
-    .stCheckbox [data-testid="stMarkdownContainer"] p {{ color: var(--text-color); }}
+    [data-testid="stMetricValue"] {{ color: {cor_user} !important; }}
+    /* Ajuste para ícones e estados ativos do rádio */
+    div[data-testid="stMarkdownContainer"] > p {{ font-weight: 500; }}
     </style>
 """, unsafe_allow_html=True)
 
@@ -47,22 +47,17 @@ def tela_acesso():
     col1, col2, col3 = st.columns([1, 1.2, 1])
     with col2:
         st.write("")
-        
-        # --- LOGO REDONDA E MENOR ---
         logo_url = "https://i.ibb.co/6cKPZ5Pr/Gemini-Generated-Image-jes56ljes56ljes5.png"
         st.markdown(
             f"""
             <div style="display: flex; justify-content: center;">
                 <img src="{logo_url}" style="
-                    width: 180px; 
-                    height: 180px; 
-                    border-radius: 50%; 
-                    object-fit: cover;
+                    width: 180px; height: 180px; 
+                    border-radius: 50%; object-fit: cover;
                     background-color: transparent;
                 ">
             </div>
-            """, 
-            unsafe_allow_html=True
+            """, unsafe_allow_html=True
         )
         st.subheader("Login Administrativo")
         email_input = st.text_input("E-mail Profissional", key="l_email")
@@ -78,7 +73,6 @@ def tela_acesso():
                 st.error("Dados incorretos.")
         
         st.markdown("---")
-        st.markdown("<p style='text-align: center; color: var(--text-gray);'>Se não tiver uma conta, clique abaixo:</p>", unsafe_allow_html=True)
         st.link_button("Cadastro Empresarial", "https://cadastro-de-empresas-e7bkusdk4tsdchmx89fh8c.streamlit.app/", use_container_width=True)
 
 if not st.session_state.logado:
@@ -92,8 +86,8 @@ else:
         from calculadora import show_calculadora
         from sistematabela import show_tabelas
         from graficos import show_graficos
-        from vidrarias import *
-        from projetos import *
+        from vidrarias import render_vidrarias
+        from projetos import render_projetos
         from config_empresa import show_config_empresa 
         import ia
         from configurações import show_configuracoes
@@ -121,7 +115,6 @@ else:
         """, unsafe_allow_html=True)
 
         with st.popover("⋮ Opções"):
-            st.write("👤 Perfil do Usuário")
             if st.button("⚙️ Configurações Gerais", use_container_width=True):
                 st.session_state.selection = "Configurações"
                 st.rerun()
@@ -132,7 +125,7 @@ else:
 
         st.write("") 
         
-        # --- INCLUSÃO: LÓGICA DE FILTRAGEM DE BOTÕES MOMENTÂNEA ---
+        # Filtro de visibilidade dos botões
         abas_base = ["🏠 Dashboard", "🤖 IA & Visão", "💼 Laboratório", "⚛️ Tabelas Químicas", "🧮 Calculadora Química", "📊 Gráficos"]
         modulos_ocultos = st.session_state.prefs.get("modulos_ocultos", [])
         abas = [a for a in abas_base if a not in modulos_ocultos]
@@ -140,91 +133,71 @@ else:
         if role == "ADM":
             abas.extend(["👥 Gestão de Equipe", "📄 Relatórios"])
 
-        # Garantir que o index não quebre se a aba sumir
-        if st.session_state.selection not in abas and st.session_state.selection != "Configurações":
-            st.session_state.selection = "🏠 Dashboard"
+        # Lógica para manter o rádio sincronizado
+        if st.session_state.selection == "Configurações":
+            selection = st.radio("NAVEGAÇÃO", abas, index=0) # Index neutro enquanto está em Config
+        else:
+            idx = abas.index(st.session_state.selection) if st.session_state.selection in abas else 0
+            selection = st.radio("NAVEGAÇÃO", abas, index=idx)
+            st.session_state.selection = selection
 
-        selection = st.radio("NAVEGAÇÃO", abas, index=abas.index(st.session_state.selection) if st.session_state.selection in abas else 0)
-        st.session_state.selection = selection
-
-    clean_selection = selection.split(" ", 1)[-1] if "Configurações" not in selection else "Configurações"
-    
-    # Substituição manual caso o botão de configurações tenha sido clicado
+    # --- RENDERIZAÇÃO DE TELAS ---
+    # Prioridade 1: Se o estado for "Configurações", abre a aba independente do rádio
     if st.session_state.selection == "Configurações":
-        clean_selection = "Configurações"
-
-    if clean_selection == "Dashboard":
-        st.title(f"🚀 Painel de Controle - {org_atual}")
-        
-        try:
-            res_sub = supabase.table("substancias").select("quantidade").eq("org_name", org_atual).execute()
-            total_itens = sum([i['quantidade'] for i in res_sub.data]) if res_sub.data else 0
-            res_eq = supabase.table("equipamentos").select("id", count="exact").eq("org_name", org_atual).execute()
-            total_equip = res_eq.count if res_eq.count else 0
-            total_analises = len(res_sub.data)
-        except:
-            total_itens, total_equip, total_analises = 0, 0, 0
-
-        m1, m2, m3, m4 = st.columns(4)
-        m1.metric("Itens no Estoque", f"{total_itens:,}".replace(",", "."), delta="Operacional")
-        m2.metric("Equipamentos", total_equip, "Ativos")
-        m3.metric("Registros", total_analises, "Total")
-        m4.metric("Usuário", user['username'], f"Nível {role}")
-
-        st.markdown("---")
-        st.subheader("Atalhos e Guias Rápidos")
-        
-        c1, c2, c3 = st.columns(3)
-        with c1:
-            if st.button("🤖 Central de IA", use_container_width=True):
-                st.session_state.selection = "🤖 IA & Visão"; st.rerun()
-        with c2:
-            if st.button("⚛️ Tabelas e Reagentes", use_container_width=True):
-                st.session_state.selection = "⚛️ Tabelas Químicas"; st.rerun()
-        with c3:
-            if st.button("🧮 Calculadora de Soluções", use_container_width=True):
-                st.session_state.selection = "🧮 Calculadora Química"; st.rerun()
-
-        st.write("")
-        ca, cb, cc = st.columns(3)
-        with ca:
-            if st.button("📊 Analisar Gráficos", use_container_width=True):
-                st.session_state.selection = "📊 Gráficos"; st.rerun()
-        
-        if role in ["Tecnico", "ADM"]:
-            with cb:
-                if st.button("📦 Abrir Estoque", use_container_width=True):
-                    st.session_state.selection = "💼 Laboratório"; st.rerun()
-            with cc:
-                if st.button("⚗️ Novo Cadastro", use_container_width=True):
-                    st.session_state.selection = "💼 Laboratório"; st.rerun()
-        else:
-            with cb:
-                st.button("🔒 Estoque (Restrito)", disabled=True, use_container_width=True)
-
-    elif clean_selection == "Laboratório":
-        st.title("💼 Central do Laboratório")
-        if role in ["Tecnico", "ADM"]:
-            sub_tabs = st.tabs(["📦 Estoque Atual", "⚗️ Cadastro de Substâncias", "🛠️ Equipamentos","🧪 Vidrarias","📋 Projetos"])
-            with sub_tabs[0]: show_estoque()
-            with sub_tabs[1]: show_substances()
-            with sub_tabs[2]: show_equipamentos()
-            with sub_tabs[3]: render_vidrarias()
-            with sub_tabs[4]: render_projetos()
-            
-        else:
-            st.info("Você tem permissão apenas para visualização do estoque.")
-            show_estoque()
-
-    elif clean_selection == "IA & Visão": ia.show_chatbot()
-    elif clean_selection == "Tabelas Químicas": show_tabelas()
-    elif clean_selection == "Calculadora Química": show_calculadora()
-    elif clean_selection == "Gráficos": show_graficos()
-    elif clean_selection == "Gestão de Equipe": show_config_empresa()
-    elif clean_selection == "Relatórios": relatorios.show_reports(supabase)
-    elif clean_selection == "Configurações": 
-        # --- AJUSTE: CHAMADA COM PARÂMETROS ---
         show_configuracoes(supabase, user)
+    
+    # Prioridade 2: Renderização normal das abas
+    else:
+        clean_selection = st.session_state.selection.split(" ", 1)[-1]
+
+        if clean_selection == "Dashboard":
+            st.title(f"🚀 Painel de Controle - {org_atual}")
+            try:
+                res_sub = supabase.table("substancias").select("quantidade").eq("org_name", org_atual).execute()
+                total_itens = sum([i['quantidade'] for i in res_sub.data]) if res_sub.data else 0
+                res_eq = supabase.table("equipamentos").select("id", count="exact").eq("org_name", org_atual).execute()
+                total_equip = res_eq.count if res_eq.count else 0
+                total_analises = len(res_sub.data)
+            except:
+                total_itens, total_equip, total_analises = 0, 0, 0
+
+            m1, m2, m3, m4 = st.columns(4)
+            m1.metric("Itens no Estoque", f"{total_itens:,}".replace(",", "."), delta="Operacional")
+            m2.metric("Equipamentos", total_equip, "Ativos")
+            m3.metric("Registros", total_analises, "Total")
+            m4.metric("Usuário", user['username'], f"Nível {role}")
+
+            st.markdown("---")
+            st.subheader("Atalhos e Guias Rápidos")
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                if st.button("🤖 Central de IA", key="dash_ia", use_container_width=True):
+                    st.session_state.selection = "🤖 IA & Visão"; st.rerun()
+            with c2:
+                if st.button("⚛️ Tabelas e Reagentes", key="dash_tab", use_container_width=True):
+                    st.session_state.selection = "⚛️ Tabelas Químicas"; st.rerun()
+            with c3:
+                if st.button("🧮 Calculadora de Soluções", key="dash_calc", use_container_width=True):
+                    st.session_state.selection = "🧮 Calculadora Química"; st.rerun()
+
+        elif clean_selection == "Laboratório":
+            st.title("💼 Central do Laboratório")
+            if role in ["Tecnico", "ADM"]:
+                sub_tabs = st.tabs(["📦 Estoque Atual", "⚗️ Cadastro de Substâncias", "🛠️ Equipamentos","🧪 Vidrarias","📋 Projetos"])
+                with sub_tabs[0]: show_estoque()
+                with sub_tabs[1]: show_substances()
+                with sub_tabs[2]: show_equipamentos()
+                with sub_tabs[3]: render_vidrarias()
+                with sub_tabs[4]: render_projetos()
+            else:
+                show_estoque()
+
+        elif clean_selection == "IA & Visão": ia.show_chatbot()
+        elif clean_selection == "Tabelas Químicas": show_tabelas()
+        elif clean_selection == "Calculadora Química": show_calculadora()
+        elif clean_selection == "Gráficos": show_graficos()
+        elif clean_selection == "Gestão de Equipe": show_config_empresa()
+        elif clean_selection == "Relatórios": relatorios.show_reports(supabase)
 
     st.sidebar.markdown("---")
-    st.sidebar.caption(f"SynapseLab V.Beta | Paleta: {st.session_state.prefs.get('cor_primaria')}")
+    st.sidebar.caption("SynapseLab V.Beta")
