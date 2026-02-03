@@ -14,8 +14,32 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# --- INICIALIZAÇÃO DE ESTADOS (Mover para o topo para garantir prefs) ---
+if 'logado' not in st.session_state: st.session_state.logado = False
+if 'user_data' not in st.session_state: st.session_state.user_data = None
+if 'selection' not in st.session_state: st.session_state.selection = "🏠 Dashboard"
+if 'prefs' not in st.session_state:
+    st.session_state.prefs = {
+        "cor_primaria": "#28a745",
+        "modulos_ocultos": [],
+        "links_externos": []
+    }
+
+# Carregamento do CSS Base
 with open("style.css", "r", encoding="utf-8") as f:
     st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+
+# --- INCLUSÃO: INJEÇÃO DA PALETA SELECIONADA PELO USUÁRIO ---
+cor_user = st.session_state.prefs.get("cor_primaria", "#28a745")
+st.markdown(f"""
+    <style>
+    :root {{ --primary-color: {cor_user}; }}
+    .stButton>button {{ border-color: {cor_user} !important; color: {cor_user} !important; }}
+    .stButton>button:hover {{ background-color: {cor_user} !important; color: white !important; }}
+    [data-testid="stMetricValue"] {{ color: {cor_user}; }}
+    .stCheckbox [data-testid="stMarkdownContainer"] p {{ color: var(--text-color); }}
+    </style>
+""", unsafe_allow_html=True)
 
 supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 
@@ -25,7 +49,6 @@ def tela_acesso():
         st.write("")
         
         # --- LOGO REDONDA E MENOR ---
-        # Definimos o tamanho (200px) e o border-radius (50%) via HTML/CSS
         logo_url = "https://i.ibb.co/6cKPZ5Pr/Gemini-Generated-Image-jes56ljes56ljes5.png"
         st.markdown(
             f"""
@@ -58,11 +81,6 @@ def tela_acesso():
         st.markdown("<p style='text-align: center; color: var(--text-gray);'>Se não tiver uma conta, clique abaixo:</p>", unsafe_allow_html=True)
         st.link_button("Cadastro Empresarial", "https://cadastro-de-empresas-e7bkusdk4tsdchmx89fh8c.streamlit.app/", use_container_width=True)
 
-# --- INICIALIZAÇÃO DE ESTADOS ---
-if 'logado' not in st.session_state: st.session_state.logado = False
-if 'user_data' not in st.session_state: st.session_state.user_data = None
-if 'selection' not in st.session_state: st.session_state.selection = "🏠 Dashboard"
-
 if not st.session_state.logado:
     tela_acesso()
 else:
@@ -91,13 +109,13 @@ else:
     with st.sidebar:
         st.markdown(f"""
             <div class="user-card">
-                <small style="font-weight: 800; font-size: 0.7rem; color: #28a745;">ORGANIZAÇÃO</small><br>
+                <small style="font-weight: 800; font-size: 0.7rem; color: {cor_user};">ORGANIZAÇÃO</small><br>
                 <span style="font-size: 1rem; font-weight: 700;">{org_atual}</span><br>
                 <hr>
                 <img src="https://api.dicebear.com/7.x/avataaars/svg?seed={user['username']}" class="profile-img">
                 <div style="margin-top: 5px;">
                     <span style="font-size: 0.9rem;">{user['username']}</span><br>
-                    <span style="background: #28a745; color: white; font-size: 0.7rem; padding: 2px 8px; border-radius: 10px;">{role}</span>
+                    <span style="background: {cor_user}; color: white; font-size: 0.7rem; padding: 2px 8px; border-radius: 10px;">{role}</span>
                 </div>
             </div>
         """, unsafe_allow_html=True)
@@ -114,15 +132,26 @@ else:
 
         st.write("") 
         
-        abas = ["🏠 Dashboard", "🤖 IA & Visão", "💼 Laboratório", "⚛️ Tabelas Químicas", "🧮 Calculadora Química", "📊 Gráficos"]
+        # --- INCLUSÃO: LÓGICA DE FILTRAGEM DE BOTÕES MOMENTÂNEA ---
+        abas_base = ["🏠 Dashboard", "🤖 IA & Visão", "💼 Laboratório", "⚛️ Tabelas Químicas", "🧮 Calculadora Química", "📊 Gráficos"]
+        modulos_ocultos = st.session_state.prefs.get("modulos_ocultos", [])
+        abas = [a for a in abas_base if a not in modulos_ocultos]
         
         if role == "ADM":
             abas.extend(["👥 Gestão de Equipe", "📄 Relatórios"])
 
+        # Garantir que o index não quebre se a aba sumir
+        if st.session_state.selection not in abas and st.session_state.selection != "Configurações":
+            st.session_state.selection = "🏠 Dashboard"
+
         selection = st.radio("NAVEGAÇÃO", abas, index=abas.index(st.session_state.selection) if st.session_state.selection in abas else 0)
         st.session_state.selection = selection
 
-    clean_selection = selection.split(" ", 1)[-1]
+    clean_selection = selection.split(" ", 1)[-1] if "Configurações" not in selection else "Configurações"
+    
+    # Substituição manual caso o botão de configurações tenha sido clicado
+    if st.session_state.selection == "Configurações":
+        clean_selection = "Configurações"
 
     if clean_selection == "Dashboard":
         st.title(f"🚀 Painel de Controle - {org_atual}")
@@ -193,12 +222,9 @@ else:
     elif clean_selection == "Gráficos": show_graficos()
     elif clean_selection == "Gestão de Equipe": show_config_empresa()
     elif clean_selection == "Relatórios": relatorios.show_reports(supabase)
-    elif clean_selection == "Configurações": show_configuracoes()
+    elif clean_selection == "Configurações": 
+        # --- AJUSTE: CHAMADA COM PARÂMETROS ---
+        show_configuracoes(supabase, user)
 
     st.sidebar.markdown("---")
-    st.sidebar.caption("SynapseLab V.Beta")
-
-
-
-
-
+    st.sidebar.caption(f"SynapseLab V.Beta | Paleta: {st.session_state.prefs.get('cor_primaria')}")
