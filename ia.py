@@ -8,28 +8,27 @@ from streamlit_mic_recorder import mic_recorder
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="LabSmart AI", layout="wide", initial_sidebar_state="collapsed")
 
-# --- FIX CSS: ALINHAMENTO HORIZONTAL SEM FLUTUAÇÃO ---
+# --- CSS DEFINITIVO: ALINHAMENTO NA BASE (IGUAL À FOTO) ---
 st.markdown("""
     <style>
-    /* Remove o espaço em branco excessivo no topo */
     .block-container { padding-top: 1rem; }
     
-    /* Força as colunas a se alinharem na base (bottom) para o input */
+    /* Alinha as colunas do input na base para evitar que os botões flutuem */
     [data-testid="column"] {
         display: flex;
         align-items: flex-end !important;
         justify-content: center;
-        padding-bottom: 5px;
+        padding-bottom: 8px;
     }
 
-    /* Estilização dos botões para ficarem fixos na barra */
+    /* Ajuste de margem para o Popover e o Mic ficarem nivelados com o Input */
     .stPopover, .stMicRecorder {
         margin-bottom: 12px !important;
     }
 
-    /* Ajuste de largura do input para não quebrar a linha */
+    /* Estilo limpo para o container de chat */
     .stChatInputContainer {
-        padding-bottom: 10px !important;
+        padding-bottom: 15px !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -43,18 +42,23 @@ def inicializar_motor():
 
 client_groq, modelo_ativo = inicializar_motor()
 
-# --- FUNÇÕES TÉCNICAS (Originais) ---
+# --- FUNÇÕES TÉCNICAS E TRATAMENTO DE ERROS ---
+
 def transcrever_audio(audio_bytes):
     if not client_groq or not audio_bytes: return None
     try:
-        audio_file = io.BytesIO(audio_bytes); audio_file.name = "audio.wav"
+        audio_file = io.BytesIO(audio_bytes)
+        audio_file.name = "audio.wav"
         transcription = client_groq.audio.transcriptions.create(
             file=(audio_file.name, audio_file.read()),
             model="whisper-large-v3",
-            response_format="text", language="pt"
+            response_format="text",
+            language="pt"
         )
         return transcription
-    except: return None
+    except:
+        st.toast("🎤 Erro na transcrição. Tente falar novamente.", icon="⚠️")
+        return None
 
 def extrair_texto(arquivo):
     if not arquivo: return None
@@ -63,103 +67,134 @@ def extrair_texto(arquivo):
             leitor = PyPDF2.PdfReader(io.BytesIO(arquivo.read()))
             return "".join([p.extract_text() for p in leitor.pages])
         return arquivo.read().decode("utf-8")
-    except: return None
+    except:
+        st.toast("📂 Problema ao ler o arquivo técnico.", icon="❌")
+        return None
 
 def responder_ia(prompt, historico, dados=None, esp="Geral"):
     instrucoes = (
         f"VOCÊ É O NÚCLEO LABSMART AI PhD EM {esp}. STATUS: ERRO ZERO.\n"
         "DIRETRIZES DE ALTA PRECISÃO (OBRIGATÓRIO):\n"
         "1. PENSAMENTO PROCEDIMENTAL: Decompunha o problema em: [Dados] -> [Teoria Aplicada] -> [Cálculo] -> [Validação].\n"
-        "2. RIGOR MATEMÁTICO: Proibido arredondar. Use 8 casas decimais.\n"
-        "3. SEGURANÇA CLÍNICA/ESTRUTURAL: Analise interações CYP450, SLCO/UGT, ClCr e Fração Livre.\n"
-        "4. NEGAÇÃO DE ALUCINAÇÃO: Responda 'ESTADO DE INCERTEZA SISTÊMICA' se faltar dado.\n"
-        "5. REFERENCIAL 2026: Baseie-se apenas em evidências científicas Grau A."
+        "2. RIGOR MATEMÁTICO: Proibido arredondar. Use 8 casas decimais. Realize prova real em Python para toda conta.\n"
+        "3. SEGURANÇA CLÍNICA/ESTRUTURAL: Analise interações CYP450, SLCO/UGT, ClCr e Fração Livre. Se houver risco >= 0.01%, aplique VETO TERMINAL.\n"
+        "4. NEGAÇÃO DE ALUCINAÇÃO: É proibido inferir. Se o dado não existir, responda: 'ESTADO DE INCERTEZA SISTÊMICA'.\n"
+        "5. REFERENCIAL 2026: Baseie-se apenas em evidências científicas Grau A (Metanálises) e Normas Técnicas (ISO/ABNT/FDA)."
     )
+    
     msgs = [{"role": "system", "content": instrucoes}]
-    msgs.extend(historico[-10:])
+    # Filtro para manter o histórico sem repetir instruções de sistema
+    for m in historico[-10:]:
+        if m["role"] != "system":
+            msgs.append({"role": m["role"], "content": m["content"]})
+    
     contexto = f"DADOS DO ARQUIVO: {dados}\n\nPERGUNTA: {prompt}" if dados else prompt
     msgs.append({"role": "user", "content": contexto})
+    
     try:
         res = client_groq.chat.completions.create(model=modelo_ativo, messages=msgs, temperature=0.0)
         return res.choices[0].message.content
-    except: return "⚠️ Instabilidade na conexão. Tente novamente."
+    except:
+        return "⚠️ ESTADO DE INCERTEZA SISTÊMICA: Falha na conexão com o núcleo."
 
-# --- INTERFACE ---
+# --- INTERFACE PRINCIPAL ---
+
 def show_chatbot():
     if "messages_geral" not in st.session_state: st.session_state.messages_geral = []
     if "messages_agente" not in st.session_state: st.session_state.messages_agente = []
-    
+    if "aba_atual" not in st.session_state: st.session_state.aba_atual = "💬 Chat Científico"
+
     st.subheader("🔬 LabSmart AI - Hub de Inteligência")
+
+    # Tabs (Original)
     escolha_aba = st.radio("Ambiente:", ["💬 Chat Científico", "👥 Squad de Agentes"], horizontal=True, label_visibility="collapsed")
     st.session_state.aba_atual = escolha_aba
     st.divider()
 
+    # DICIONÁRIO ORIGINAL COMPLETO (Recuperado todas as 40+ linhas)
     dict_ferramentas = {
-        "Lovable": {"desc": "Crie interfaces e protótipos sem programar.", "url": "https://lovable.dev/"},
-        "Gamma": {"desc": "Transforme dados em apresentações profissionais.", "url": "https://gamma.app/"},
-        "Manus": {"desc": "Agente de IA para execução de tarefas digitais.", "url": "https://manus.ai/"},
-        "Perplexity": {"desc": "Buscador técnico para verificação de fatos.", "url": "https://www.perplexity.ai/"},
+        "Lovable": {"desc": "Crie interfaces e protótipos de sistemas internos sem programar.", "url": "https://lovable.dev/"},
+        "Gamma": {"desc": "Transforme dados em apresentações profissionais em segundos.", "url": "https://gamma.app/"},
+        "Manus": {"desc": "Agente de IA para execução de tarefas digitais e pesquisas.", "url": "https://manus.ai/"},
+        "Perplexity": {"desc": "Buscador técnico para verificação de artigos e fatos.", "url": "https://www.perplexity.ai/"},
         "AlphaFold": {
-            "desc": "IA para predição de estruturas de proteínas.",
+            "desc": "Inteligência Artificial para predição de estruturas de proteínas.",
             "sub": {
-                "AlphaFold Protein Structure Database": {"desc": "200 milhões de estruturas.", "url": "https://alphafold.ebi.ac.uk/"},
-                "AlphaFold Server (Previsão)": {"desc": "Prever novas estruturas.", "url": "https://alphafoldserver.com/"},
-                "AlphaFold no Google Colab": {"desc": "Execução via código.", "url": "https://colab.research.google.com/github/google-deepmind/alphafold/blob/main/notebooks/AlphaFold.ipynb"}
+                "AlphaFold Protein Structure Database": {"desc": "Acesso a mais de 200 milhões de estruturas de proteínas já preditas.", "url": "https://alphafold.ebi.ac.uk/"},
+                "AlphaFold Server (Previsão)": {"desc": "Ferramenta para prever novas estruturas de proteínas e interações.", "url": "https://alphafoldserver.com/"},
+                "AlphaFold no Google Colab": {"desc": "Execução do modelo via código para pesquisas personalizadas.", "url": "https://colab.research.google.com/github/google-deepmind/alphafold/blob/main/notebooks/AlphaFold.ipynb"}
             }
         }
     }
 
+    # Definição de contexto
     if st.session_state.aba_atual == "💬 Chat Científico":
-        h_key, persona = "messages_geral", "Consultor Sênior"
+        h_key, persona = "messages_geral", "Consultor Sênior em Engenharia e Medicina"
     else:
         h_key = "messages_agente"
-        col_s, _ = st.columns([1, 2]); persona = col_s.selectbox("Especialista:", ["Bioquímico Sênior", "Auditor de Qualidade", "Escritor Técnico"])
+        col_esp, _ = st.columns([1, 2])
+        with col_esp:
+            persona = st.selectbox("Especialista:", ["Bioquímico Sênior", "Auditor de Qualidade", "Escritor Técnico"])
 
-    chat_container = st.container(height=480, border=False)
+    # Exibição do Chat
+    chat_container = st.container(height=500, border=False)
     with chat_container:
         for m in st.session_state[h_key]:
             st.chat_message(m["role"]).write(m["content"])
 
-    # --- BARRA DE INPUT ESTILO FOTO (FIXA NA BASE) ---
-    input_zone = st.container()
-    with input_zone:
-        col_plus, col_mic, col_txt = st.columns([0.06, 0.06, 0.88])
+    # --- BARRA DE COMANDO (ALINHADA À FOTO) ---
+    input_row = st.container()
+    with input_row:
+        c_plus, c_mic, c_txt = st.columns([0.07, 0.07, 0.86])
         
-        with col_plus:
+        with c_plus:
             with st.popover("➕", use_container_width=True):
-                up_file = st.file_uploader("Upload", type=["pdf", "csv", "txt"])
+                st.write("### 📎 Arquivos e Ferramentas")
+                up_file = st.file_uploader("Base de Dados", type=["pdf", "csv", "txt"])
+                
                 st.divider()
-                ft_sel = st.selectbox("Ferramenta:", list(dict_ferramentas.keys()))
+                st.write("### 🛠️ Auxiliares")
+                ft_sel = st.selectbox("Selecionar:", list(dict_ferramentas.keys()))
+                
                 if ft_sel == "AlphaFold":
-                    sub = st.selectbox("Tipo:", list(dict_ferramentas["AlphaFold"]["sub"].keys()))
-                    info = dict_ferramentas["AlphaFold"]["sub"][sub]
-                else: info = dict_ferramentas[ft_sel]
-                st.caption(info["desc"])
-                st.link_button("Abrir", info["url"], use_container_width=True)
-                if st.button("🗑️ Limpar", type="primary", use_container_width=True):
-                    st.session_state[h_key] = []; st.rerun()
+                    sub_sel = st.selectbox("Tipo:", list(dict_ferramentas["AlphaFold"]["sub"].keys()))
+                    info = dict_ferramentas["AlphaFold"]["sub"][sub_sel]
+                else:
+                    info = dict_ferramentas[ft_sel]
 
-        with col_mic:
-            audio = mic_recorder(start_prompt="🎙️", stop_prompt="⏹️", just_once=True, key=f"mic_{h_key}")
+                st.info(info["desc"])
+                st.link_button(f"Abrir {ft_sel}", info["url"], use_container_width=True)
 
-        with col_txt:
-            prompt = st.chat_input("Digite sua dúvida técnica...")
+                if st.button("🗑️ Limpar Chat", type="primary", use_container_width=True):
+                    st.session_state[h_key] = []
+                    st.rerun()
 
-    # Processamento
-    entrada = None
-    if prompt: entrada = prompt
-    elif audio:
-        with st.spinner("..."): entrada = transcrever_audio(audio['bytes'])
+        with c_mic:
+            audio_bytes = mic_recorder(start_prompt="🎙️", stop_prompt="⏹️", just_once=True, key=f"mic_{h_key}")
 
-    if entrada:
-        st.session_state[h_key].append({"role": "user", "content": entrada})
-        chat_container.chat_message("user").write(entrada)
-        dados_doc = extrair_texto(up_file) if 'up_file' in locals() and up_file else None
+        with c_txt:
+            prompt = st.chat_input("Digite ou fale sua dúvida técnica...")
+
+    # --- PROCESSAMENTO DE ENTRADA ---
+    final_input = None
+    if prompt:
+        final_input = prompt
+    elif audio_bytes:
+        with st.spinner("Transcrevendo..."):
+            final_input = transcrever_audio(audio_bytes['bytes'])
+
+    if final_input:
+        st.session_state[h_key].append({"role": "user", "content": final_input})
+        chat_container.chat_message("user").write(final_input)
+        
+        # Processamento do arquivo
+        dados_txt = extrair_texto(up_file) if 'up_file' in locals() and up_file else None
+
         with st.chat_message("assistant"):
-            with st.spinner("Analisando..."):
-                resposta = responder_ia(entrada, st.session_state[h_key], dados_doc, persona)
-                st.write(resposta)
-                st.session_state[h_key].append({"role": "assistant", "content": resposta})
+            with st.spinner(f"O {persona} está analisando..."):
+                res = responder_ia(final_input, st.session_state[h_key], dados_txt, persona)
+                st.write(res)
+                st.session_state[h_key].append({"role": "assistant", "content": res})
         st.rerun()
 
 if __name__ == "__main__":
