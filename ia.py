@@ -1,30 +1,12 @@
 import streamlit as st
 import pandas as pd
 from groq import Groq
+from ultralytics import YOLO
+from streamlit_webrtc import webrtc_streamer, VideoTransformerBase
 import PyPDF2
 import io
-from audio_recorder_streamlit import audio_recorder
 
-# --- CONFIGURAÇÃO DA PÁGINA ---
-st.set_page_config(page_title="Synapse AI", page_icon="🔬", layout="wide")
 
-# --- UI/UX: DESIGN DA BARRA SYNAPSE ---
-st.markdown("""
-    <style>
-    .block-container { padding-top: 1.5rem; }
-    .stChatFloatingInputContainer { bottom: 20px; background-color: transparent !important; }
-    div[data-testid="stFileUploader"] label { display: none; }
-    div[data-testid="stPopover"] button {
-        border-radius: 50% !important;
-        width: 45px !important;
-        height: 45px !important;
-        background-color: #f0f2f6 !important;
-        border: 1px solid #ddd !important;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
-# --- MOTORES ---
 def inicializar_motor():
     if "GROQ_API_KEY" not in st.secrets:
         return None, "Erro: Chave API ausente."
@@ -32,6 +14,13 @@ def inicializar_motor():
     return client, "llama-3.3-70b-versatile"
 
 client_groq, modelo_ativo = inicializar_motor()
+
+class VideoProcessor(VideoTransformerBase):
+    def __init__(self, model):
+        self.model = model
+    def transform(self, frame):
+        img = frame.to_ndarray(format="bgr24")
+        return self.model(img)[0].plot()
 
 def extrair_texto(arquivo):
     if not arquivo: return None
@@ -42,25 +31,16 @@ def extrair_texto(arquivo):
         return arquivo.read().decode("utf-8")
     except: return None
 
-def transcrever_audio(audio_bytes):
-    if not audio_bytes: return None
-    try:
-        arquivo_audio = ("audio.wav", audio_bytes, "audio/wav")
-        return client_groq.audio.transcriptions.create(
-            file=arquivo_audio, model="whisper-large-v3", response_format="text"
-        )
-    except: return None
-
 def responder_ia(prompt, historico, dados=None, esp="Geral"):
     instrucoes = (
-        f"VOCÊ É O NÚCLEO SYNAPSE AI PhD EM {esp}. STATUS: ERRO ZERO.\n"
+        f"VOCÊ É O NÚCLEO LABSMART AI PhD EM {esp}. STATUS: ERRO ZERO.\n"
         "DIRETRIZES DE ALTA PRECISÃO (OBRIGATÓRIO):\n"
         "1. PENSAMENTO PROCEDIMENTAL: Decompunha o problema em: [Dados] -> [Teoria Aplicada] -> [Cálculo] -> [Validação].\n"
         "2. RIGOR MATEMÁTICO: Proibido arredondar. Use 8 casas decimais. Realize prova real em Python para toda conta.\n"
         "3. SEGURANÇA CLÍNICA/ESTRUTURAL: Analise interações CYP450, SLCO/UGT, ClCr e Fração Livre. Se houver risco >= 0.01%, aplique VETO TERMINAL.\n"
         "4. NEGAÇÃO DE ALUCINAÇÃO: É proibido inferir. Se o dado não existir, responda: 'ESTADO DE INCERTEZA SISTÊMICA'.\n"
-        "5. REFERENCIAL 2026: Baseie-se apenas em evidências científicas Grau A (Metanálises) e Normas Técnicas (ISO/ABNT/FDA)."
-    )
+        "   5. REFERENCIAL 2026: Baseie-se apenas em evidências científicas Grau A (Metanálises) e Normas Técnicas (ISO/ABNT/FDA)."
+                )
     msgs = [{"role": "system", "content": instrucoes}]
     msgs.extend(historico[-10:]) 
     contexto = f"DADOS DO ARQUIVO: {dados}\n\nPERGUNTA: {prompt}" if dados else prompt
@@ -69,19 +49,20 @@ def responder_ia(prompt, historico, dados=None, esp="Geral"):
     res = client_groq.chat.completions.create(model=modelo_ativo, messages=msgs, temperature=0.0)
     return res.choices[0].message.content
 
-# --- INTERFACE ---
 def show_chatbot():
-    # Inicialização Robusta de Histórico
+
     if "messages_geral" not in st.session_state: st.session_state.messages_geral = []
     if "messages_agente" not in st.session_state: st.session_state.messages_agente = []
     if "aba_atual" not in st.session_state: st.session_state.aba_atual = "Chat Científico"
+    if "yolo_model" not in st.session_state: st.session_state.yolo_model = YOLO("yolov8n.pt")
 
-    st.subheader("🔬 Synapse AI - Hub de Inteligência")
+    st.subheader("🔬 LabSmart AI - Hub de Inteligência")
+
     escolha_aba = st.radio("Selecione o ambiente de trabalho:", ["💬 Chat Científico", "👥 Squad de Agentes"], horizontal=True)
     st.session_state.aba_atual = escolha_aba
+
     st.divider()
 
-    # DICIONÁRIO COMPLETO RECUPERADO
     dict_ferramentas = {
         "Lovable": {"desc": "Crie interfaces e protótipos de sistemas internos sem programar.", "url": "https://lovable.dev/"},
         "Gamma": {"desc": "Transforme dados em apresentações profissionais em segundos.", "url": "https://gamma.app/"},
@@ -97,72 +78,79 @@ def show_chatbot():
         }
     }
 
-    # Definição de Contexto por Aba
     if st.session_state.aba_atual == "💬 Chat Científico":
-        h_key = "messages_geral"
-        persona = "Consultor Sênior em Engenharia, Medicina de Precisão e Auditoria Científica"
-        col_c, col_t = st.columns([3, 1])
-    else:
-        h_key = "messages_agente"
-        col_c, col_t = st.columns([3, 1])
-        with col_t:
-            st.write("### 👥 Squad")
-            esp_nome = st.selectbox("Especialista:", ["Bioquímico Sênior", "Auditor de Qualidade", "Escritor Técnico"], key="sel_v2")
-            persona = esp_nome
-
-    # RENDERIZAÇÃO DAS MENSAGENS (Onde a mágica acontece)
-    with col_c:
-        chat_placeholder = st.container(height=500, border=False)
-        for m in st.session_state[h_key]:
-            chat_placeholder.chat_message(m["role"]).write(m["content"])
-
-    # BARRA LATERAL DE GESTÃO (SUA LÓGICA 3:1)
-    with col_t:
-        st.write("### ⚙️ Ferramentas")
-        if st.button("🗑️ Limpar Histórico", use_container_width=True):
-            st.session_state[h_key] = []
-            st.rerun()
-
-    # BARRA DE COMANDO SYNAPSE (O + SUSPENSO)
-    st.divider()
-    c_menu, c_input, c_audio = st.columns([0.4, 3, 0.4])
-
-    with c_menu:
-        with st.popover("➕", use_container_width=True):
-            st.markdown("### 📎 Arquivos")
-            up_file = st.file_uploader("Importar Dados", type=["pdf", "csv", "txt"], key="up_syn")
-            st.divider()
-            st.markdown("### 🛠️ Auxiliares")
-            ft_sel = st.selectbox("Ferramenta:", list(dict_ferramentas.keys()), key="ft_syn")
+        col_c1, col_t1 = st.columns([3, 1])
+        with col_t1:
+            st.write("### ⚙️ Ferramentas")
+            if st.toggle("🎥 Visão YOLO", key="tgl_v1"):
+                webrtc_streamer(key="stream_v1", video_processor_factory=lambda: VideoProcessor(st.session_state.yolo_model))
+            up_geral = st.file_uploader("📎 Base de Dados", type=["pdf", "csv", "txt"], key="up_v1")
+            if st.button("🗑️ Limpar Chat"):
+                st.session_state.messages_geral = []
+                st.rerun()
+            
+            st.write("---")
+            st.write("🛠️ **Auxiliares**")
+            ft_sel = st.selectbox("Selecionar:", list(dict_ferramentas.keys()), key="ft_geral")
+            
             if ft_sel == "AlphaFold":
-                sub = st.selectbox("Tipo:", list(dict_ferramentas["AlphaFold"]["sub"].keys()))
-                info = dict_ferramentas["AlphaFold"]["sub"][sub]
+                sub_sel = st.selectbox("Tipo de AlphaFold:", list(dict_ferramentas["AlphaFold"]["sub"].keys()), key="sub_geral")
+                info = dict_ferramentas["AlphaFold"]["sub"][sub_sel]
             else:
                 info = dict_ferramentas[ft_sel]
-            st.info(info["desc"])
-            st.link_button("Abrir", info["url"], use_container_width=True)
 
-    with c_input:
-        prompt_txt = st.chat_input("Digite sua consulta técnica...")
+            with st.popover("Ver Detalhes", use_container_width=True):
+                st.write(info["desc"])
+                st.link_button(f"Abrir {sub_sel if ft_sel == 'AlphaFold' else ft_sel}", info["url"], use_container_width=True)
 
-    with c_audio:
-        audio_data = audio_recorder(text="", recording_color="#e74c3c", neutral_color="#4f4f4f", icon_size="2x")
+        with col_c1:
+            chat_container = st.container(height=500, border=False)
+            for m in st.session_state.messages_geral:
+                chat_container.chat_message(m["role"]).write(m["content"])
+            
+    else:
+        col_c2, col_t2 = st.columns([3, 1])
+        with col_t2:
+            st.write("### 👥 Squad")
+            esp_nome = st.selectbox("Especialista:", ["Bioquímico Sênior", "Auditor de Qualidade", "Escritor Técnico"], key="sel_v2")
+            up_agente = st.file_uploader("📎 Arquivo Técnico", type=["pdf", "csv", "txt"], key="up_v2")
+            if st.button("🗑️ Limpar Squad"):
+                st.session_state.messages_agente = []
+                st.rerun()
 
-    # PROCESSAMENTO FINAL
-    p_final = None
-    if audio_data:
-        p_final = transcrever_audio(audio_data)
-    elif prompt_txt:
-        p_final = prompt_txt
+            st.write("---")
+            st.write("🛠️ **Auxiliares**")
+            ft_sel_ag = st.selectbox("Selecionar:", list(dict_ferramentas.keys()), key="ft_agente")
+            
+            if ft_sel_ag == "AlphaFold":
+                sub_sel_ag = st.selectbox("Tipo de AlphaFold:", list(dict_ferramentas["AlphaFold"]["sub"].keys()), key="sub_agente")
+                info_ag = dict_ferramentas["AlphaFold"]["sub"][sub_sel_ag]
+            else:
+                info_ag = dict_ferramentas[ft_sel_ag]
 
-    if p_final:
-        st.session_state[h_key].append({"role": "user", "content": p_final})
-        dados_txt = extrair_texto(up_file) if up_file else None
-        
-        with col_c: # Resposta aparece na coluna do chat
-            with st.spinner("Synapse Analisando..."):
-                res = responder_ia(p_final, st.session_state[h_key], dados_txt, persona)
-                st.session_state[h_key].append({"role": "assistant", "content": res})
+            with st.popover("Ver Detalhes", use_container_width=True):
+                st.write(info_ag["desc"])
+                st.link_button(f"Abrir {sub_sel_ag if ft_sel_ag == 'AlphaFold' else ft_sel_ag}", info_ag["url"], use_container_width=True)
+
+        with col_c2:
+            chat_container = st.container(height=500, border=False)
+            for m in st.session_state.messages_agente:
+                chat_container.chat_message(m["role"]).write(m["content"])
+
+    if prompt := st.chat_input("Digite sua mensagem para o ambiente selecionado..."):
+        if st.session_state.aba_atual == "💬 Chat Científico":
+            h_key = "messages_geral"
+            dados = extrair_texto(up_geral) if 'up_geral' in locals() else None
+            persona = "Consultor Sênior em Engenharia, Medicina de Precisão e Auditoria Científica"
+        else:
+            h_key = "messages_agente"
+            dados = extrair_texto(up_agente) if 'up_agente' in locals() else None
+            persona = esp_nome
+
+        st.session_state[h_key].append({"role": "user", "content": prompt})
+        with st.spinner(f"O {persona} está processando..."):
+            resposta = responder_ia(prompt, st.session_state[h_key], dados, persona)
+            st.session_state[h_key].append({"role": "assistant", "content": resposta})
         st.rerun()
 
 if __name__ == "__main__":
