@@ -80,12 +80,16 @@ else:
         import ia
         from configurações import show_configuracoes
         import relatorios
+        from perfil_usuario import show_perfil # NOVA IMPORTAÇÃO
     except ImportError as e:
         st.error(f"Erro ao carregar módulos: {e}")
 
     user = st.session_state.user_data
     role = user.get('role', 'Visualizador')
     org_atual = user.get('org_name')
+    
+    # Lógica para usar a foto da nova coluna avatar_url
+    foto_sidebar = user.get('avatar_url') if user.get('avatar_url') else f"https://api.dicebear.com/7.x/avataaars/svg?seed={user['username']}"
     
     # --- SIDEBAR DE NAVEGAÇÃO ---
     with st.sidebar:
@@ -94,7 +98,7 @@ else:
                 <small style="font-weight: 800; font-size: 0.7rem; color: #28a745;">ORGANIZAÇÃO</small><br>
                 <span style="font-size: 1rem; font-weight: 700;">{org_atual}</span><br>
                 <hr>
-                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed={user['username']}" class="profile-img">
+                <img src="{foto_sidebar}" class="profile-img">
                 <div style="margin-top: 5px;">
                     <span style="font-size: 0.9rem;">{user['username']}</span><br>
                     <span style="background: #28a745; color: white; font-size: 0.7rem; padding: 2px 8px; border-radius: 10px;">{role}</span>
@@ -103,7 +107,10 @@ else:
         """, unsafe_allow_html=True)
 
         with st.popover("⋮ Opções"):
-            st.write("👤 Perfil do Usuário")
+            # NOVO BOTÃO DE PERFIL
+            if st.button("👤 Perfil do Usuário", use_container_width=True):
+                st.session_state.selection = "Perfil"
+                st.rerun()
             if st.button("⚙️ Configurações Gerais", use_container_width=True):
                 st.session_state.selection = "Configurações"
                 st.rerun()
@@ -124,7 +131,11 @@ else:
 
     clean_selection = selection.split(" ", 1)[-1]
 
-    if clean_selection == "Dashboard":
+    # --- ROTEAMENTO ---
+    if st.session_state.selection == "Perfil":
+        show_perfil()
+
+    elif clean_selection == "Dashboard":
         st.title(f"🚀 Painel de Controle - {org_atual}")
         
         try:
