@@ -8,30 +8,32 @@ from audio_recorder_streamlit import audio_recorder
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Synapse AI", page_icon="🔬", layout="wide")
 
-# --- UI/UX CUSTOMIZADA (CSS PARA O DESIGN DA BARRA) ---
+# --- UI/UX: ESTILIZAÇÃO DO MENU SUSPENSO E BARRA DE CHAT ---
 st.markdown("""
     <style>
     .block-container { padding-top: 1.5rem; }
-    .stChatFloatingInputContainer { bottom: 20px; }
+    .stChatFloatingInputContainer { bottom: 20px; background-color: transparent !important; }
     
-    /* Esconder labels do uploader no menu popover */
+    /* Esconde labels para manter o design limpo */
     div[data-testid="stFileUploader"] label { display: none; }
-    section[data-testid="stFileUploadDropzone"] {
-        border: 1px dashed #ddd !important;
-        padding: 10px !important;
-        border-radius: 10px;
-    }
-
-    /* Estilização da linha de input para parecer com a imagem enviada */
-    .input-row {
+    
+    /* Estilização do botão '+' (Popover) */
+    div[data-testid="stPopover"] button {
+        border-radius: 50% !important;
+        width: 45px !important;
+        height: 45px !important;
+        background-color: #f0f2f6 !important;
+        border: 1px solid #ddd !important;
         display: flex;
         align-items: center;
-        gap: 10px;
-        padding: 5px 15px;
-        background: #fff;
-        border-radius: 30px;
-        border: 1px solid #e0e0e0;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        justify-content: center;
+    }
+    
+    /* Ajuste para o uploader dentro do popover */
+    section[data-testid="stFileUploadDropzone"] {
+        border: 1px dashed #ccc !important;
+        padding: 10px !important;
+        border-radius: 10px;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -41,7 +43,7 @@ def inicializar_motor():
     if "GROQ_API_KEY" not in st.secrets:
         return None, "Erro: Chave API ausente."
     client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-    return client, "llama-3.3-70b-versatile" # Modelo solicitado pelo usuário
+    return client, "llama-3.3-70b-versatile" #
 
 client_groq, modelo_ativo = inicializar_motor()
 
@@ -52,8 +54,7 @@ def transcrever_audio(audio_bytes):
         return client_groq.audio.transcriptions.create(
             file=arquivo_audio, model="whisper-large-v3", response_format="text"
         )
-    except Exception as e:
-        return f"ERRO TRANSCRIÇÃO: {str(e)}"
+    except: return None
 
 def extrair_texto(arquivo):
     if not arquivo: return None
@@ -66,7 +67,7 @@ def extrair_texto(arquivo):
 
 def responder_ia(prompt, historico, dados=None, esp="Geral"):
     instrucoes = (
-        f"VOCÊ É O NÚCLEO LABSMART AI PhD EM {esp}. STATUS: ERRO ZERO.\n"
+        f"VOCÊ É O NÚCLEO SYNAPSE AI PhD EM {esp}. STATUS: ERRO ZERO.\n"
         "DIRETRIZES DE ALTA PRECISÃO (OBRIGATÓRIO):\n"
         "1. PENSAMENTO PROCEDIMENTAL: Decompunha o problema em: [Dados] -> [Teoria Aplicada] -> [Cálculo] -> [Validação].\n"
         "2. RIGOR MATEMÁTICO: Proibido arredondar. Use 8 casas decimais. Realize prova real em Python para toda conta.\n"
@@ -84,7 +85,7 @@ def responder_ia(prompt, historico, dados=None, esp="Geral"):
 
 # --- INTERFACE PRINCIPAL ---
 def show_chatbot():
-    # Inicialização do estado (Mantendo tudo o que você enviou)
+    # Inicialização de Estados Originais
     if "messages_geral" not in st.session_state: st.session_state.messages_geral = []
     if "messages_agente" not in st.session_state: st.session_state.messages_agente = []
     if "aba_atual" not in st.session_state: st.session_state.aba_atual = "Chat Científico"
@@ -93,10 +94,9 @@ def show_chatbot():
 
     escolha_aba = st.radio("Selecione o ambiente de trabalho:", ["💬 Chat Científico", "👥 Squad de Agentes"], horizontal=True)
     st.session_state.aba_atual = escolha_aba
-
     st.divider()
 
-    # Dicionário de Ferramentas (Mantido integralmente com todas as descrições e links)
+    # Dicionário de Ferramentas Original (Integral)
     dict_ferramentas = {
         "Lovable": {"desc": "Crie interfaces e protótipos de sistemas internos sem programar.", "url": "https://lovable.dev/"},
         "Gamma": {"desc": "Transforme dados em apresentações profissionais em segundos.", "url": "https://gamma.app/"},
@@ -112,74 +112,75 @@ def show_chatbot():
         }
     }
 
-    # Definir persona e chave de histórico
+    # Estrutura de Abas Original (Colunas 3:1)
     if st.session_state.aba_atual == "💬 Chat Científico":
-        h_key = "messages_geral"
-        persona = "Consultor Sênior em Engenharia, Medicina de Precisão e Auditoria Científica"
+        col_chat, col_tools = st.columns([3, 1])
+        with col_tools:
+            st.write("### ⚙️ Gestão")
+            if st.button("🗑️ Limpar Chat Científico", use_container_width=True):
+                st.session_state.messages_geral = []
+                st.rerun()
+        with col_chat:
+            cont = st.container(height=500, border=False)
+            for m in st.session_state.messages_geral:
+                cont.chat_message(m["role"]).write(m["content"])
     else:
-        h_key = "messages_agente"
-        # Seleção de especialista mantida para o Squad
-        persona = st.sidebar.selectbox("Especialista:", ["Bioquímico Sênior", "Auditor de Qualidade", "Escritor Técnico"], key="sel_v2")
+        col_chat, col_tools = st.columns([3, 1])
+        with col_tools:
+            st.write("### 👥 Squad")
+            esp_nome = st.selectbox("Especialista:", ["Bioquímico Sênior", "Auditor de Qualidade", "Escritor Técnico"])
+            if st.button("🗑️ Limpar Squad", use_container_width=True):
+                st.session_state.messages_agente = []
+                st.rerun()
+        with col_chat:
+            cont = st.container(height=500, border=False)
+            for m in st.session_state.messages_agente:
+                cont.chat_message(m["role"]).write(m["content"])
 
-    # Área de Chat
-    chat_container = st.container(height=450, border=False)
-    with chat_container:
-        for m in st.session_state[h_key]:
-            st.chat_message(m["role"]).write(m["content"])
-
-    # --- BARRA DE INPUT ESTILO IMAGEM (CENTRALIZADA) ---
+    # --- BARRA DE COMANDO SYNAPSE (BOTÃO + MENU SUSPENSO) ---
     st.divider()
-    
-    # Criando a estrutura horizontal: [+] [Input] [Microfone]
-    col_menu, col_input, col_audio = st.columns([0.4, 3, 0.4])
+    c_menu, c_input, c_audio = st.columns([0.4, 3, 0.4])
 
-    with col_menu:
-        # O botão "+" abre o menu suspenso para importar arquivos e links
-        with st.popover("➕", help="Importar e Ferramentas", use_container_width=True):
-            st.markdown("### 📎 Arquivos")
-            up_file = st.file_uploader("Upload de Dados (PDF/CSV/TXT)", type=["pdf", "csv", "txt"], key="file_up")
+    with c_menu:
+        # O '+' agora contém a lógica de importação e ferramentas que ficavam espalhadas
+        with st.popover("➕", use_container_width=True):
+            st.markdown("### 📎 Anexar Arquivo")
+            up_file = st.file_uploader("Importar Base de Dados", type=["pdf", "csv", "txt"])
             
             st.divider()
-            st.markdown("### 🛠️ Links Rápidos")
-            ft_sel = st.selectbox("Ferramenta Auxiliar:", list(dict_ferramentas.keys()))
-            
+            st.markdown("### 🛠️ Links Auxiliares")
+            ft_sel = st.selectbox("Selecionar Ferramenta:", list(dict_ferramentas.keys()))
             if ft_sel == "AlphaFold":
-                sub_sel = st.selectbox("Versão AlphaFold:", list(dict_ferramentas["AlphaFold"]["sub"].keys()))
+                sub_sel = st.selectbox("Tipo:", list(dict_ferramentas["AlphaFold"]["sub"].keys()))
                 info = dict_ferramentas["AlphaFold"]["sub"][sub_sel]
             else:
                 info = dict_ferramentas[ft_sel]
             
-            st.write(f"*{info['desc']}*")
+            st.caption(info["desc"])
             st.link_button(f"Abrir {ft_sel}", info["url"], use_container_width=True)
-            
-            st.divider()
-            if st.button("🗑️ Limpar Conversa", use_container_width=True):
-                st.session_state[h_key] = []
-                st.rerun()
 
-    with col_input:
-        prompt_txt = st.chat_input("Pergunte alguma coisa...")
+    with c_input:
+        prompt_txt = st.chat_input("Pergunte alguma coisa para o Synapse...")
 
-    with col_audio:
-        # Botão de gravação de voz exatamente como no design
+    with c_audio:
         audio_data = audio_recorder(text="", recording_color="#e74c3c", neutral_color="#4f4f4f", icon_size="2x")
 
     # --- LÓGICA DE PROCESSAMENTO ---
     final_prompt = None
     if audio_data:
-        with st.spinner("🎙️ Transcrevendo..."):
+        with st.spinner("Ouvindo..."):
             final_prompt = transcrever_audio(audio_data)
     elif prompt_txt:
         final_prompt = prompt_txt
 
     if final_prompt:
+        h_key = "messages_geral" if st.session_state.aba_atual == "💬 Chat Científico" else "messages_agente"
+        dados_arquivo = extrair_texto(up_file) if 'up_file' in locals() and up_file else None
+        persona = "Consultor Sênior Synapse PhD" if st.session_state.aba_atual == "💬 Chat Científico" else esp_nome
+
         st.session_state[h_key].append({"role": "user", "content": final_prompt})
-        
-        # Extrair dados do arquivo se houver upload no popover
-        dados_contexto = extrair_texto(up_file) if up_file else None
-        
-        with st.spinner(f"O {persona} está processando..."):
-            resposta = responder_ia(final_prompt, st.session_state[h_key], dados_contexto, persona)
+        with st.spinner(f"Processando via {persona}..."):
+            resposta = responder_ia(final_prompt, st.session_state[h_key], dados_arquivo, persona)
             st.session_state[h_key].append({"role": "assistant", "content": resposta})
         st.rerun()
 
