@@ -297,40 +297,40 @@ def show_tabelas():
 
     st.markdown("""
         <style>
-        /* Estilo dos botões da tabela periódica */
+        /* Ajuste dos botões da Tabela - Impede corte de texto */
         div.stButton > button {
             width: 100% !important;
-            height: 50px !important; /* Aumentei um pouco a altura */
-            padding: 0px 1px !important; /* Espaçamento interno mínimo */
-            font-size: 11px !important; /* Fonte menor para caber melhor */
-            line-height: 1.1 !important; /* Espaçamento entre linhas colado */
-            white-space: normal !important; /* FORÇA A QUEBRA DE LINHA */
+            height: 55px !important;
+            padding: 2px !important;
+            font-size: clamp(10px, 1vw, 14px) !important; /* Fonte adaptativa */
+            line-height: 1 !important;
+            white-space: normal !important;
             word-wrap: break-word !important;
             display: flex !important;
             align-items: center !important;
             justify-content: center !important;
-            border: 1px solid #444 !important;
             border-radius: 4px !important;
-        }
-        
-        /* Efeito de destaque ao passar o mouse */
-        div.stButton > button:hover {
-            border-color: #ffffff !important;
-            background-color: rgba(255,255,255,0.1) !important;
+            background-color: #1e1e1e !important;
+            color: white !important;
         }
 
-        /* Ajuste radical de colunas para telas pequenas */
+        /* Força 18 colunas alinhadas sem margens laterais */
         [data-testid="column"] {
-            min-width: 0px !important;
-            flex-basis: 0 !important;
-            flex-grow: 1 !important;
-            gap: 1px !important;
-            padding: 0px !important;
+            padding: 0px 1px !important;
+            margin: 0 !important;
         }
         
-        /* Remove margens extras que o Streamlit coloca entre colunas */
-        [data-testid="stHorizontalBlock"] {
-            gap: 2px !important;
+        /* Layout da Aba de Bancos de Dados */
+        .db-card {
+            background-color: #262730;
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 5px solid #ff4b4b;
+            margin-bottom: 15px;
+            height: 180px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
         }
         </style>
     """, unsafe_allow_html=True)
@@ -530,4 +530,5 @@ def show_tabelas():
 
 if __name__ == "__main__":
     show_tabelas()
+
 
