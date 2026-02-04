@@ -133,7 +133,7 @@ else:
     if st.session_state.selection == "👤 Perfil":
         show_perfil()
     elif st.session_state.selection == "⚙️ Configurações":
-        show_configuracoes
+        show_configuracoes()
     else:
         clean_selection = selection.split(" ", 1)[-1]
 
@@ -206,5 +206,6 @@ else:
 
     st.sidebar.markdown("---")
     st.sidebar.caption("SynapseLab V.Beta")
+
 
 
