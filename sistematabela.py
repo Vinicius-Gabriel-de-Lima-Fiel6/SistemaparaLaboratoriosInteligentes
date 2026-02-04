@@ -503,38 +503,23 @@ def show_tabelas():
         st.header("🌍 Central de Links e Bancos de Dados")
         st.caption("Acesso direto a fontes oficiais e ferramentas de pesquisa.")
         st.markdown("---")
-        busca = st.text_input("🔍 O que você procura? (Ex: Anvisa, PubChem, Toxicologia, Termodinâmica)", "").lower()
-        
-        # Banco de dados de links (pode expandir à vontade)
-        databases = [
-            {"Nome": "PubChem", "Cat": "Internacional", "Link": "https://pubchem.ncbi.nlm.nih.gov/", "Desc": "Propriedades físicas e toxicidade."},
-            {"Nome": "ANVISA", "Cat": "Brasil (Regulatório)", "Link": "https://www.gov.br/anvisa/", "Desc": "Registro de medicamentos e normas."},
-            {"Nome": "DrugBank", "Cat": "Internacional", "Link": "https://go.drugbank.com/", "Desc": "Farmacologia e interações."},
-            {"Nome": "ChemSpider", "Cat": "Internacional", "Link": "http://www.chemspider.com/", "Desc": "Estruturas químicas da RSC."},
-            {"Nome": "NIST WebBook", "Cat": "Ferramentas/Dados", "Link": "https://webbook.nist.gov/", "Desc": "Termodinâmica e espectros."},
-            {"Nome": "Farmacopeia BR", "Cat": "Brasil (Regulatório)", "Link": "https://www.gov.br/anvisa/pt-br/assuntos/farmacopeia", "Desc": "Padrões de qualidade oficiais."}
+        busca = st.text_input("🔍 Filtrar links:", placeholder="Digite o nome do site ou órgão...").lower()
+        st.markdown("---")
+
+        # 3. Definição dos Dados
+        # Organizados por categorias para alimentar suas colunas
+        links_br = [
+            {"Nome": "ANVISA", "Link": "https://www.gov.br/anvisa/", "Desc": "Regulatório Brasil"},
+            {"Nome": "Farmacopeia BR", "Link": "https://www.gov.br/anvisa/pt-br/assuntos/farmacopeia", "Desc": "Padrões oficiais"}
         ]
-
-        # Lógica de Filtro
-        filtrados = [d for d in databases if busca in d['Nome'].lower() or busca in d['Cat'].lower() or busca in d['Desc'].lower()]
-
-        if filtrados:
-            # Mantendo a estrutura de 3 colunas da sua imagem, mas agora DINÂMICA
-            cols_db = st.columns(3)
-            for i, db in enumerate(filtrados):
-                with cols_db[i % 3]:
-                    st.markdown(f"""
-                        <div style="background-color: #262730; padding: 15px; border-radius: 10px; border-left: 5px solid #ff4b4b; height: 180px; display: flex; flex-direction: column; justify-content: space-between; margin-bottom: 15px;">
-                            <div>
-                                <small style="color:#ff4b4b; font-weight:bold; text-transform: uppercase;">{db['Cat']}</small>
-                                <h4 style="margin: 5px 0 10px 0;">{db['Nome']}</h4>
-                                <p style="font-size:0.85em; color:#bbb;">{db['Desc']}</p>
-                            </div>
-                        </div>
-                    """, unsafe_allow_html=True)
-                    st.link_button(f"Acessar {db['Nome']}", db['Link'], use_container_width=True)
-        else:
-            st.warning("Nenhum banco de dados encontrado para o termo pesquisado.")
+        links_int = [
+            {"Nome": "PubChem", "Link": "https://pubchem.ncbi.nlm.nih.gov/", "Desc": "Dados Moleculares"},
+            {"Nome": "DrugBank", "Link": "https://go.drugbank.com/", "Desc": "Farmacologia"}
+        ]
+        links_tools = [
+            {"Nome": "NIST WebBook", "Link": "https://webbook.nist.gov/", "Desc": "Termodinâmica"},
+            {"Nome": "ChemSpider", "Link": "http://www.chemspider.com/", "Desc": "Estruturas"}
+        ]
         col_br, col_int, col_tools = st.columns(3)
 
         with col_br:
@@ -562,6 +547,7 @@ def show_tabelas():
 
 if __name__ == "__main__":
     show_tabelas()
+
 
 
 
