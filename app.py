@@ -25,29 +25,28 @@ except Exception as e:
 if 'logado' not in st.session_state: st.session_state.logado = False
 if 'user_data' not in st.session_state: st.session_state.user_data = None
 if 'selection' not in st.session_state: st.session_state.selection = "🏠 Dashboard"
-
+# Inicializa preferências com o padrão (Verde e sem ocultos)
 if 'prefs' not in st.session_state:
     st.session_state.prefs = {
         "cor_primaria": "#28a745", 
         "modulos_ocultos": [], 
-        "links_externos": [],
-        "classe_css": "" # Adicionado para suportar os novos temas
+        "links_externos": []
     }
 
-# --- APLICAÇÃO DE ESTILO (CSS DINÂMICO + TEMAS) ---
+# --- APLICAÇÃO DE ESTILO (CSS DINÂMICO) ---
+# Lê o CSS original e substitui a cor principal pela preferência do usuário
 try:
     with open("style.css", "r", encoding="utf-8") as f:
         base_css = f.read()
         
+    # Pega a cor do usuário (ou usa o verde padrão se não tiver)
     cor_user = st.session_state.prefs.get("cor_primaria", "#28a745")
-    classe_tema = st.session_state.prefs.get("classe_css", "") # Pega a classe do banco
     
-    # Mantive sua lógica original de replace para cores customizadas
+    # TRUQUE DE MESTRE: Substitui todas as ocorrências do Verde Original pela Cor do Usuário
+    # Isso mantém 100% da estrutura do seu CSS, mudando apenas a paleta.
     css_dinamico = base_css.replace("#28a745", cor_user)
     
     st.markdown(f"<style>{css_dinamico}</style>", unsafe_allow_html=True)
-    # Abre a div que permite a sobreposição dos 10 temas
-    st.markdown(f'<div class="{classe_tema}">', unsafe_allow_html=True)
 except FileNotFoundError:
     st.warning("Arquivo style.css não encontrado.")
 
@@ -80,10 +79,10 @@ def tela_acesso():
                 st.session_state.logado = True
                 st.session_state.user_data = user
                 
-                # --- CARREGA PREFERÊNCIAS DO BANCO (Incluindo sua estrutura original) ---
+                # --- CARREGA PREFERÊNCIAS DO BANCO ---
+                # Se as colunas não existirem no banco ainda, usa o .get() com valor padrão
                 st.session_state.prefs = {
                     "cor_primaria": user.get("cor_primaria", "#28a745"),
-                    "classe_css": user.get("classe_css", ""), # Nova coluna necessária
                     "modulos_ocultos": user.get("modulos_ocultos", []),
                     "links_externos": user.get("links_externos", [])
                 }
@@ -98,7 +97,7 @@ def tela_acesso():
 if not st.session_state.logado:
     tela_acesso()
 else:
-    # --- IMPORTAÇÃO DE MÓDULOS (Mantido integralmente) ---
+    # --- IMPORTAÇÃO DE MÓDULOS ---
     try:
         from substancias import show_substances
         from ControleEstoque import show_estoque
@@ -106,8 +105,8 @@ else:
         from calculadora import show_calculadora
         from sistematabela import show_tabelas
         from graficos import show_graficos
-        from vidrarias import render_vidrarias
-        from projetos import render_projetos
+        from vidrarias import *
+        from projetos import *
         from config_empresa import show_config_empresa 
         import ia
         from configurações import show_configuracoes
@@ -120,10 +119,12 @@ else:
     role = user.get('role', 'Visualizador')
     org_atual = user.get('org_name')
     
+    # Lógica de foto dinâmica para a Sidebar
     foto_sidebar = user.get('avatar_url') if user.get('avatar_url') else f"https://api.dicebear.com/7.x/avataaars/svg?seed={user['username']}"
     
     # --- SIDEBAR DE NAVEGAÇÃO ---
     with st.sidebar:
+        # Pega a cor do usuário para aplicar na borda da foto e do card via inline style também, por garantia
         cor_borda = st.session_state.prefs.get("cor_primaria", "#28a745")
         
         st.markdown(f"""
@@ -153,13 +154,16 @@ else:
 
         st.write("") 
         
+        # Lista original completa de abas
         abas_base = ["🏠 Dashboard", "🤖 IA & Visão", "💼 Laboratório", "⚛️ Tabelas Químicas", "🧮 Calculadora Química", "📊 Gráficos"]
         if role == "ADM":
             abas_base.extend(["👥 Gestão de Equipe", "📄 Relatórios"])
 
+        # FILTRO DE MÓDULOS (Novidade: Remove os ocultos da lista)
         modulos_ocultos = st.session_state.prefs.get("modulos_ocultos", [])
         abas = [aba for aba in abas_base if aba not in modulos_ocultos]
 
+        # Sincroniza o rádio com a seleção
         opcoes_radio = abas.copy()
         if st.session_state.selection not in opcoes_radio:
             opcoes_radio.append(st.session_state.selection)
@@ -167,6 +171,7 @@ else:
         selection = st.radio("NAVEGAÇÃO", opcoes_radio, index=opcoes_radio.index(st.session_state.selection))
         st.session_state.selection = selection
         
+        # Exibe Links Externos cadastrados na Sidebar
         links_extras = st.session_state.prefs.get("links_externos", [])
         if links_extras:
             st.markdown("---")
@@ -176,9 +181,9 @@ else:
 
     # --- ROTEAMENTO ---
     if st.session_state.selection == "👤 Perfil":
-        show_perfil()
+        show_perfil() # Se precisar de user_data aqui futuramente, adicione
     elif st.session_state.selection == "⚙️ Configurações":
-        show_configuracoes(supabase, user)
+        show_configuracoes(supabase, user) # Passando as variáveis necessárias
     else:
         clean_selection = selection.split(" ", 1)[-1]
 
@@ -202,6 +207,7 @@ else:
             st.markdown("---")
             st.subheader("Atalhos e Guias Rápidos")
             
+            # Atalhos só aparecem se o módulo não estiver oculto nas configurações
             c1, c2, c3 = st.columns(3)
             with c1:
                 if "🤖 IA & Visão" not in modulos_ocultos:
@@ -258,6 +264,3 @@ else:
 
     st.sidebar.markdown("---")
     st.sidebar.caption("SynapseLab V.Beta")
-    
-    # FECHAMENTO DA DIV DE TEMA (Obrigatório para o CSS funcionar)
-    st.markdown("</div>", unsafe_allow_html=True)
