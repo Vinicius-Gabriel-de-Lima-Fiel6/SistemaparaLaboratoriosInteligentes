@@ -503,8 +503,38 @@ def show_tabelas():
         st.header("🌍 Central de Links e Bancos de Dados")
         st.caption("Acesso direto a fontes oficiais e ferramentas de pesquisa.")
 
-        col_br, col_int, col_tools = st.columns(3)
+        pesquisa,col_br, col_int, col_tools = st.columns(4)
+        with pesquisa:
+            st.subheader("🔍 Pesquisa Estruturada de Bancos de Dados")
+            busca = st.text_input("Filtrar por nome, categoria ou órgão (Ex: Toxicologia, Anvisa, Base):").lower()
+        
+            databases = [
+                {"Nome": "PubChem", "Cat": "Dados Moleculares", "Link": "https://pubchem.ncbi.nlm.nih.gov/", "Desc": "Propriedades físicas, químicas e toxicidade."},
+                {"Nome": "ANVISA", "Cat": "Regulatório / Saúde", "Link": "https://www.gov.br/anvisa/", "Desc": "Registro de medicamentos e normas sanitárias brasileiras."},
+                {"Nome": "DrugBank", "Cat": "Farmacologia", "Link": "https://go.drugbank.com/", "Desc": "Mecanismos de ação de fármacos e interações."},
+                {"Nome": "ChemSpider", "Cat": "Estruturas Químicas", "Link": "http://www.chemspider.com/", "Desc": "Base da Royal Society of Chemistry."},
+                {"Nome": "NIST WebBook", "Cat": "Termodinâmica", "Link": "https://webbook.nist.gov/", "Desc": "Dados de entalpia, entropia e espectros."},
+                {"Nome": "Toxicology Data Network", "Cat": "Toxicologia", "Link": "https://www.nlm.nih.gov/", "Desc": "Efeitos adversos de substâncias químicas."}
+            ]
 
+            filtrados = [d for d in databases if busca in d['Nome'].lower() or busca in d['Cat'].lower()]
+        
+            if filtrados:
+                cols_db = st.columns(3)
+                for i, db in enumerate(filtrados):
+                    with cols_db[i % 3]:
+                        st.markdown(f"""
+                            <div class="db-card">
+                                <div>
+                                    <small style="color:#ff4b4b;"><b>{db['Cat']}</b></small>
+                                    <h4 style="margin-top:5px;">{db['Nome']}</h4>
+                                    <p style="font-size:0.85em; color:#bbb;">{db['Desc']}</p>
+                                </div>
+                            </div>
+                        """, unsafe_allow_html=True)
+                        st.link_button(f"Abrir {db['Nome']}", db['Link'], use_container_width=True)
+            else:
+                st.warning("Nenhum resultado para a pesquisa.")
         with col_br:
             st.subheader("🇧🇷 Brasil (Regulatório)")
             st.link_button("ANVISA - Farmacopeia", "https://www.gov.br/anvisa/pt-br/assuntos/farmacopeia", use_container_width=True)
