@@ -33,7 +33,7 @@ def render_vidrarias():
                 if tipo and numeracao:
                     try:
                         # Verificação básica de duplicidade de numeração
-                        check = supabase.table("vidrarias").select("id").eq("numeracao", numeracao).eq("org_name", org_usuario).execute()
+                        check = supabase.table("vidrarias").select("vid").eq("numeracao", numeracao).eq("org_name", org_usuario).execute()
                         if check.data:
                             st.error(f"A numeração '{numeracao}' já existe nesta organização.")
                         else:
