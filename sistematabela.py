@@ -506,7 +506,9 @@ def show_tabelas():
         col_br, col_int, col_tools = st.columns(3)
 
         with col_br:
-            st.subheader("🇧🇷 Brasil (Regulatório)")
+            st.subheader("🇧🇷 Brasil (Regulatório)
+            
+                         ")
             st.link_button("ANVISA - Farmacopeia", "https://www.gov.br/anvisa/pt-br/assuntos/farmacopeia", use_container_width=True)
             st.link_button("Consulta de Medicamentos", "https://consultas.anvisa.gov.br/#/medicamentos/", use_container_width=True)
             st.link_button("CETESB (FISPQ/Emergência)", "https://cetesb.sp.gov.br/emergencias-quimicas/", use_container_width=True)
@@ -530,6 +532,7 @@ def show_tabelas():
 
 if __name__ == "__main__":
     show_tabelas()
+
 
 
 
