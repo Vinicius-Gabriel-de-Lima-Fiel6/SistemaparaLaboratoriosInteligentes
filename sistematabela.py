@@ -294,30 +294,43 @@ def show_tabelas():
     st.set_page_config(layout="wide", page_title="Central Química")
     st.title("📚 Central de Tabelas e Dados Químicos")
 
-    # CSS Global para melhorar botões e layout
+
     st.markdown("""
         <style>
         /* Estilo dos botões da tabela periódica */
         div.stButton > button {
             width: 100% !important;
-            height: 45px !important;
-            padding: 0px !important;
-            font-size: 13px !important;
-            font-weight: 600 !important;
+            height: 50px !important; /* Aumentei um pouco a altura */
+            padding: 0px 1px !important; /* Espaçamento interno mínimo */
+            font-size: 11px !important; /* Fonte menor para caber melhor */
+            line-height: 1.1 !important; /* Espaçamento entre linhas colado */
+            white-space: normal !important; /* FORÇA A QUEBRA DE LINHA */
+            word-wrap: break-word !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
             border: 1px solid #444 !important;
             border-radius: 4px !important;
-            transition: transform 0.1s;
         }
+        
+        /* Efeito de destaque ao passar o mouse */
         div.stButton > button:hover {
-            transform: scale(1.05);
-            z-index: 10;
-            border-color: white !important;
+            border-color: #ffffff !important;
+            background-color: rgba(255,255,255,0.1) !important;
         }
-        /* Ajuste de espaçamento das colunas */
+
+        /* Ajuste radical de colunas para telas pequenas */
         [data-testid="column"] {
-            min-width: 30px !important;
+            min-width: 0px !important;
+            flex-basis: 0 !important;
+            flex-grow: 1 !important;
             gap: 1px !important;
-            padding: 0 !important;
+            padding: 0px !important;
+        }
+        
+        /* Remove margens extras que o Streamlit coloca entre colunas */
+        [data-testid="stHorizontalBlock"] {
+            gap: 2px !important;
         }
         </style>
     """, unsafe_allow_html=True)
@@ -517,3 +530,4 @@ def show_tabelas():
 
 if __name__ == "__main__":
     show_tabelas()
+
