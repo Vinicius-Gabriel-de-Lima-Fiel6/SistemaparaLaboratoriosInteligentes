@@ -22,17 +22,18 @@ def render_projetos():
             st.warning("Permissão negada para criação.")
         else:
             c1, c2 = st.columns(2)
-            nome_proj = c1.text_input("Nome do Projeto/Pesquisa")
-            responsavel = c2.text_input("Pesquisador Responsável")
+            nome_proj = c1.text_input("Nome do Projeto/Pesquisa", key="input_nome_proj")
+            responsavel = c2.text_input("Pesquisador Responsável", key="input_resp_proj")
             
             c3, c4 = st.columns(2)
-            status = c3.selectbox("Status Inicial", ["Ativo", "Pausado", "Concluído"])
-            prioridade = c4.selectbox("Prioridade", ["Baixa", "Média", "Alta"])
+            status = c3.selectbox("Status Inicial", ["Ativo", "Pausado", "Concluído"], key="select_status_ini")
+            prioridade = c4.selectbox("Prioridade", ["Baixa", "Média", "Alta"], key="select_prio_ini")
             
-            objetivo = st.text_area("Objetivo do Projeto")
-            data_inicio = st.date_input("Data de Início", value=date.today())
+            objetivo = st.text_area("Objetivo do Projeto", key="area_obj_proj")
+            data_inicio = st.date_input("Data de Início", value=date.today(), key="date_proj")
             
-            if st.button("🚀 Criar Projeto", use_container_width=True):
+            # KEY ADICIONADA AQUI
+            if st.button("🚀 Criar Projeto", use_container_width=True, key="btn_criar_projeto"):
                 if nome_proj and responsavel:
                     try:
                         supabase.table("projetos").insert({
@@ -55,14 +56,11 @@ def render_projetos():
 
     # --- 2. LISTAGEM E AÇÕES ---
     try:
-        # Busca os dados filtrando pela organização
         res = supabase.table("projetos").select("*").eq("org_name", org_usuario).execute()
         df = pd.DataFrame(res.data)
 
         if not df.empty:
             st.subheader("📋 Projetos da Organização")
-            
-            # Formatação para exibição
             display_df = df[['id', 'nome', 'responsavel', 'status', 'prioridade', 'data_inicio']].copy()
             st.dataframe(display_df, use_container_width=True, hide_index=True)
 
@@ -71,21 +69,18 @@ def render_projetos():
 
                 with col_edit:
                     with st.expander("🔄 Atualizar Projeto"):
-                        # Usamos o ID (UUID) como referência
                         id_edit = st.selectbox("Selecionar Projeto para editar", options=df['id'].tolist(), 
-                                             format_func=lambda x: df[df['id']==x]['nome'].values[0])
+                                             format_func=lambda x: df[df['id']==x]['nome'].values[0],
+                                             key="select_edit_id")
                         
-                        novo_nome = st.text_input("Novo Nome (deixe vazio para manter)")
-                        novo_status = st.selectbox("Mudar Status", ["Ativo", "Pausado", "Concluído", "Arquivado"])
-                        nova_prioridade = st.selectbox("Mudar Prioridade", ["Baixa", "Média", "Alta"])
+                        novo_nome = st.text_input("Novo Nome (deixe vazio para manter)", key="edit_nome_input")
+                        novo_status = st.selectbox("Mudar Status", ["Ativo", "Pausado", "Concluído", "Arquivado"], key="edit_status_select")
+                        nova_prioridade = st.selectbox("Mudar Prioridade", ["Baixa", "Média", "Alta"], key="edit_prio_select")
 
-                        if st.button("Salvar Alterações", use_container_width=True):
-                            upd_data = {
-                                "status": novo_status,
-                                "prioridade": nova_prioridade
-                            }
-                            if novo_nome: 
-                                upd_data["nome"] = novo_nome
+                        # KEY ADICIONADA AQUI
+                        if st.button("Salvar Alterações", use_container_width=True, key="btn_save_changes"):
+                            upd_data = {"status": novo_status, "prioridade": nova_prioridade}
+                            if novo_nome: upd_data["nome"] = novo_nome
                             
                             supabase.table("projetos").update(upd_data).eq("id", id_edit).execute()
                             st.success("Projeto atualizado!")
@@ -94,9 +89,12 @@ def render_projetos():
                 with col_del:
                     with st.expander("🗑️ Excluir Projeto"):
                         id_del = st.selectbox("Selecionar Projeto para excluir", options=df['id'].tolist(),
-                                            format_func=lambda x: df[df['id']==x]['nome'].values[0])
+                                            format_func=lambda x: df[df['id']==x]['nome'].values[0],
+                                            key="select_del_id")
                         st.warning("Atenção: Esta ação não pode ser desfeita.")
-                        if st.button("Confirmar Exclusão", type="primary", use_container_width=True):
+                        
+                        # KEY ADICIONADA AQUI
+                        if st.button("Confirmar Exclusão", type="primary", use_container_width=True, key="btn_confirm_del"):
                             supabase.table("projetos").delete().eq("id", id_del).execute()
                             st.success("Projeto removido.")
                             st.rerun()
@@ -104,4 +102,4 @@ def render_projetos():
             st.info("Nenhum projeto registrado para esta organização.")
             
     except Exception as e:
-        st.error(f"Erro crítico ao carregar interface: {e}")
+        st.error(f"Erro ao carregar dados: {e}")
