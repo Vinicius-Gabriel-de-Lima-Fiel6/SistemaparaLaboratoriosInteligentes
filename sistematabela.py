@@ -504,7 +504,7 @@ def show_tabelas():
         st.caption("Acesso direto a fontes oficiais e ferramentas de pesquisa.")
         st.markdown("---")
         query = st.text_input("🔍 Pesquisa Ultraestruturada:", placeholder="Ex: Ibuprofeno, Mecanismo de reação, Nomenclatura IUPAC...")
-        st.markdown("---")
+ 
 
         if query:
             st.subheader(f"🚀 Motores de Busca Direta: {query}")
@@ -563,6 +563,7 @@ def show_tabelas():
 
 if __name__ == "__main__":
     show_tabelas()
+
 
 
 
