@@ -14,10 +14,41 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-with open("style.css", "r", encoding="utf-8") as f:
-    st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+# --- CONEXÃO COM SUPABASE ---
+try:
+    supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
+except Exception as e:
+    st.error(f"Erro de conexão com Banco de Dados: {e}")
+    st.stop()
 
-supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
+# --- INICIALIZAÇÃO DE ESTADOS ---
+if 'logado' not in st.session_state: st.session_state.logado = False
+if 'user_data' not in st.session_state: st.session_state.user_data = None
+if 'selection' not in st.session_state: st.session_state.selection = "🏠 Dashboard"
+# Inicializa preferências com o padrão (Verde e sem ocultos)
+if 'prefs' not in st.session_state:
+    st.session_state.prefs = {
+        "cor_primaria": "#28a745", 
+        "modulos_ocultos": [], 
+        "links_externos": []
+    }
+
+# --- APLICAÇÃO DE ESTILO (CSS DINÂMICO) ---
+# Lê o CSS original e substitui a cor principal pela preferência do usuário
+try:
+    with open("style.css", "r", encoding="utf-8") as f:
+        base_css = f.read()
+        
+    # Pega a cor do usuário (ou usa o verde padrão se não tiver)
+    cor_user = st.session_state.prefs.get("cor_primaria", "#28a745")
+    
+    # TRUQUE DE MESTRE: Substitui todas as ocorrências do Verde Original pela Cor do Usuário
+    # Isso mantém 100% da estrutura do seu CSS, mudando apenas a paleta.
+    css_dinamico = base_css.replace("#28a745", cor_user)
+    
+    st.markdown(f"<style>{css_dinamico}</style>", unsafe_allow_html=True)
+except FileNotFoundError:
+    st.warning("Arquivo style.css não encontrado.")
 
 def tela_acesso():
     col1, col2, col3 = st.columns([1, 1.2, 1])
@@ -47,6 +78,14 @@ def tela_acesso():
             if user and db.verificar_senha(senha_input, user['password_hash']):
                 st.session_state.logado = True
                 st.session_state.user_data = user
+                
+                # --- CARREGA PREFERÊNCIAS DO BANCO ---
+                # Se as colunas não existirem no banco ainda, usa o .get() com valor padrão
+                st.session_state.prefs = {
+                    "cor_primaria": user.get("cor_primaria", "#28a745"),
+                    "modulos_ocultos": user.get("modulos_ocultos", []),
+                    "links_externos": user.get("links_externos", [])
+                }
                 st.rerun()
             else:
                 st.error("Dados incorretos.")
@@ -54,11 +93,6 @@ def tela_acesso():
         st.markdown("---")
         st.markdown("<p style='text-align: center; color: var(--text-gray);'>Se não tiver uma conta, clique abaixo:</p>", unsafe_allow_html=True)
         st.link_button("Cadastro Empresarial", "https://cadastro-de-empresas-e7bkusdk4tsdchmx89fh8c.streamlit.app/", use_container_width=True)
-
-# --- INICIALIZAÇÃO DE ESTADOS ---
-if 'logado' not in st.session_state: st.session_state.logado = False
-if 'user_data' not in st.session_state: st.session_state.user_data = None
-if 'selection' not in st.session_state: st.session_state.selection = "🏠 Dashboard"
 
 if not st.session_state.logado:
     tela_acesso()
@@ -90,15 +124,18 @@ else:
     
     # --- SIDEBAR DE NAVEGAÇÃO ---
     with st.sidebar:
+        # Pega a cor do usuário para aplicar na borda da foto e do card via inline style também, por garantia
+        cor_borda = st.session_state.prefs.get("cor_primaria", "#28a745")
+        
         st.markdown(f"""
-            <div class="user-card">
-                <small style="font-weight: 800; font-size: 0.7rem; color: #28a745;">ORGANIZAÇÃO</small><br>
+            <div class="user-card" style="border: 1px solid {cor_borda};">
+                <small style="font-weight: 800; font-size: 0.7rem; color: {cor_borda};">ORGANIZAÇÃO</small><br>
                 <span style="font-size: 1rem; font-weight: 700;">{org_atual}</span><br>
-                <hr>
-                <img src="{foto_sidebar}" class="profile-img">
+                <hr style="border-top: 2px solid {cor_borda} !important;">
+                <img src="{foto_sidebar}" class="profile-img" style="border: 2px solid {cor_borda};">
                 <div style="margin-top: 5px;">
                     <span style="font-size: 0.9rem;">{user['username']}</span><br>
-                    <span style="background: #28a745; color: white; font-size: 0.7rem; padding: 2px 8px; border-radius: 10px;">{role}</span>
+                    <span style="background: {cor_borda}; color: black; font-weight:bold; font-size: 0.7rem; padding: 2px 8px; border-radius: 10px;">{role}</span>
                 </div>
             </div>
         """, unsafe_allow_html=True)
@@ -117,23 +154,36 @@ else:
 
         st.write("") 
         
-        abas = ["🏠 Dashboard", "🤖 IA & Visão", "💼 Laboratório", "⚛️ Tabelas Químicas", "🧮 Calculadora Química", "📊 Gráficos"]
+        # Lista original completa de abas
+        abas_base = ["🏠 Dashboard", "🤖 IA & Visão", "💼 Laboratório", "⚛️ Tabelas Químicas", "🧮 Calculadora Química", "📊 Gráficos"]
         if role == "ADM":
-            abas.extend(["👥 Gestão de Equipe", "📄 Relatórios"])
+            abas_base.extend(["👥 Gestão de Equipe", "📄 Relatórios"])
 
-        # Sincroniza o rádio com a seleção, incluindo Perfil/Configurações se necessário
+        # FILTRO DE MÓDULOS (Novidade: Remove os ocultos da lista)
+        modulos_ocultos = st.session_state.prefs.get("modulos_ocultos", [])
+        abas = [aba for aba in abas_base if aba not in modulos_ocultos]
+
+        # Sincroniza o rádio com a seleção
         opcoes_radio = abas.copy()
         if st.session_state.selection not in opcoes_radio:
             opcoes_radio.append(st.session_state.selection)
 
         selection = st.radio("NAVEGAÇÃO", opcoes_radio, index=opcoes_radio.index(st.session_state.selection))
         st.session_state.selection = selection
+        
+        # Exibe Links Externos cadastrados na Sidebar
+        links_extras = st.session_state.prefs.get("links_externos", [])
+        if links_extras:
+            st.markdown("---")
+            st.caption("Atalhos Rápidos")
+            for link in links_extras:
+                st.markdown(f"🔗 [{link['nome']}]({link['url']})")
 
     # --- ROTEAMENTO ---
     if st.session_state.selection == "👤 Perfil":
-        show_perfil()
+        show_perfil() # Se precisar de user_data aqui futuramente, adicione
     elif st.session_state.selection == "⚙️ Configurações":
-        show_configuracoes(supabase, st.session_state.user_data)
+        show_configuracoes(supabase, user) # Passando as variáveis necessárias
     else:
         clean_selection = selection.split(" ", 1)[-1]
 
@@ -156,30 +206,38 @@ else:
 
             st.markdown("---")
             st.subheader("Atalhos e Guias Rápidos")
+            
+            # Atalhos só aparecem se o módulo não estiver oculto nas configurações
             c1, c2, c3 = st.columns(3)
             with c1:
-                if st.button("🤖 Central de IA", use_container_width=True):
-                    st.session_state.selection = "🤖 IA & Visão"; st.rerun()
+                if "🤖 IA & Visão" not in modulos_ocultos:
+                    if st.button("🤖 Central de IA", use_container_width=True):
+                        st.session_state.selection = "🤖 IA & Visão"; st.rerun()
             with c2:
-                if st.button("⚛️ Tabelas e Reagentes", use_container_width=True):
-                    st.session_state.selection = "⚛️ Tabelas Químicas"; st.rerun()
+                if "⚛️ Tabelas Químicas" not in modulos_ocultos:
+                    if st.button("⚛️ Tabelas e Reagentes", use_container_width=True):
+                        st.session_state.selection = "⚛️ Tabelas Químicas"; st.rerun()
             with c3:
-                if st.button("🧮 Calculadora de Soluções", use_container_width=True):
-                    st.session_state.selection = "🧮 Calculadora Química"; st.rerun()
+                if "🧮 Calculadora Química" not in modulos_ocultos:
+                    if st.button("🧮 Calculadora de Soluções", use_container_width=True):
+                        st.session_state.selection = "🧮 Calculadora Química"; st.rerun()
 
             st.write("")
             ca, cb, cc = st.columns(3)
             with ca:
-                if st.button("📊 Analisar Gráficos", use_container_width=True):
-                    st.session_state.selection = "📊 Gráficos"; st.rerun()
+                if "📊 Gráficos" not in modulos_ocultos:
+                    if st.button("📊 Analisar Gráficos", use_container_width=True):
+                        st.session_state.selection = "📊 Gráficos"; st.rerun()
             
             if role in ["Tecnico", "ADM"]:
                 with cb:
-                    if st.button("📦 Abrir Estoque", use_container_width=True):
-                        st.session_state.selection = "💼 Laboratório"; st.rerun()
+                    if "💼 Laboratório" not in modulos_ocultos:
+                        if st.button("📦 Abrir Estoque", use_container_width=True):
+                            st.session_state.selection = "💼 Laboratório"; st.rerun()
                 with cc:
-                    if st.button("⚗️ Novo Cadastro", use_container_width=True):
-                        st.session_state.selection = "💼 Laboratório"; st.rerun()
+                     if "💼 Laboratório" not in modulos_ocultos:
+                        if st.button("⚗️ Novo Cadastro", use_container_width=True):
+                            st.session_state.selection = "💼 Laboratório"; st.rerun()
             else:
                 with cb:
                     st.button("🔒 Estoque (Restrito)", disabled=True, use_container_width=True)
@@ -206,7 +264,3 @@ else:
 
     st.sidebar.markdown("---")
     st.sidebar.caption("SynapseLab V.Beta")
-
-
-
-
