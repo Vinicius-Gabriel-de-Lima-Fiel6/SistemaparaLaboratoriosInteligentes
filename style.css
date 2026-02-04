@@ -1,75 +1,55 @@
-/* --- CSS GLOBAL ORIGINAL (FALLBACK PADRÃO) --- */
+/* --- CSS GLOBAL (REGRAS DE FORÇA BRUTA PARA O CONTRASTE) --- */
 .stApp { background-color: #f8f9fa; color: #212529; }
 [data-testid="stSidebar"] { background-color: #000000 !important; color: #ffffff !important; }
 
-[data-testid="stSidebar"] p, [data-testid="stSidebar"] label, [data-testid="stSidebar"] span:not(.st-emotion-cache-1vt4581) { color: #ffffff !important; }
-
-[data-testid="stSidebar"] .stButton button, [data-testid="stSidebar"] div[data-testid="stPopover"] > button {
-    background-color: #28a745 !important; border: none !important; width: 100% !important;
+/* 1. TEXTOS GERAIS DA SIDEBAR EM BRANCO */
+[data-testid="stSidebar"] p, 
+[data-testid="stSidebar"] label, 
+[data-testid="stSidebar"] span:not(.st-emotion-cache-1vt4581) { 
+    color: #ffffff !important; 
 }
 
-[data-testid="stSidebar"] button p, [data-testid="stSidebar"] button span, [data-testid="stSidebar"] button div, [data-testid="stSidebar"] button svg {
-    color: #000000 !important; fill: #000000 !important; -webkit-text-fill-color: #000000 !important;
+/* 2. BOTÕES VERDES (Texto Preto Fixo) */
+[data-testid="stSidebar"] .stButton button,
+[data-testid="stSidebar"] div[data-testid="stPopover"] > button {
+    background-color: #28a745 !important;
+    border: none !important;
+    width: 100% !important;
 }
 
-.user-card { background: #111; border: 1px solid #28a745; border-radius: 12px; padding: 15px; text-align: center; margin-bottom: 10px; }
-.profile-img { width: 75px; height: 75px; border-radius: 50%; border: 2px solid #28a745; margin: 10px auto; object-fit: cover; }
+/* 3. A SOLUÇÃO DEFINITIVA: CAÇA O TEXTO BRANCO DENTRO DE QUALQUER BOTÃO E MUDA PARA PRETO */
+[data-testid="stSidebar"] button p, 
+[data-testid="stSidebar"] button span, 
+[data-testid="stSidebar"] button div,
+[data-testid="stSidebar"] button svg {
+    color: #000000 !important;
+    fill: #000000 !important;
+    -webkit-text-fill-color: #000000 !important; /* Força em navegadores Chrome/Edge */
+}
+
+/* Mantém preto absoluto mesmo no hover */
+[data-testid="stSidebar"] button:hover p, 
+[data-testid="stSidebar"] button:hover span, 
+[data-testid="stSidebar"] button:hover svg {
+    color: #000000 !important;
+    fill: #000000 !important;
+}
+
+/* Cartão de Usuário */
+.user-card {
+    background: #111;
+    border: 1px solid #28a745;
+    border-radius: 12px;
+    padding: 15px;
+    text-align: center;
+    margin-bottom: 10px;
+}
+.profile-img {
+    width: 75px; height: 75px;
+    border-radius: 50%;
+    border: 2px solid #28a745;
+    margin: 10px auto;
+    object-fit: cover;
+}
+    
 hr { border-top: 2px solid #28a745 !important; }
-
-/* --- BLOCOS DE TEMAS (SOBREPOSIÇÃO) --- */
-
-/* 1. DEEP OCEAN */
-.tema-ocean .stApp { background-color: #001219 !important; color: #94d2bd !important; }
-.tema-ocean [data-testid="stSidebar"] { background-color: #005f73 !important; }
-.tema-ocean [data-testid="stSidebar"] .stButton button { background-color: #94d2bd !important; border-radius: 20px !important; }
-.tema-ocean .user-card { border-color: #94d2bd; background: #00212b; }
-
-/* 2. VIOLET NEON */
-.tema-violet .stApp { background-color: #10002b !important; color: #e0aaff !important; }
-.tema-violet [data-testid="stSidebar"] { background-color: #240046 !important; }
-.tema-violet [data-testid="stSidebar"] .stButton button { background-color: #9d4edd !important; box-shadow: 0 0 10px #9d4edd; }
-.tema-violet .user-card { border-color: #9d4edd; box-shadow: 0 0 10px #7b2cbf; }
-
-/* 3. LUXURY GOLD */
-.tema-gold .stApp { background-color: #ffffff !important; color: #1a1a1a !important; }
-.tema-gold [data-testid="stSidebar"] { background-color: #1a1a1a !important; }
-.tema-gold [data-testid="stSidebar"] .stButton button { background: linear-gradient(45deg, #d4af37, #f9e29c) !important; border-radius: 0px !important; }
-.tema-gold .user-card { border: 1px solid #d4af37; border-radius: 0px; }
-
-/* 4. CYBER RED */
-.tema-red .stApp { background-color: #000 !important; color: #ff4d4d !important; }
-.tema-red [data-testid="stSidebar"] { background-color: #2b0000 !important; }
-.tema-red [data-testid="stSidebar"] .stButton button { background-color: #ff4d4d !important; border-radius: 0px !important; }
-.tema-red .user-card { border-left: 5px solid #ff4d4d; border-radius: 0px; }
-
-/* 5. ARCTIC CLEAN */
-.tema-arctic .stApp { background-color: #f0f4f8 !important; color: #2d3436 !important; }
-.tema-arctic [data-testid="stSidebar"] { background-color: #ffffff !important; border-right: 1px solid #ddd; }
-.tema-arctic [data-testid="stSidebar"] p, .tema-arctic [data-testid="stSidebar"] label { color: #2d3436 !important; }
-.tema-arctic [data-testid="stSidebar"] .stButton button { background-color: #a5d8ff !important; color: #003e7e !important; }
-.tema-arctic .user-card { background: #e1e8ed; border-color: #a5d8ff; color: #2d3436; }
-
-/* 6. FOREST DARK */
-.tema-forest .stApp { background-color: #1b4332 !important; color: #d8f3dc !important; }
-.tema-forest [data-testid="stSidebar"] { background-color: #081c15 !important; }
-.tema-forest [data-testid="stSidebar"] .stButton button { background-color: #52b788 !important; }
-
-/* 7. PINK NEON */
-.tema-pink .stApp { background-color: #000 !important; color: #ff007f !important; }
-.tema-pink [data-testid="stSidebar"] { background-color: #1a0012 !important; }
-.tema-pink [data-testid="stSidebar"] .stButton button { background-color: #ff007f !important; border-radius: 50px !important; }
-
-/* 8. SLATE MONO */
-.tema-slate .stApp { background-color: #2d3436 !important; color: #dfe6e9 !important; }
-.tema-slate [data-testid="stSidebar"] { background-color: #1e272e !important; }
-.tema-slate [data-testid="stSidebar"] .stButton button { background-color: #b2bec3 !important; }
-
-/* 9. SUNSET WINE */
-.tema-sunset .stApp { background-color: #fff5f5 !important; color: #6a040f !important; }
-.tema-sunset [data-testid="stSidebar"] { background-color: #9d0208 !important; }
-.tema-sunset [data-testid="stSidebar"] .stButton button { background-color: #faa307 !important; }
-
-/* 10. MATRIX */
-.tema-matrix .stApp { background-color: #000 !important; color: #00ff41 !important; font-family: 'Courier New', monospace !important; }
-.tema-matrix [data-testid="stSidebar"] { background-color: #000 !important; border-right: 1px solid #00ff41; }
-.tema-matrix [data-testid="stSidebar"] .stButton button { background-color: #003b00 !important; border: 1px solid #00ff41 !important; }
