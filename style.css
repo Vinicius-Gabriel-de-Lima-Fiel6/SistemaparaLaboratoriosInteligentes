@@ -1,61 +1,24 @@
-/* --- CSS GLOBAL (REGRAS DE FORÇA BRUTA PARA O CONTRASTE) --- */
+/* --- CSS GLOBAL ORIGINAL (FALLBACK PADRÃO) --- */
 .stApp { background-color: #f8f9fa; color: #212529; }
 [data-testid="stSidebar"] { background-color: #000000 !important; color: #ffffff !important; }
 
-/* 1. TEXTOS GERAIS DA SIDEBAR EM BRANCO */
-[data-testid="stSidebar"] p, 
-[data-testid="stSidebar"] label, 
-[data-testid="stSidebar"] span:not(.st-emotion-cache-1vt4581) { 
-    color: #ffffff !important; 
+[data-testid="stSidebar"] p, [data-testid="stSidebar"] label, [data-testid="stSidebar"] span:not(.st-emotion-cache-1vt4581) { color: #ffffff !important; }
+
+[data-testid="stSidebar"] .stButton button, [data-testid="stSidebar"] div[data-testid="stPopover"] > button {
+    background-color: #28a745 !important; border: none !important; width: 100% !important;
 }
 
-/* 2. BOTÕES VERDES (Texto Preto Fixo) */
-[data-testid="stSidebar"] .stButton button,
-[data-testid="stSidebar"] div[data-testid="stPopover"] > button {
-    background-color: #28a745 !important;
-    border: none !important;
-    width: 100% !important;
+[data-testid="stSidebar"] button p, [data-testid="stSidebar"] button span, [data-testid="stSidebar"] button div, [data-testid="stSidebar"] button svg {
+    color: #000000 !important; fill: #000000 !important; -webkit-text-fill-color: #000000 !important;
 }
 
-/* 3. A SOLUÇÃO DEFINITIVA: CAÇA O TEXTO BRANCO DENTRO DE QUALQUER BOTÃO E MUDA PARA PRETO */
-[data-testid="stSidebar"] button p, 
-[data-testid="stSidebar"] button span, 
-[data-testid="stSidebar"] button div,
-[data-testid="stSidebar"] button svg {
-    color: #000000 !important;
-    fill: #000000 !important;
-    -webkit-text-fill-color: #000000 !important; /* Força em navegadores Chrome/Edge */
-}
-
-/* Mantém preto absoluto mesmo no hover */
-[data-testid="stSidebar"] button:hover p, 
-[data-testid="stSidebar"] button:hover span, 
-[data-testid="stSidebar"] button:hover svg {
-    color: #000000 !important;
-    fill: #000000 !important;
-}
-
-/* Cartão de Usuário */
-.user-card {
-    background: #111;
-    border: 1px solid #28a745;
-    border-radius: 12px;
-    padding: 15px;
-    text-align: center;
-    margin-bottom: 10px;
-}
-.profile-img {
-    width: 75px; height: 75px;
-    border-radius: 50%;
-    border: 2px solid #28a745;
-    margin: 10px auto;
-    object-fit: cover;
-}
-    
+.user-card { background: #111; border: 1px solid #28a745; border-radius: 12px; padding: 15px; text-align: center; margin-bottom: 10px; }
+.profile-img { width: 75px; height: 75px; border-radius: 50%; border: 2px solid #28a745; margin: 10px auto; object-fit: cover; }
 hr { border-top: 2px solid #28a745 !important; }
 
+/* --- BLOCOS DE TEMAS (SOBREPOSIÇÃO) --- */
 
-* 1. DEEP OCEAN */
+/* 1. DEEP OCEAN */
 .tema-ocean .stApp { background-color: #001219 !important; color: #94d2bd !important; }
 .tema-ocean [data-testid="stSidebar"] { background-color: #005f73 !important; }
 .tema-ocean [data-testid="stSidebar"] .stButton button { background-color: #94d2bd !important; border-radius: 20px !important; }
