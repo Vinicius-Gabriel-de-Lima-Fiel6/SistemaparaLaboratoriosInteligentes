@@ -535,12 +535,9 @@ def show_tabelas():
                 st.link_button("PubChem (Compostos)", f"https://pubchem.ncbi.nlm.nih.gov/#query={q_url}")
                 st.link_button("NIST (Termodinâmica)", f"https://webbook.nist.gov/cgi/cbook.cgi?Name={q_url}&Units=SI")
                 st.link_button("ChemSpider", f"http://www.chemspider.com/Search.aspx?q={q_url}")
-
-        else:
-            # Estado inicial quando não há pesquisa - Seus links fixos organizados
-            st.info("Digite um termo acima para ativar os motores de busca estruturada.")
+        st.markdown("---")
+        st.subheader("🔗 Acessos Rápidos (Oficiais)")
         col_br, col_int, col_tools = st.columns(3)
-
         with col_br:
             st.subheader("🇧🇷 Brasil (Regulatório)")
             st.link_button("ANVISA - Farmacopeia", "https://www.gov.br/anvisa/pt-br/assuntos/farmacopeia", use_container_width=True)
@@ -566,6 +563,7 @@ def show_tabelas():
 
 if __name__ == "__main__":
     show_tabelas()
+
 
 
 
