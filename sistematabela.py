@@ -503,23 +503,42 @@ def show_tabelas():
         st.header("🌍 Central de Links e Bancos de Dados")
         st.caption("Acesso direto a fontes oficiais e ferramentas de pesquisa.")
         st.markdown("---")
-        busca = st.text_input("🔍 Filtrar links:", placeholder="Digite o nome do site ou órgão...").lower()
+        query = st.text_input("🔍 Pesquisa Ultraestruturada:", placeholder="Ex: Ibuprofeno, Mecanismo de reação, Nomenclatura IUPAC...")
         st.markdown("---")
 
-        # 3. Definição dos Dados
-        # Organizados por categorias para alimentar suas colunas
-        links_br = [
-            {"Nome": "ANVISA", "Link": "https://www.gov.br/anvisa/", "Desc": "Regulatório Brasil"},
-            {"Nome": "Farmacopeia BR", "Link": "https://www.gov.br/anvisa/pt-br/assuntos/farmacopeia", "Desc": "Padrões oficiais"}
-        ]
-        links_int = [
-            {"Nome": "PubChem", "Link": "https://pubchem.ncbi.nlm.nih.gov/", "Desc": "Dados Moleculares"},
-            {"Nome": "DrugBank", "Link": "https://go.drugbank.com/", "Desc": "Farmacologia"}
-        ]
-        links_tools = [
-            {"Nome": "NIST WebBook", "Link": "https://webbook.nist.gov/", "Desc": "Termodinâmica"},
-            {"Nome": "ChemSpider", "Link": "http://www.chemspider.com/", "Desc": "Estruturas"}
-        ]
+        if query:
+            st.subheader(f"🚀 Motores de Busca Direta: {query}")
+            
+            # Formatação da query para URLs (substituindo espaços por +)
+            q_url = query.replace(" ", "+")
+
+            # Layout em Colunas de Alta Precisão
+            col_scholar, col_docs, col_data = st.columns(3)
+
+            with col_scholar:
+                st.markdown("#### 🎓 Acadêmico & PDFs")
+                # Busca direta por PDFs no Scholar
+                st.link_button("Artigos Acadêmicos ( Scholar )", f"https://scholar.google.com/scholar?q={q_url}")
+                st.link_button("Apenas PDFs Técnicos", f"https://www.google.com/search?q={q_url}+filetype:pdf")
+                st.link_button("SciELO (Brasil/Latam)", f"https://search.scielo.org/?q={q_url}")
+
+            with col_docs:
+                st.markdown("#### 📜 Documentação & Leis")
+                # Busca dentro de órgãos oficiais
+                st.link_button("ANVISA (Consultas)", f"https://www.google.com/search?q=site:gov.br/anvisa+{q_url}")
+                st.link_button("Diretrizes ONU / WHO", f"https://www.who.int/home/search?indexCatalogue=genericindex&searchQuery={q_url}")
+                st.link_button("Patentes (Google Patents)", f"https://patents.google.com/?q={q_url}")
+
+            with col_data:
+                st.markdown("#### 🧪 Dados & Estruturas")
+                # Busca dentro de bancos de dados moleculares
+                st.link_button("PubChem (Compostos)", f"https://pubchem.ncbi.nlm.nih.gov/#query={q_url}")
+                st.link_button("NIST (Termodinâmica)", f"https://webbook.nist.gov/cgi/cbook.cgi?Name={q_url}&Units=SI")
+                st.link_button("ChemSpider", f"http://www.chemspider.com/Search.aspx?q={q_url}")
+
+        else:
+            # Estado inicial quando não há pesquisa - Seus links fixos organizados
+            st.info("Digite um termo acima para ativar os motores de busca estruturada.")
         col_br, col_int, col_tools = st.columns(3)
 
         with col_br:
@@ -547,6 +566,7 @@ def show_tabelas():
 
 if __name__ == "__main__":
     show_tabelas()
+
 
 
 
