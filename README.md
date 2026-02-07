@@ -1,52 +1,107 @@
-SynapseLab 🔬🤖
-SynapseLab é uma plataforma SaaS de última geração voltada para a gestão inteligente e automação de laboratórios químicos e biotecnológicos. O sistema integra agentes de IA especializados, gestão de estoque automatizada e uma infraestrutura robusta de hardware (ESP32/Raspberry Pi) para monitoramento em tempo real e segurança autônoma.
+SMARTLABS PLATFORM
+==================
 
-🚀 Funcionalidades Principais
-🧠 Inteligência Artificial & Ciência
-Calculadora Química com IA: Realiza cálculos estequiométricos complexos e previsões de reações.
+Plataforma Cyber-Física Inteligente para Laboratórios e Farmácias
+Indústria 4.0 • IA • Automação • Segurança • Compliance
 
-Agentes de IA Especializados: Integração direta com AlphaFold DB para predição de proteínas e outros motores de pesquisa científica.
+------------------------------------------------------------
 
-Relatórios Autônomos: Geração de insights e documentos técnicos baseados nos dados da empresa.
+DESCRIÇÃO GERAL
+---------------
+A SmartLabs Platform é um sistema WEB-FÍSICO de laboratórios inteligentes,
+projetado para integrar gestão digital, inteligência artificial e sistemas
+físicos automatizados em tempo real.
 
-Gráficos Científicos: Visualização avançada integrada a bancos de dados globais como PubChem.
+A plataforma conecta ambientes laboratoriais e farmacêuticos a sensores,
+atuadores, robôs autônomos e sistemas de visão computacional, garantindo
+segurança operacional, eficiência, compliance regulatório e tomada de decisão
+inteligente baseada em dados.
 
-💼 Gestão Empresarial (SaaS)
-Multi-tenancy: Banco de dados isolado por empresa via Supabase.
+------------------------------------------------------------
 
-Gestão de Permissões: Controle de acesso granular por nível de usuário e organização.
+PRINCIPAIS FUNCIONALIDADES
+--------------------------
 
-Estoque Inteligente: Sistema automático de entrada/saída com suporte a importação/exportação de dados.
+• Sistema Web Multiempresa (SaaS)
+• Cadastro, exclusão e gestão de empresas e usuários
+• Banco de dados em tempo real (Supabase)
+• Dashboards interativos com gráficos avançados
+• Calculadoras técnicas laboratoriais
+• Relatórios autônomos semanais por empresa
+• Integração com Excel, Power BI e Power Automate
+• Sistema de biblioteca científica e base de dados
+• Gestão de:
+  - Equipes
+  - Projetos
+  - Estoque
+  - Vidrarias
+  - Reagentes
+• Sistema completo de Inteligência Artificial
+• Arquitetura baseada em múltiplos agentes inteligentes
+• Monitoramento e controle de ambientes físicos
 
-Rastreabilidade: Sistema de QR Code para identificação imediata de substâncias e reagentes.
+------------------------------------------------------------
 
-🔌 Hardware & Automação (IoT)
-Ecossistema de Sensores: Rede de ESP32 monitorando bancadas, freezers, portas e prateleiras.
+INTEGRAÇÃO FÍSICA (CYBER-PHYSICAL SYSTEM)
+----------------------------------------
 
-Central de Controle: Raspberry Pi atuando como gateway entre os sensores locais e o servidor web.
+• Sensores de:
+  - Temperatura
+  - Criogenia
+  - Vibração
+  - Portas e armários
+  - Bancadas laboratoriais
+• Sistemas de contenção:
+  - Incêndio
+  - Vibrações excessivas
+• Robôs autônomos de contenção e segurança
+• Câmeras com visão computacional para:
+  - Detecção de EPIs
+  - Identificação de riscos
+  - Monitoramento comportamental
+• Controle físico via Web + IA
 
-Robô de Contenção: Unidade autônoma para proteção e mitigação de danos no ambiente laboratorial.
+------------------------------------------------------------
 
-Visão Computacional: Monitoramento via câmeras integrado ao dashboard para segurança e análise de fluxo.
+TECNOLOGIAS PRINCIPAIS
+---------------------
 
-🛠️ Stack Tecnológica
-Frontend/Backend: Sistema Web SaaS (Dashboard de controle).
+Frontend:
+• HTML5
+• CSS3
+• JavaScript (ES6+)
 
-Banco de Dados: Supabase (PostgreSQL) com arquitetura multi-empresa.
+Backend / Infra:
+• Supabase
+• APIs REST
+• Edge Functions
 
-Hardware: ESP32 (Sensores), Raspberry Pi (Gateway/Servidor local).
+Inteligência Artificial:
+• Modelos de IA Generativa
+• Agentes especializados
+• Visão Computacional
 
-IA: Integrações com AlphaFold, modelos de linguagem e visão computacional.
+Hospedagem:
+• Vercel
 
-📦 Estrutura do Projeto
-Plaintext
-├── software/           # Código fonte da plataforma Web/SaaS
-├── hardware/
-│   ├── esp32-sensors/  # Firmware dos sensores de bancada
-│   ├── raspberry-gw/   # Gateway de comunicação e processamento
-│   └── robot-core/     # Lógica do robô de contenção
-└── docs/               # Documentação técnica e manuais de usuário
-🔒 Segurança e Monitoramento
-O SynapseLab não apenas gerencia dados, mas protege o ambiente físico. A integração entre a visão computacional e os sensores de porta/freezer garante que qualquer anomalia seja reportada instantaneamente ao painel de controle e ao robô de proteção.
+------------------------------------------------------------
 
-Desenvolvido por SynapseLab – Conectando a inteligência artificial ao coração do laboratório.
+STATUS DO PROJETO
+-----------------
+• Versão: Beta (v0.1)
+• Web: Funcional (em evolução)
+• Sistemas físicos: Em simulação
+• IA: Em fase de integração progressiva
+
+------------------------------------------------------------
+
+OBJETIVO
+--------
+Criar a principal plataforma inteligente de gestão, segurança e automação
+para laboratórios e farmácias, alinhada aos conceitos de Indústria 4.0 e 5.0.
+
+------------------------------------------------------------
+
+LICENÇA
+-------
+Projeto proprietário – uso restrito.
