@@ -92,7 +92,7 @@ def tela_acesso():
         
         st.markdown("---")
         st.markdown("<p style='text-align: center; color: var(--text-gray);'>Se não tiver uma conta, clique abaixo:</p>", unsafe_allow_html=True)
-        st.link_button("Cadastro Empresarial", "https://cadastro-de-empresas-e7bkusdk4tsdchmx89fh8c.streamlit.app/", use_container_width=True)
+        st.link_button("Cadastro Empresarial", "https://synapselab-cadastro-clientes.vercel.app/", use_container_width=True)
 
 if not st.session_state.logado:
     tela_acesso()
@@ -264,3 +264,4 @@ else:
 
     st.sidebar.markdown("---")
     st.sidebar.caption("SynapseLab V.Beta")
+
