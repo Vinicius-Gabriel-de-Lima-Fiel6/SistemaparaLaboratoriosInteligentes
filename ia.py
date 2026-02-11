@@ -5,13 +5,17 @@ import PyPDF2
 import io
 from streamlit_mic_recorder import mic_recorder
 
-# --- 1. CONFIGURAÇÃO DA PÁGINA ---
-st.set_page_config(
-    page_title="SynapseLab AI ", 
-    page_icon="🧬",
-    layout="wide", 
-    initial_sidebar_state="collapsed"
-)
+# --- 1. CONFIGURAÇÃO DA PÁGINA (Apenas se executado isoladamente) ---
+# Se este arquivo for importado, o set_page_config deve ser ignorado ou tratado no app.py
+try:
+    st.set_page_config(
+        page_title="Synapselab AI", 
+        page_icon="🧬",
+        layout="wide", 
+        initial_sidebar_state="collapsed"
+    )
+except:
+    pass # Ignora se a página já foi configurada no app.py principal
 
 # --- 2. CSS AVANÇADO (Alinhamento Perfeito e UI Limpa) ---
 st.markdown("""
@@ -50,6 +54,7 @@ if "nome_arquivo" not in st.session_state: st.session_state.nome_arquivo = None
 
 # --- 4. MOTOR DE INTELIGÊNCIA ---
 def inicializar_motor():
+    # Tenta pegar dos secrets, se não, verifica se foi passado manual
     api_key = st.secrets.get("GROQ_API_KEY")
     if not api_key:
         return None, "⚠️ ERRO CRÍTICO: Chave API não encontrada nos secrets."
@@ -100,6 +105,7 @@ def processar_arquivo(uploaded_file):
             texto_extraido = "\n".join([p.extract_text() for p in leitor.pages if p.extract_text()])
         
         elif uploaded_file.name.endswith('.csv'):
+            uploaded_file.seek(0)
             df = pd.read_csv(uploaded_file)
             texto_extraido = df.to_string() # Converte tabela para string
             
@@ -117,7 +123,7 @@ def processar_arquivo(uploaded_file):
 def responder_ia(prompt, historico, contexto_arquivo=None, persona="Especialista Geral"):
     """Gera a resposta da IA com instruções de sistema rigorosas."""
     if not client_groq:
-        return "⚠️ O sistema não está conectado à API."
+        return "⚠️ O sistema não está conectado à API Groq."
 
     # Prompt do Sistema (System Message)
     instrucoes_sistema = (
@@ -137,9 +143,11 @@ def responder_ia(prompt, historico, contexto_arquivo=None, persona="Especialista
     
     # Adiciona contexto do arquivo se existir
     if contexto_arquivo:
-        mensagens.append({"role": "system", "content": f"### DADOS DO ARQUIVO CARREGADO ({st.session_state.nome_arquivo}):\n{contexto_arquivo[:20000]}..."}) # Limite de chars para não estourar
+        # Limite de segurança para tokens (aprox. 6000 palavras)
+        resumo_arquivo = contexto_arquivo[:25000]
+        mensagens.append({"role": "system", "content": f"### DADOS DO ARQUIVO CARREGADO ({st.session_state.nome_arquivo}):\n{resumo_arquivo}..."})
 
-    # Adiciona histórico recente (últimas 6 mensagens para economizar tokens)
+    # Adiciona histórico recente (últimas 6 mensagens para economizar tokens e manter foco)
     for m in historico[-6:]:
         if m["role"] != "system":
             mensagens.append({"role": m["role"], "content": m["content"]})
@@ -172,8 +180,8 @@ def responder_ia(prompt, historico, contexto_arquivo=None, persona="Especialista
 
 # --- 6. INTERFACE DE USUÁRIO (UI) ---
 
-def show_interface():
-    st.title("🔬 LabSmart AI - Hub de Inteligência")
+def show_chatbot():
+    st.subheader("🔬 SynapseLab AI - Hub de Inteligência")
     
     # Navegação
     aba_selecionada = st.radio(
@@ -197,7 +205,7 @@ def show_interface():
                 ["Bioquímico Sênior", "Auditor de Qualidade", "Cientista de Dados", "Engenheiro de Prompt"]
             )
 
-    # Dicionário de Ferramentas (Corrigido)
+    # Dicionário de Ferramentas
     dict_ferramentas = {
         "Lovable": {"desc": "Criação de interfaces web.", "url": "https://lovable.dev/"},
         "Gamma": {"desc": "Geração de slides e apresentações.", "url": "https://gamma.app/"},
@@ -214,7 +222,7 @@ def show_interface():
         for msg in st.session_state[chave_hist]:
             st.chat_message(msg["role"]).write(msg["content"])
 
-    # --- ÁREA DE INPUT (A Lógica Complexa) ---
+    # --- ÁREA DE INPUT (Layout Alinhado) ---
     st.write("") # Espaçamento
     col_tools, col_mic, col_input = st.columns([0.1, 0.1, 0.8])
 
@@ -226,10 +234,14 @@ def show_interface():
             
             # Processamento imediato do arquivo
             if arquivo_upload:
+                # Verifica se é um arquivo novo para não reprocessar à toa
                 if st.session_state.nome_arquivo != arquivo_upload.name:
                     with st.spinner("Processando dados..."):
-                        processar_arquivo(arquivo_upload)
-                        st.success("Dados carregados na memória!")
+                        res = processar_arquivo(arquivo_upload)
+                        if res:
+                            st.success("Dados carregados!")
+                        else:
+                            st.error("Falha ao ler arquivo.")
 
             st.divider()
             st.caption("🛠️ **Ferramentas Externas**")
@@ -246,12 +258,12 @@ def show_interface():
     # 2. Botão de Microfone
     audio_input_data = None
     with col_mic:
-        # mic_recorder retorna um dict quando termina a gravação
+        # mic_recorder
         audio_input_data = mic_recorder(
             start_prompt="🎙️", 
             stop_prompt="⏹️", 
             just_once=True,
-            key="recorder_main"
+            key=f"recorder_{chave_hist}" # Key dinâmica para não travar entre abas
         )
 
     # 3. Input de Texto
@@ -296,15 +308,14 @@ def show_interface():
                     persona_atual
                 )
                 
-                # Salva resposta no histórico (necessário pois o responder_ia faz stream mas não salva direto no state)
+                # Salva resposta no histórico
                 st.session_state[chave_hist].append({"role": "assistant", "content": resposta})
         
-        # Recarrega para limpar o input e preparar próxima interação
+        # Rerun para limpar input
         st.rerun()
 
 if __name__ == "__main__":
     if "GROQ_API_KEY" not in st.secrets:
         st.error("⛔ PARE: Você precisa configurar a 'GROQ_API_KEY' no arquivo .streamlit/secrets.toml")
-        st.info("Crie uma conta em https://console.groq.com/keys e adicione a chave.")
     else:
-        show_interface()
+        show_chatbot()
