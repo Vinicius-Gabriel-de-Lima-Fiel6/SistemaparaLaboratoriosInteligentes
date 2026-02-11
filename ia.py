@@ -9,7 +9,7 @@ from streamlit_mic_recorder import mic_recorder
 # Se este arquivo for importado, o set_page_config deve ser ignorado ou tratado no app.py
 try:
     st.set_page_config(
-        page_title="Synapselab AI", 
+        page_title="SynapseLab AI", 
         page_icon="🧬",
         layout="wide", 
         initial_sidebar_state="collapsed"
@@ -181,7 +181,7 @@ def responder_ia(prompt, historico, contexto_arquivo=None, persona="Especialista
 # --- 6. INTERFACE DE USUÁRIO (UI) ---
 
 def show_chatbot():
-    st.subheader("🔬 SynapseLab AI - Hub de Inteligência")
+    st.subheader("🔬 LabSmart AI - Hub de Inteligência")
     
     # Navegação
     aba_selecionada = st.radio(
