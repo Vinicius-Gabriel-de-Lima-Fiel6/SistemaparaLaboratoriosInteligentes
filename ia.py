@@ -3,319 +3,258 @@ import pandas as pd
 from groq import Groq
 import PyPDF2
 import io
+import time
 from streamlit_mic_recorder import mic_recorder
 
-# --- 1. CONFIGURAÇÃO DA PÁGINA (Apenas se executado isoladamente) ---
-# Se este arquivo for importado, o set_page_config deve ser ignorado ou tratado no app.py
-try:
-    st.set_page_config(
-        page_title="SynapseLab AI", 
-        page_icon="🧬",
-        layout="wide", 
-        initial_sidebar_state="collapsed"
-    )
-except:
-    pass # Ignora se a página já foi configurada no app.py principal
+# --- 1. CONFIGURAÇÃO DE AMBIENTE E CSS ---
+def aplicar_estilo_customizado():
+    """Aplica o CSS definitivo para alinhamento na base e design industrial."""
+    st.markdown("""
+        <style>
+        /* Ajuste de padding do container principal */
+        .block-container { padding-top: 1rem; padding-bottom: 2rem; }
+        
+        /* Alinhamento das colunas do input na base (Crucial para o visual da foto) */
+        [data-testid="column"] {
+            display: flex;
+            align-items: flex-end !important;
+            justify-content: center;
+            padding-bottom: 10px;
+        }
 
-# --- 2. CSS AVANÇADO (Alinhamento Perfeito e UI Limpa) ---
-st.markdown("""
-    <style>
-    /* Ajuste geral do container */
-    .block-container { padding-top: 1.5rem; }
-    
-    /* Alinha os botões (Mic e Popover) na base para nivelar com o Chat Input */
-    [data-testid="column"] {
-        display: flex;
-        align-items: flex-end !important;
-        justify-content: center;
-    }
+        /* Nivelamento do Popover e do Microfone com o Chat Input */
+        .stPopover, .stMicRecorder {
+            margin-bottom: 12px !important;
+        }
 
-    /* Remove margens extras dos componentes auxiliares */
-    .stPopover button, .stMicRecorder button {
-        border-radius: 8px !important;
-        height: 48px !important; /* Altura padrão do chat input */
-        width: 100% !important;
-    }
+        /* Estilo para botões dentro do Popover */
+        .stPopover button {
+            border-radius: 8px;
+        }
 
-    /* Estilo para mensagens de erro/aviso */
-    .stToast { background-color: #262730; color: white; }
-    
-    /* Ocultar elementos desnecessários do Streamlit */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    </style>
-    """, unsafe_allow_html=True)
+        /* Customização das mensagens de chat para legibilidade técnica */
+        .stChatMessage {
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+            margin-bottom: 10px;
+        }
 
-# --- 3. GESTÃO DE ESTADO (SESSION STATE) ---
-if "messages_geral" not in st.session_state: st.session_state.messages_geral = []
-if "messages_agente" not in st.session_state: st.session_state.messages_agente = []
-if "conteudo_arquivo" not in st.session_state: st.session_state.conteudo_arquivo = None
-if "nome_arquivo" not in st.session_state: st.session_state.nome_arquivo = None
+        /* Esconder labels vazios para evitar avisos de acessibilidade */
+        div[data-testid="stMarkdownContainer"] p {
+            margin-bottom: 0px;
+        }
+        </style>
+        """, unsafe_allow_html=True)
 
-# --- 4. MOTOR DE INTELIGÊNCIA ---
+# --- 2. MOTOR DE INTELIGÊNCIA (GROQ CORE) ---
 def inicializar_motor():
-    # Tenta pegar dos secrets, se não, verifica se foi passado manual
-    api_key = st.secrets.get("GROQ_API_KEY")
-    if not api_key:
-        return None, "⚠️ ERRO CRÍTICO: Chave API não encontrada nos secrets."
+    """Inicializa o cliente Groq com o modelo Llama 3.3 70B."""
+    if "GROQ_API_KEY" not in st.secrets:
+        return None, "CHAVE_API_AUSENTE"
     try:
-        client = Groq(api_key=api_key)
+        client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+        # Modelo atualizado conforme solicitação do usuário
         return client, "llama-3.3-70b-versatile"
-    except Exception as e:
-        return None, f"⚠️ Erro de Conexão: {e}"
+    except Exception:
+        return None, "ERRO_CONEXAO"
 
 client_groq, modelo_ativo = inicializar_motor()
 
-# --- 5. FUNÇÕES TÉCNICAS (Core) ---
+# --- 3. FUNÇÕES TÉCNICAS (PROCESSAMENTO DE DADOS) ---
 
-def transcrever_audio(audio_data):
-    """Converte áudio em texto usando Whisper via Groq."""
-    if not client_groq: 
-        st.error("Motor de IA não inicializado.")
+def transcrever_audio(audio_bytes):
+    """Converte áudio (bytes) em texto usando Whisper-Large-v3."""
+    if not client_groq or not audio_bytes:
         return None
-    
-    if not audio_data or 'bytes' not in audio_data:
-        return None
-
     try:
-        # Cria um arquivo em memória com nome .wav para a API aceitar
-        audio_bytes = audio_data['bytes']
         audio_file = io.BytesIO(audio_bytes)
-        audio_file.name = "gravacao.wav" 
-        
-        transcription = client_groq.audio.transcriptions.create(
+        audio_file.name = "audio_temp.wav"
+        transcricao = client_groq.audio.transcriptions.create(
             file=(audio_file.name, audio_file.read()),
             model="whisper-large-v3",
             response_format="text",
             language="pt"
         )
-        return transcription
+        return transcricao
     except Exception as e:
-        st.error(f"Erro na transcrição: {e}")
+        st.toast(f"🎤 Erro na transcrição: {str(e)}", icon="⚠️")
         return None
 
-def processar_arquivo(uploaded_file):
-    """Extrai texto de PDF, CSV ou TXT e salva no estado."""
-    if not uploaded_file: return None
-    
-    texto_extraido = ""
+def extrair_dados_tecnicos(arquivo):
+    """Extrai texto de múltiplos formatos (PDF, CSV, TXT) com tratamento de erro."""
+    if not arquivo:
+        return None
     try:
-        if uploaded_file.name.endswith('.pdf'):
-            leitor = PyPDF2.PdfReader(io.BytesIO(uploaded_file.read()))
-            texto_extraido = "\n".join([p.extract_text() for p in leitor.pages if p.extract_text()])
-        
-        elif uploaded_file.name.endswith('.csv'):
-            uploaded_file.seek(0)
-            df = pd.read_csv(uploaded_file)
-            texto_extraido = df.to_string() # Converte tabela para string
-            
-        elif uploaded_file.name.endswith('.txt'):
-            texto_extraido = uploaded_file.read().decode("utf-8")
-            
-        # Salva no estado para persistência
-        st.session_state.conteudo_arquivo = texto_extraido
-        st.session_state.nome_arquivo = uploaded_file.name
-        return texto_extraido
+        extensao = arquivo.name.split('.')[-1].lower()
+        if extensao == 'pdf':
+            leitor = PyPDF2.PdfReader(io.BytesIO(arquivo.read()))
+            return "\n".join([pagina.extract_text() for pagina in leitor.pages if pagina.extract_text()])
+        elif extensao == 'csv':
+            df = pd.read_csv(arquivo)
+            return df.to_string()
+        elif extensao == 'txt':
+            return arquivo.read().decode("utf-8")
+        return "Formato não suportado."
     except Exception as e:
-        st.toast(f"Erro ao ler arquivo: {e}", icon="❌")
+        st.toast(f"📂 Falha no processamento do arquivo: {str(e)}", icon="❌")
         return None
 
-def responder_ia(prompt, historico, contexto_arquivo=None, persona="Especialista Geral"):
-    """Gera a resposta da IA com instruções de sistema rigorosas."""
+def responder_ia(prompt, historico, dados_contexto=None, especialidade="Geral"):
+    """Gerador de respostas com rigor científico PhD e Negação de Alucinação."""
     if not client_groq:
-        return "⚠️ O sistema não está conectado à API Groq."
+        return "🚨 ERRO SISTÊMICO: Núcleo Groq não inicializado."
 
-    # Prompt do Sistema (System Message)
-    instrucoes_sistema = (
-        f"VOCÊ É O NÚCLEO LABSMART AI - PERFIL: {persona}.\n"
-        "STATUS OPERACIONAL: MÁXIMA PRECISÃO.\n\n"
-        "PROTOCOLOS OBRIGATÓRIOS:\n"
-        "1. ESTRUTURA: Responda sempre em Markdown bem formatado.\n"
-        "2. RACIOCÍNIO: Pense passo-a-passo: [Análise] -> [Teoria] -> [Aplicação].\n"
-        "3. CÁLCULOS: Para qualquer matemática, forneça o script Python completo para validação.\n"
-        "4. SEGURANÇA: Se houver risco biológico, químico ou de dados, emita um ALERTA VERMELHO.\n"
-        "5. CONTEXTO: Use os dados do arquivo fornecido como verdade absoluta se disponíveis.\n"
-        "6. ESTILO: Seja direto, técnico e elimine verborragia desnecessária."
+    diretriz_phd = (
+        f"VOCÊ É O NÚCLEO LABSMART AI - DOUTORADO EM {especialidade.upper()}.\n"
+        "STATUS: OPERAÇÃO EM TEMPO REAL (FEVEREIRO 2026).\n\n"
+        "PROTOCOLOS RÍGIDOS:\n"
+        "1. PENSAMENTO PROCEDIMENTAL: Decompunha o problema: [DADOS] > [TEORIA APLICADA] > [CÁLCULO] > [VALIDAÇÃO].\n"
+        "2. RIGOR MATEMÁTICO: Use 8 casas decimais. Forneça o código Python para simulação completa de cada conta.\n"
+        "3. SEGURANÇA: Verifique interações CYP450, farmacocinética e normas ABNT/ISO/FDA. Se houver risco >= 0.01%, aplique VETO TERMINAL.\n"
+        "4. NEGAÇÃO DE ALUCINAÇÃO: Se faltar dado, responda estritamente: 'ESTADO DE INCERTEZA SISTÊMICA'.\n"
+        "5. VISUALIZAÇÃO: Descreva a estrutura para um mini-gráfico referente aos dados analisados."
     )
-    
-    # Montagem das mensagens
-    mensagens = [{"role": "system", "content": instrucoes_sistema}]
-    
-    # Adiciona contexto do arquivo se existir
-    if contexto_arquivo:
-        # Limite de segurança para tokens (aprox. 6000 palavras)
-        resumo_arquivo = contexto_arquivo[:25000]
-        mensagens.append({"role": "system", "content": f"### DADOS DO ARQUIVO CARREGADO ({st.session_state.nome_arquivo}):\n{resumo_arquivo}..."})
 
-    # Adiciona histórico recente (últimas 6 mensagens para economizar tokens e manter foco)
-    for m in historico[-6:]:
+    mensagens = [{"role": "system", "content": diretriz_phd}]
+    
+    # Mantém contexto histórico sem sobrecarga (últimas 10 interações)
+    for m in historico[-10:]:
         if m["role"] != "system":
             mensagens.append({"role": m["role"], "content": m["content"]})
     
-    mensagens.append({"role": "user", "content": prompt})
+    # Inserção de contexto de arquivo se existir
+    input_formatado = f"CONTEXTO TÉCNICO:\n{dados_contexto}\n\nPERGUNTA: {prompt}" if dados_contexto else prompt
+    mensagens.append({"role": "user", "content": input_formatado})
 
     try:
-        completion = client_groq.chat.completions.create(
+        response = client_groq.chat.completions.create(
             model=modelo_ativo,
             messages=mensagens,
-            temperature=0.1, # Baixa temperatura para precisão
-            max_tokens=2048,
-            stream=True
+            temperature=0.0,  # Zero para máxima precisão científica
+            max_tokens=4096
         )
-        
-        # Generator para streamar a resposta
-        resposta_completa = ""
-        placeholder = st.empty()
-        for chunk in completion:
-            if chunk.choices[0].delta.content:
-                texto_chunk = chunk.choices[0].delta.content
-                resposta_completa += texto_chunk
-                placeholder.markdown(resposta_completa + "▌")
-        
-        placeholder.markdown(resposta_completa)
-        return resposta_completa
-
+        return response.choices[0].message.content
     except Exception as e:
-        return f"⚠️ FALHA NO NÚCLEO DE PROCESSAMENTO: {str(e)}"
+        return f"⚠️ ESTADO DE INCERTEZA SISTÊMICA: Erro na conexão ({str(e)})"
 
-# --- 6. INTERFACE DE USUÁRIO (UI) ---
+# --- 4. INTERFACE DO USUÁRIO (MODULE ENTRY POINT) ---
 
 def show_chatbot():
-    st.subheader("🔬 LabSmart AI - Hub de Inteligência")
+    """Função principal que renderiza o Hub de IA."""
+    aplicar_estilo_customizado()
+
+    # Inicialização de estados (Session State)
+    if "messages_geral" not in st.session_state: st.session_state.messages_geral = []
+    if "messages_agente" not in st.session_state: st.session_state.messages_agente = []
     
-    # Navegação
-    aba_selecionada = st.radio(
-        "Modo de Operação:", 
+    st.subheader("🔬 Synapse AI - Hub de Inteligência")
+
+    # Seleção de Ambiente (Tabs)
+    escolha_aba = st.radio(
+        "Ambiente:", 
         ["💬 Chat Científico", "👥 Squad de Agentes"], 
         horizontal=True, 
         label_visibility="collapsed"
     )
     st.divider()
 
-    # Configuração de Persona e Histórico baseado na aba
-    if aba_selecionada == "💬 Chat Científico":
-        chave_hist = "messages_geral"
-        persona_atual = "Consultor Sênior em Engenharia e Medicina"
-    else:
-        chave_hist = "messages_agente"
-        col_persona, _ = st.columns([1, 3])
-        with col_persona:
-            persona_atual = st.selectbox(
-                "Especialista Ativo:", 
-                ["Bioquímico Sênior", "Auditor de Qualidade", "Cientista de Dados", "Engenheiro de Prompt"]
-            )
-
-    # Dicionário de Ferramentas
+    # Dicionário de Ferramentas (Mantendo a estrutura original solicitada)
     dict_ferramentas = {
-        "Lovable": {"desc": "Criação de interfaces web.", "url": "https://lovable.dev/"},
-        "Gamma": {"desc": "Geração de slides e apresentações.", "url": "https://gamma.app/"},
-        "SciSpace": {"desc": "Pesquisa em papers acadêmicos.", "url": "https://typeset.io/"},
-        "AlphaFold DB": {"desc": "Banco de dados de estruturas proteicas.", "url": "https://alphafold.ebi.ac.uk/"}
+        "Lovable": {"desc": "Crie interfaces e protótipos de sistemas internos sem programar.", "url": "https://lovable.dev/"},
+        "Gamma": {"desc": "Transforme dados em apresentações profissionais em segundos.", "url": "https://gamma.app/"},
+        "Manus": {"desc": "Agente de IA para execução de tarefas digitais e pesquisas.", "url": "https://manus.ai/"},
+        "Perplexity": {"desc": "Buscador técnico para verificação de artigos e fatos.", "url": "https://www.perplexity.ai/"},
+        "AlphaFold": {
+            "desc": "IA para predição de estruturas de proteínas.",
+            "sub": {
+                "Protein Database": {"desc": "Acesso a 200M+ estruturas de proteínas.", "url": "https://alphafold.ebi.ac.uk/"},
+                "AlphaFold Server": {"desc": "Ferramenta para prever novas interações.", "url": "https://alphafoldserver.com/"},
+                "AlphaFold Colab": {"desc": "Execução via código para pesquisas.", "url": "https://colab.research.google.com/"}
+            }
+        }
     }
 
-    # Container de Chat
-    chat_container = st.container(height=500)
+    # Definição de Persona baseada na aba
+    if escolha_aba == "💬 Chat Científico":
+        h_key, persona = "messages_geral", "Consultor Sênior em Engenharia e Medicina"
+    else:
+        h_key = "messages_agente"
+        col_esp, _ = st.columns([1, 2])
+        with col_esp:
+            persona = st.selectbox("Especialista Ativo:", ["Bioquímico Sênior", "Auditor de Qualidade", "Escritor Técnico"])
+
+    # Exibição do Histórico de Mensagens
+    chat_container = st.container(height=500, border=False)
     with chat_container:
-        if not st.session_state[chave_hist]:
-            st.markdown(f"*O sistema está pronto. Especialista **{persona_atual}** online.*")
+        for m in st.session_state[h_key]:
+            with st.chat_message(m["role"]):
+                st.write(m["content"])
+
+    # --- BARRA DE COMANDO (ALINHADA À FASE DE INPUT) ---
+    input_row = st.container()
+    with input_row:
+        c_plus, c_mic, c_txt = st.columns([0.07, 0.07, 0.86])
         
-        for msg in st.session_state[chave_hist]:
-            st.chat_message(msg["role"]).write(msg["content"])
+        with c_plus:
+            with st.popover("➕", use_container_width=True):
+                st.markdown("### 📎 Arquivos e Ferramentas")
+                # RESOLUÇÃO DO ERRO DE LABEL: Label com texto ocultado via visibility
+                up_file = st.file_uploader("Enviar base de dados técnica", type=["pdf", "csv", "txt"], label_visibility="collapsed", key="uploader_principal")
+                
+                st.divider()
+                st.markdown("### 🛠️ Auxiliares")
+                ft_sel = st.selectbox("Selecionar Ferramenta:", list(dict_ferramentas.keys()), label_visibility="visible")
+                
+                if ft_sel == "AlphaFold":
+                    sub_sel = st.selectbox("Tipo de acesso:", list(dict_ferramentas["AlphaFold"]["sub"].keys()))
+                    info = dict_ferramentas["AlphaFold"]["sub"][sub_sel]
+                else:
+                    info = dict_ferramentas[ft_sel]
 
-    # --- ÁREA DE INPUT (Layout Alinhado) ---
-    st.write("") # Espaçamento
-    col_tools, col_mic, col_input = st.columns([0.1, 0.1, 0.8])
+                st.info(info["desc"])
+                st.link_button(f"Abrir {ft_sel}", info["url"], use_container_width=True)
 
-    # 1. Botão de Ferramentas e Upload
-    with col_tools:
-        with st.popover("➕", use_container_width=True):
-            st.caption("📂 **Análise de Arquivos**")
-            arquivo_upload = st.file_uploader("", type=["pdf", "csv", "txt"], key="main_uploader")
-            
-            # Processamento imediato do arquivo
-            if arquivo_upload:
-                # Verifica se é um arquivo novo para não reprocessar à toa
-                if st.session_state.nome_arquivo != arquivo_upload.name:
-                    with st.spinner("Processando dados..."):
-                        res = processar_arquivo(arquivo_upload)
-                        if res:
-                            st.success("Dados carregados!")
-                        else:
-                            st.error("Falha ao ler arquivo.")
+                if st.button("🗑️ Limpar Conversa", type="primary", use_container_width=True):
+                    st.session_state[h_key] = []
+                    st.rerun()
 
-            st.divider()
-            st.caption("🛠️ **Ferramentas Externas**")
-            ferramenta = st.selectbox("Link Rápido:", list(dict_ferramentas.keys()))
-            if st.button("Acessar Link", use_container_width=True):
-                st.markdown(f"[Abrir {ferramenta}]({dict_ferramentas[ferramenta]['url']})")
-            
-            if st.button("🗑️ Limpar Memória", type="primary", use_container_width=True):
-                st.session_state[chave_hist] = []
-                st.session_state.conteudo_arquivo = None
-                st.session_state.nome_arquivo = None
-                st.rerun()
+        with c_mic:
+            # Key dinâmica para evitar conflito entre abas
+            gravacao = mic_recorder(start_prompt="🎙️", stop_prompt="⏹️", just_once=True, key=f"mic_{h_key}")
 
-    # 2. Botão de Microfone
-    audio_input_data = None
-    with col_mic:
-        # mic_recorder
-        audio_input_data = mic_recorder(
-            start_prompt="🎙️", 
-            stop_prompt="⏹️", 
-            just_once=True,
-            key=f"recorder_{chave_hist}" # Key dinâmica para não travar entre abas
-        )
+        with c_txt:
+            prompt_texto = st.chat_input("Digite sua dúvida técnica ou use o microfone...")
 
-    # 3. Input de Texto
-    with col_input:
-        texto_input = st.chat_input("Digite sua pergunta técnica...")
+    # --- PROCESSAMENTO DE ENTRADA (LÓGICA BLINDADA) ---
+    entrada_final = None
 
-    # --- LÓGICA DE UNIFICAÇÃO DE ENTRADA ---
-    prompt_final = None
+    if prompt_texto:
+        entrada_final = prompt_texto
+    elif gravacao and gravacao.get('bytes'):
+        with st.spinner("Decodificando áudio..."):
+            entrada_final = transcrever_audio(gravacao['bytes'])
 
-    # Prioridade 1: Texto digitado
-    if texto_input:
-        prompt_final = texto_input
-    
-    # Prioridade 2: Áudio gravado (se houver dados novos)
-    elif audio_input_data and 'bytes' in audio_input_data:
-        with st.spinner("Transcrevendo áudio..."):
-            texto_transcrito = transcrever_audio(audio_input_data)
-            if texto_transcrito:
-                prompt_final = texto_transcrito
-
-    # Execução da Resposta
-    if prompt_final:
-        # Exibe pergunta do usuário
+    if entrada_final:
+        # Adiciona entrada ao histórico
+        st.session_state[h_key].append({"role": "user", "content": entrada_final})
         with chat_container:
-            st.chat_message("user").write(prompt_final)
-        
-        # Salva no histórico
-        st.session_state[chave_hist].append({"role": "user", "content": prompt_final})
+            with st.chat_message("user"):
+                st.write(entrada_final)
 
-        # Gera resposta da IA
+        # Extração de contexto de arquivo
+        conteudo_anexo = extrair_dados_tecnicos(up_file) if up_file else None
+
+        # Resposta da IA
         with chat_container:
             with st.chat_message("assistant"):
-                # Aviso visual se houver arquivo em contexto
-                if st.session_state.conteudo_arquivo:
-                    st.caption(f"📎 Analisando com base em: {st.session_state.nome_arquivo}")
-                
-                # Chama a IA
-                resposta = responder_ia(
-                    prompt_final, 
-                    st.session_state[chave_hist], 
-                    st.session_state.conteudo_arquivo, 
-                    persona_atual
-                )
-                
-                # Salva resposta no histórico
-                st.session_state[chave_hist].append({"role": "assistant", "content": resposta})
+                with st.spinner(f"O {persona} está processando..."):
+                    resposta_ia = responder_ia(entrada_final, st.session_state[h_key], conteudo_anexo, persona)
+                    st.write(resposta_ia)
+                    st.session_state[h_key].append({"role": "assistant", "content": resposta_ia})
         
-        # Rerun para limpar input
+        # Rerun controlado para atualizar interface
         st.rerun()
 
+# --- DISPARO DO MÓDULO ---
 if __name__ == "__main__":
-    if "GROQ_API_KEY" not in st.secrets:
-        st.error("⛔ PARE: Você precisa configurar a 'GROQ_API_KEY' no arquivo .streamlit/secrets.toml")
-    else:
-        show_chatbot()
+    show_chatbot()
